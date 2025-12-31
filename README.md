@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏃 Coach'em - MVP de Gestão de Performance Esportiva
 
 ## 📋 Sobre o Projeto
@@ -179,4 +180,3 @@ Projeto privado - desenvolvimento em andamento
 ---
 
 **Status:** 🚧 Em desenvolvimento ativo (fase de aprendizado e MVP)
-
