@@ -5,8 +5,11 @@
  * Vamos explicar TUDO linha por linha!
  */
 
+import { UserType } from '@/src/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
+
 
 /**
  * O QUE É ISSO?
@@ -16,22 +19,33 @@ import { Text, TouchableOpacity, View } from 'react-native';
  */
 export default function HomeScreen() {
 
-  const [contador, setContador] = useState(0);
-
-  const aumentar = () => {
-    setContador(contador + 1);
-  };
-  const diminuir = () => {
-    setContador(contador - 1);
-  };
   
+  const [userType, setUserType] = useState<UserType | null>(null);
+
+  const mockAthletes = [
+    { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
+    { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo'},
+    { id: '3', name: 'Pedro Santos', sport: 'Basquete', status: 'Ativo'},
+    { id: '4', name: 'Ana Souza', sport: 'Atletismo', status: 'Ativo'},
+    { id: '5', name: 'Carlos Ferreira', sport: 'Futebol', status: 'Ativo'},
+    { id: '6', name: 'Laura Rodrigues', sport: 'Vôlei', status: 'Ativo'},
+    { id: '7', name: 'Rafael Oliveira', sport: 'Basquete', status: 'Ativo'},
+    { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
+  ]
+  
+
   useEffect(() => {
-    console.log('Contador mudar para:', contador);
-    alert(`Contador mudou para: ${contador}`);
-  }, [contador]);
+    const loadUserType = async () => {
+      const savedType = await AsyncStorage.getItem('userType');
+      if (savedType) {
+        setUserType(savedType as UserType);
+      }
+    };
+    loadUserType();
+  }, []);
   
   return (
-    <View className="flex-1 items-center justify-center bg-white">
+    <View className="flex-1 bg-white px-6 pt-12">
       {/* 
         EXPLICAÇÃO DAS CLASSES (NativeWind/Tailwind):
         - flex-1 = Ocupa todo o espaço disponível
@@ -55,36 +69,76 @@ export default function HomeScreen() {
         Bem-vindo ao seu app de gestão esportiva!
       </Text>
 
-      <Text className="text-6xl font-bold text-primary-600 mb-8">
-        {contador}
-      </Text>
-      {/* 
-        EXPLICAÇÃO DAS CLASSES:
-        - text-neutral-600 = Cor do texto (cinza médio)
-        - text-center = Texto centralizado
-        - mb-8 = Margem inferior maior
-        - px-4 = Padding horizontal (espaço nas laterais)
-      */}
+      {userType && (
+        <Text className="text-xl font-semibold text-primary-600 mb-4">
+          Você está logado como: {userType === UserType.COACH ? 'Treinador' : 'Atleta'}
 
-      <View className="flex-row gap-4">
-        <TouchableOpacity className="bg-red-500 rounded-lg px-8 py-4"
-           onPress={diminuir}
-        >
-          <Text className="text-white font-bold text-2xl">
-            -
+        </Text>
+      )}
+
+      {userType === UserType.COACH ? (
+        //Dashboard do Treinador
+        <View className="w-full mt-8">
+          <Text className="text-2xl font-bold text-neutral-900 mb-6">
+            Dashboard do Treinador
+          </Text>
+          <Text className="text-neutral-600 mb-6">
+            Gerencie seus atletas e crie treinos personalizados.
           </Text>
 
-        </TouchableOpacity>
+          <View className="flex-col gap-4 mb-6">
+            <TouchableOpacity className="bg-primary-600 rounded-lg py-4 px-6"
+             onPress={() => Alert.alert('Biblioteca de Exercícios', 'Em breve você poredá gerenciar seus exercícios aqui!')}
+             >
+              <Text className="text-white font-semibold text-center text-lg">
+               Biblioteca de Exercícios
+              </Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity className="bg-green-500 rounded-lg px-8 py-4"
-          onPress={aumentar}
-        >
-          <Text className="text-white font-bold text-2xl">
-            +
+
+
+            <TouchableOpacity className="bg-primary-600 rounded-lg py-4 px-6"
+             onPress={() => Alert.alert('Criar Treino', 'Em breve você poderá criar seus treinos aqui!')}
+             >
+              <Text className="text-white font-semibold text-center text-lg">
+               Criar Treino
+
+              </Text>
+             </TouchableOpacity>
+          </View>
+
+          <View className="w-full mt-6">
+            <Text className="text-xl font-bold text-neutral-900 mb-4">
+              Meus Atletas ({mockAthletes.length})
+            </Text>
+
+            {mockAthletes.map((athlete) => (
+              <View key={athlete.id} className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200">
+                <Text className="text-lg font-semibold text-neutral-900">
+                  {athlete.name}
+                </Text>
+                <Text className="text-neutral-600 mt-1">
+                  {athlete.sport}* {athlete.status}
+                </Text>
+              </View>
+            ))}
+
+          </View>
+
+        </View>
+      ) : userType === UserType.ATHLETE ? (
+        //Dashboard do Atleta
+        <View className="w-full mt-8">
+          <Text className="text-2xl font-bold text-neutral-900 mb-6">
+            Dashboard do Atleta
           </Text>
-        </TouchableOpacity>
+          <Text className="text-neutral-600 mb-6">
+            Veja seus treinos atribuidos e acompanhe seu progresso.
+          </Text>
+        </View>
+      
+      ) : null}
 
-      </View>
     </View>
   );
 }
