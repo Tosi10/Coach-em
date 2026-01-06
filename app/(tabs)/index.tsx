@@ -8,7 +8,8 @@
 import { UserType } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
 
 
 /**
@@ -33,6 +34,43 @@ export default function HomeScreen() {
     { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
   ]
   
+  const mockWorkouts = [
+    {
+      id: '1',
+      name: 'Treino de Força - Pernas',
+      date: '2026-01-06',
+      status: 'Concluído',
+      coach: 'João Silva',
+    },
+    {
+      id: '2',
+      name: 'Treino de Força - Peito',
+      date: '2026-01-07',
+      status: 'Pendente',
+      coach: 'Maria Oliveira',
+    },
+    {
+      id: '3',
+      name: 'Treino de Força - Costas',
+      date: '2026-01-08',
+      status: 'Pendente',
+      coach: 'João Silva',
+    },
+    {
+      id: '4',
+      name: 'Treino de Força - Bíceps',
+      date: '2026-01-09',
+      status: 'Pendente',
+      coach: 'Ana Souza',
+    },
+    {
+      id: '5',
+      name: 'Treino de Força - Tríceps',
+      date: '2026-01-10',
+      status: 'Pendente',
+      coach: 'Carlos Ferreira',
+    },
+  ]
 
   useEffect(() => {
     const loadUserType = async () => {
@@ -45,7 +83,8 @@ export default function HomeScreen() {
   }, []);
   
   return (
-    <View className="flex-1 bg-white px-6 pt-12">
+    <ScrollView className="flex-1 bg-white px-6 pt-12">
+    <View className="flex-1 bg-white px-2 pt-12">
       {/* 
         EXPLICAÇÃO DAS CLASSES (NativeWind/Tailwind):
         - flex-1 = Ocupa todo o espaço disponível
@@ -135,11 +174,53 @@ export default function HomeScreen() {
           <Text className="text-neutral-600 mb-6">
             Veja seus treinos atribuidos e acompanhe seu progresso.
           </Text>
+
+          <View className="w-full mt-6">
+            <Text className="text-xl font-bold text-neutral-900 mb-4">
+              Meus treinos ({mockWorkouts.length})
+            </Text>
+
+            {mockWorkouts.map((workout) => (
+              <View
+                key={workout.id}
+                className={`rounded-lg p-4 mb-3 border ${ workout.status === 'Concluído' 
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-yellow-50 border-yellow-200'}`}
+              >
+                <View className="flex-row justify-between items-start mb-2">
+                  <Text className="text-lg font-semibold text-neutral-900 flex-1">
+                    {workout.name}
+                  </Text>
+                  <View className={`px-3 py-1 rounded-full ${
+                    workout.status === 'Concluído' 
+                    ? 'bg-green-100'
+                    : 'bg-yellow-100'
+                  }`}>
+                    <Text className={`text-xs font-semibold ${
+                      workout.status === 'Concluído' 
+                      ? 'text-green-700'
+                      :'text-yellow-700'
+                    }`}>
+                      {workout.status}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text className="text-neutral-600 text-sm">
+                  Treinador: {workout.coach}
+                </Text>
+                <Text className="text-neutral-600 text-sm">
+                  Data: {workout.date}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       
       ) : null}
 
     </View>
+    </ScrollView>
   );
 }
 
