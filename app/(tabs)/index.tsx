@@ -7,8 +7,11 @@
 
 import { UserType } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
 
 
 
@@ -20,7 +23,7 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
  */
 export default function HomeScreen() {
 
-  
+  const router = useRouter();
   const [userType, setUserType] = useState<UserType | null>(null);
 
   const mockAthletes = [
@@ -34,7 +37,7 @@ export default function HomeScreen() {
     { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
   ]
   
-  const mockWorkouts = [
+  const [workouts, setWorkouts] = useState([
     {
       id: '1',
       name: 'Treino de Força - Pernas',
@@ -70,7 +73,7 @@ export default function HomeScreen() {
       status: 'Pendente',
       coach: 'Carlos Ferreira',
     },
-  ]
+  ])
 
   useEffect(() => {
     const loadUserType = async () => {
@@ -78,13 +81,50 @@ export default function HomeScreen() {
       if (savedType) {
         setUserType(savedType as UserType);
       }
+
+      const updatedWorkouts = await Promise.all(
+        workouts.map(async (workout) => {
+          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
+          if(savedStatus) {
+            return {...workout,status: savedStatus };
+          }
+          return workout;
+        })
+      )
     };
     loadUserType();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadWorkoutStatuses = async () => {
+        const updatedWorkouts = await Promise.all(
+          workouts.map(async (workout) => {
+            const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
+            if (savedStatus) {
+              return { ...workout, status: savedStatus };
+            }
+            return workout;
+          })
+        );
+        setWorkouts(updatedWorkouts);
+      };
+      loadWorkoutStatuses();
+    }, [workouts.length]
+  ));
+
+  const markWorkoutAsCompleted =(workoutId: string) => {
+    setWorkouts(workouts.map((workout) => {
+      if (workout.id === workoutId) {
+        return {...workout, status: 'Concluído'};
+      }
+      return workout;
+    }));
+  };
   
   return (
     <ScrollView className="flex-1 bg-white px-6 pt-12">
-    <View className="flex-1 bg-white px-2 pt-12">
+    <View className="flex-1 bg-white px-2 pt-12 pb-20">
       {/* 
         EXPLICAÇÃO DAS CLASSES (NativeWind/Tailwind):
         - flex-1 = Ocupa todo o espaço disponível
@@ -177,15 +217,22 @@ export default function HomeScreen() {
 
           <View className="w-full mt-6">
             <Text className="text-xl font-bold text-neutral-900 mb-4">
-              Meus treinos ({mockWorkouts.length})
+              Meus treinos ({workouts.length})
             </Text>
 
-            {mockWorkouts.map((workout) => (
-              <View
+            {workouts.map((workout) => (
+              <TouchableOpacity
                 key={workout.id}
                 className={`rounded-lg p-4 mb-3 border ${ workout.status === 'Concluído' 
                   ? 'bg-green-50 border-green-200'
                   : 'bg-yellow-50 border-yellow-200'}`}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/workout-details',
+                      params: { workoutId: workout.id }
+                    });
+                  }}
+                  
               >
                 <View className="flex-row justify-between items-start mb-2">
                   <Text className="text-lg font-semibold text-neutral-900 flex-1">
@@ -212,7 +259,7 @@ export default function HomeScreen() {
                 <Text className="text-neutral-600 text-sm">
                   Data: {workout.date}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
