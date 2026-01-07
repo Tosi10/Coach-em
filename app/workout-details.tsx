@@ -7,7 +7,9 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View, } from 'react-native';
+
 
 // Dados mockados de exercícios (temporário - depois virá do Firebase)
 const mockExercises = {
@@ -81,10 +83,24 @@ export default function WorkoutDetailsScreen() {
   const { workoutId } = useLocalSearchParams();
   
   // Buscar o treino correspondente
-  const workout = mockWorkouts.find(w => w.id === workoutId);
+  const [workout, setWorkout] = useState( mockWorkouts.find(w => w.id === workoutId));
+
+  useEffect(() => {
+    const loadWorkoutStatus = async () => {
+      if(workout) {
+        const savedStatus = await AsyncStorage.getItem(`workout_${workoutId}_status`);
+        if(savedStatus) {
+          setWorkout({ ...workout, status: savedStatus});
+        }
+      }
+     };
+      loadWorkoutStatus();
+  }, [workoutId]);
   
   // Buscar exercícios do treino
   const exercises = mockExercises[workoutId as keyof typeof mockExercises] || [];
+
+
 
   // Se não encontrou o treino, volta para a tela anterior
   if (!workout) {

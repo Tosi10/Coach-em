@@ -42,36 +42,67 @@ export default function HomeScreen() {
       id: '1',
       name: 'Treino de Força - Pernas',
       date: '2026-01-06',
+      scheduledDate: '2026-01-06',
       status: 'Concluído',
       coach: 'João Silva',
+      dayOfWeek: 'Segunda-feira',
+      isToday: false,
+      isThisWeek: false,
     },
     {
       id: '2',
       name: 'Treino de Força - Peito',
-      date: '2026-01-07',
+      date: new Date().toISOString().split('T')[0], // Data de hoje
+      scheduledDate: new Date().toISOString().split('T')[0],
       status: 'Pendente',
       coach: 'Maria Oliveira',
+      dayOfWeek: new Date().toLocaleDateString('pt-BR', { weekday: 'long' }),
+      isToday: true,
+      isThisWeek: true,
     },
     {
       id: '3',
       name: 'Treino de Força - Costas',
-      date: '2026-01-08',
+      date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
+      scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
       status: 'Pendente',
       coach: 'João Silva',
+      dayOfWeek: new Date(Date.now() + 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+      isToday: false,
+      isThisWeek: true,
     },
     {
       id: '4',
       name: 'Treino de Força - Bíceps',
-      date: '2026-01-09',
+      date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Depois de amanhã
+      scheduledDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
       status: 'Pendente',
       coach: 'Ana Souza',
+      dayOfWeek: new Date(Date.now() + 172800000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+      isToday: false,
+      isThisWeek: true,
     },
     {
       id: '5',
       name: 'Treino de Força - Tríceps',
-      date: '2026-01-10',
+      date: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 dias
+      scheduledDate: new Date(Date.now() + 259200000).toISOString().split('T')[0],
       status: 'Pendente',
       coach: 'Carlos Ferreira',
+      dayOfWeek: new Date(Date.now() + 259200000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+      isToday: false,
+      isThisWeek: true,
+    },
+    {
+      id: '6',
+      name: 'Treino Cardio - Corrida',
+      date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Ontem
+      scheduledDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+      status: 'Concluído',
+      coach: 'João Silva',
+      dayOfWeek: new Date(Date.now() - 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+      isToday: false,
+      isThisWeek: false,
     },
   ])
 
@@ -94,6 +125,109 @@ export default function HomeScreen() {
     };
     loadUserType();
   }, []);
+
+  const getTodayWorkout = () => {
+    return workouts.find(w => w.isToday && w.status === 'Pendente');
+  };
+
+  const getThisWeekWorkouts =() => {
+    return workouts.filter(w => 
+      w.isThisWeek &&
+      w.status === 'Pendente' &&
+      !w.isToday
+    );
+  };
+
+  const getCompletedWorkouts =() => {
+    return workouts.filter(w =>w.status === 'Concluído');
+  };
+
+  // ⚠️ CÓDIGO TEMPORÁRIO - REMOVER DEPOIS DE USAR
+useEffect(() => {
+  const clearAllStatuses = async () => {
+    try {
+      const workoutIds = ['1', '2', '3', '4', '5', '6'];
+      for (const id of workoutIds) {
+        await AsyncStorage.removeItem(`workout_${id}_status`);
+      }
+      // Resetar estado para valores iniciais
+      setWorkouts([
+        {
+          id: '1',
+          name: 'Treino de Força - Pernas',
+          date: '2026-01-06',
+          scheduledDate: '2026-01-06',
+          status: 'Concluído',
+          coach: 'João Silva',
+          dayOfWeek: 'Segunda-feira',
+          isToday: false,
+          isThisWeek: false,
+        },
+        {
+          id: '2',
+          name: 'Treino de Força - Peito',
+          date: new Date().toISOString().split('T')[0],
+          scheduledDate: new Date().toISOString().split('T')[0],
+          status: 'Pendente',
+          coach: 'Maria Oliveira',
+          dayOfWeek: new Date().toLocaleDateString('pt-BR', { weekday: 'long' }),
+          isToday: true,
+          isThisWeek: true,
+        },
+        {
+          id: '3',
+          name: 'Treino de Força - Costas',
+          date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          status: 'Pendente',
+          coach: 'João Silva',
+          dayOfWeek: new Date(Date.now() + 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+          isToday: false,
+          isThisWeek: true,
+        },
+        {
+          id: '4',
+          name: 'Treino de Força - Bíceps',
+          date: new Date(Date.now() + 172800000).toISOString().split('T')[0],
+          scheduledDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
+          status: 'Pendente',
+          coach: 'Ana Souza',
+          dayOfWeek: new Date(Date.now() + 172800000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+          isToday: false,
+          isThisWeek: true,
+        },
+        {
+          id: '5',
+          name: 'Treino de Força - Tríceps',
+          date: new Date(Date.now() + 259200000).toISOString().split('T')[0],
+          scheduledDate: new Date(Date.now() + 259200000).toISOString().split('T')[0],
+          status: 'Pendente',
+          coach: 'Carlos Ferreira',
+          dayOfWeek: new Date(Date.now() + 259200000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+          isToday: false,
+          isThisWeek: true,
+        },
+        {
+          id: '6',
+          name: 'Treino Cardio - Corrida',
+          date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+          scheduledDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+          status: 'Concluído',
+          coach: 'João Silva',
+          dayOfWeek: new Date(Date.now() - 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
+          isToday: false,
+          isThisWeek: false,
+        },
+      ]);
+      console.log('✅ Dados resetados!');
+    } catch (error) {
+      console.error('Erro ao limpar:', error);
+    }
+  };
+  
+  // Descomente a linha abaixo para limpar os dados
+  //clearAllStatuses();
+}, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -215,53 +349,129 @@ export default function HomeScreen() {
             Veja seus treinos atribuidos e acompanhe seu progresso.
           </Text>
 
-          <View className="w-full mt-6">
-            <Text className="text-xl font-bold text-neutral-900 mb-4">
-              Meus treinos ({workouts.length})
-            </Text>
+          {getTodayWorkout() && (
+            <View className="w-full mt-6 mb-8">
+              <View className="flex-row items-center mb-4">
+                <Text className="text-xl font-bold text-neutral-900">
+                🎯Treino de Hoje
+                </Text>
+              </View>
 
-            {workouts.map((workout) => (
-              <TouchableOpacity
-                key={workout.id}
-                className={`rounded-lg p-4 mb-3 border ${ workout.status === 'Concluído' 
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-yellow-50 border-yellow-200'}`}
-                  onPress={() => {
-                    router.push({
-                      pathname: '/workout-details',
-                      params: { workoutId: workout.id }
-                    });
-                  }}
-                  
+              <TouchableOpacity className="bg-primary-50 border-2 border-primary-600 rounded-lg p-4"
+               onPress={() => {
+                router.push({
+                  pathname: '/workout-details',
+                  params: {workoutId: getTodayWorkout()!.id}
+                });
+               }}
               >
+
                 <View className="flex-row justify-between items-start mb-2">
-                  <Text className="text-lg font-semibold text-neutral-900 flex-1">
-                    {workout.name}
-                  </Text>
-                  <View className={`px-3 py-1 rounded-full ${
-                    workout.status === 'Concluído' 
-                    ? 'bg-green-100'
-                    : 'bg-yellow-100'
-                  }`}>
-                    <Text className={`text-xs font-semibold ${
-                      workout.status === 'Concluído' 
-                      ? 'text-green-700'
-                      :'text-yellow-700'
-                    }`}>
-                      {workout.status}
+                  <View className="flex-1">
+                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                      {getTodayWorkout()!.name}
                     </Text>
+                    <Text className="text-neutral-600 text-sm mb-1">
+                      Treinador: {getTodayWorkout()!.coach}
+                    </Text>
+                    <Text className="text-neutral-600 text-sm">
+                      {getTodayWorkout()!.dayOfWeek}
+                    </Text>
+
+                  </View>
+                  <View className="bg-yellow-100 px-3 py-1 rounded-full">
+                    <Text className="text-xs font-semibold text-yellow-700">
+                      {getTodayWorkout()!.status}
+                    </Text>
+
                   </View>
                 </View>
-
-                <Text className="text-neutral-600 text-sm">
-                  Treinador: {workout.coach}
-                </Text>
-                <Text className="text-neutral-600 text-sm">
-                  Data: {workout.date}
-                </Text>
               </TouchableOpacity>
-            ))}
+
+            </View>
+          )}
+
+          {/* Seção: Esta Semana */}
+{getThisWeekWorkouts().length > 0 && (
+  <View className="w-full mt-6 mb-8">
+    <Text className="text-xl font-bold text-neutral-900 mb-4">
+      📅 Esta Semana ({getThisWeekWorkouts().length})
+    </Text>
+    
+    {getThisWeekWorkouts().map((workout) => (
+      <TouchableOpacity
+        key={workout.id}
+        className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3"
+        onPress={() => {
+          router.push({
+            pathname: '/workout-details',
+            params: { workoutId: workout.id }
+          });
+        }}
+      >
+        <View className="flex-row justify-between items-start mb-2">
+          <View className="flex-1">
+            <Text className="text-lg font-semibold text-neutral-900 mb-1">
+              {workout.name}
+            </Text>
+            <Text className="text-neutral-600 text-sm mb-1">
+              Treinador: {workout.coach}
+            </Text>
+            <Text className="text-neutral-600 text-sm">
+              {workout.dayOfWeek} - {workout.date}
+            </Text>
           </View>
+          <View className="bg-yellow-100 px-3 py-1 rounded-full">
+            <Text className="text-xs font-semibold text-yellow-700">
+              {workout.status}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
+
+{/* Seção: Concluídos */}
+{getCompletedWorkouts().length > 0 && (
+  <View className="w-full mt-6">
+    <Text className="text-xl font-bold text-neutral-900 mb-4">
+      ✅ Concluídos ({getCompletedWorkouts().length})
+    </Text>
+    
+    {getCompletedWorkouts().map((workout) => (
+      <TouchableOpacity
+        key={workout.id}
+        className="bg-green-50 border border-green-200 rounded-lg p-4 mb-3"
+        onPress={() => {
+          router.push({
+            pathname: '/workout-details',
+            params: { workoutId: workout.id }
+          });
+        }}
+      >
+        <View className="flex-row justify-between items-start mb-2">
+          <View className="flex-1">
+            <Text className="text-lg font-semibold text-neutral-900 mb-1">
+              {workout.name}
+            </Text>
+            <Text className="text-neutral-600 text-sm mb-1">
+              Treinador: {workout.coach}
+            </Text>
+            <Text className="text-neutral-600 text-sm">
+              {workout.dayOfWeek} - {workout.date}
+            </Text>
+          </View>
+          <View className="bg-green-100 px-3 py-1 rounded-full">
+            <Text className="text-xs font-semibold text-green-700">
+              {workout.status}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
         </View>
       
       ) : null}
