@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 
 
@@ -301,7 +301,7 @@ useEffect(() => {
 
           <View className="flex-col gap-4 mb-6">
             <TouchableOpacity className="bg-primary-600 rounded-lg py-4 px-6"
-             onPress={() => Alert.alert('Biblioteca de Exercícios', 'Em breve você poredá gerenciar seus exercícios aqui!')}
+             onPress={() => router.push('/exercises-library')}
              >
               <Text className="text-white font-semibold text-center text-lg">
                Biblioteca de Exercícios
@@ -311,10 +311,10 @@ useEffect(() => {
 
 
             <TouchableOpacity className="bg-primary-600 rounded-lg py-4 px-6"
-             onPress={() => Alert.alert('Criar Treino', 'Em breve você poderá criar seus treinos aqui!')}
+             onPress={() => router.push('/workouts-library')}
              >
               <Text className="text-white font-semibold text-center text-lg">
-               Criar Treino
+               Meus Treino
 
               </Text>
              </TouchableOpacity>
@@ -392,86 +392,86 @@ useEffect(() => {
           )}
 
           {/* Seção: Esta Semana */}
-{getThisWeekWorkouts().length > 0 && (
-  <View className="w-full mt-6 mb-8">
-    <Text className="text-xl font-bold text-neutral-900 mb-4">
-      📅 Esta Semana ({getThisWeekWorkouts().length})
-    </Text>
-    
-    {getThisWeekWorkouts().map((workout) => (
-      <TouchableOpacity
-        key={workout.id}
-        className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3"
-        onPress={() => {
-          router.push({
-            pathname: '/workout-details',
-            params: { workoutId: workout.id }
-          });
-        }}
-      >
-        <View className="flex-row justify-between items-start mb-2">
-          <View className="flex-1">
-            <Text className="text-lg font-semibold text-neutral-900 mb-1">
-              {workout.name}
+        {getThisWeekWorkouts().length > 0 && (
+          <View className="w-full mt-6 mb-8">
+            <Text className="text-xl font-bold text-neutral-900 mb-4">
+              📅 Esta Semana ({getThisWeekWorkouts().length})
             </Text>
-            <Text className="text-neutral-600 text-sm mb-1">
-              Treinador: {workout.coach}
-            </Text>
-            <Text className="text-neutral-600 text-sm">
-              {workout.dayOfWeek} - {workout.date}
-            </Text>
+            
+            {getThisWeekWorkouts().map((workout) => (
+              <TouchableOpacity
+                key={workout.id}
+                className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3"
+                onPress={() => {
+                  router.push({
+                    pathname: '/workout-details',
+                    params: { workoutId: workout.id }
+                  });
+                }}
+              >
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-1">
+                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                      {workout.name}
+                    </Text>
+                    <Text className="text-neutral-600 text-sm mb-1">
+                      Treinador: {workout.coach}
+                    </Text>
+                    <Text className="text-neutral-600 text-sm">
+                      {workout.dayOfWeek} - {workout.date}
+                    </Text>
+                  </View>
+                  <View className="bg-yellow-100 px-3 py-1 rounded-full">
+                    <Text className="text-xs font-semibold text-yellow-700">
+                      {workout.status}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View className="bg-yellow-100 px-3 py-1 rounded-full">
-            <Text className="text-xs font-semibold text-yellow-700">
-              {workout.status}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    ))}
-  </View>
-)}
+        )}
 
-{/* Seção: Concluídos */}
-{getCompletedWorkouts().length > 0 && (
-  <View className="w-full mt-6">
-    <Text className="text-xl font-bold text-neutral-900 mb-4">
-      ✅ Concluídos ({getCompletedWorkouts().length})
-    </Text>
-    
-    {getCompletedWorkouts().map((workout) => (
-      <TouchableOpacity
-        key={workout.id}
-        className="bg-green-50 border border-green-200 rounded-lg p-4 mb-3"
-        onPress={() => {
-          router.push({
-            pathname: '/workout-details',
-            params: { workoutId: workout.id }
-          });
-        }}
-      >
-        <View className="flex-row justify-between items-start mb-2">
-          <View className="flex-1">
-            <Text className="text-lg font-semibold text-neutral-900 mb-1">
-              {workout.name}
+        {/* Seção: Concluídos */}
+        {getCompletedWorkouts().length > 0 && (
+          <View className="w-full mt-6">
+            <Text className="text-xl font-bold text-neutral-900 mb-4">
+              ✅ Concluídos ({getCompletedWorkouts().length})
             </Text>
-            <Text className="text-neutral-600 text-sm mb-1">
-              Treinador: {workout.coach}
-            </Text>
-            <Text className="text-neutral-600 text-sm">
-              {workout.dayOfWeek} - {workout.date}
-            </Text>
+            
+            {getCompletedWorkouts().map((workout) => (
+              <TouchableOpacity
+                key={workout.id}
+                className="bg-green-50 border border-green-200 rounded-lg p-4 mb-3"
+                onPress={() => {
+                  router.push({
+                    pathname: '/workout-details',
+                    params: { workoutId: workout.id }
+                  });
+                }}
+              >
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-1">
+                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                      {workout.name}
+                    </Text>
+                    <Text className="text-neutral-600 text-sm mb-1">
+                      Treinador: {workout.coach}
+                    </Text>
+                    <Text className="text-neutral-600 text-sm">
+                      {workout.dayOfWeek} - {workout.date}
+                    </Text>
+                  </View>
+                  <View className="bg-green-100 px-3 py-1 rounded-full">
+                    <Text className="text-xs font-semibold text-green-700">
+                      {workout.status}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View className="bg-green-100 px-3 py-1 rounded-full">
-            <Text className="text-xs font-semibold text-green-700">
-              {workout.status}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    ))}
-  </View>
-)}
+        )}
         </View>
       
       ) : null}
