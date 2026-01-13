@@ -162,6 +162,16 @@ export default function ExercisesLibraryScreen() {
           Gerencie seu repertório de exercícios
         </Text>
 
+        {/* Botão Criar Exercício */}
+        <TouchableOpacity
+          className="bg-primary-600 rounded-lg py-3 px-6 mb-6"
+          onPress={() => router.push('/create-exercise')}
+        >
+          <Text className="text-white font-semibold text-center text-lg">
+            ➕ Criar Exercício
+          </Text>
+        </TouchableOpacity>
+
         {/* Campo de busca */}
         <View className="mb-6">
           <TextInput

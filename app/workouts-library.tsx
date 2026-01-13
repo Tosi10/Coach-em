@@ -1,7 +1,7 @@
-import { WorkoutCard } from '@/src/components/workoutCard';
+import { WorkoutCard } from '@/src/components/WorkoutCard';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { useRouter } from 'expo-router';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function WorkoutLibraryScreen() {
     const router = useRouter();
@@ -188,13 +188,13 @@ export default function WorkoutLibraryScreen() {
                     Gerencie seus treinos e templates
                 </Text>
 
-                <TouchableOpacity className="bg-primary-600 rounded-lg py-4 px-6 mb-6"
-                 onPress={() => Alert.alert('Criar treino', 'Em breve voce podera criar trenos personalizados aqui.')}
+                <TouchableOpacity 
+                    className="bg-primary-600 rounded-lg py-4 px-6 mb-6"
+                    onPress={() => router.push('/create-workout')}
                 >
                     <Text className="text-white font-semibold text-center text-lg">
                         ➕ Criar Novo Treino
                     </Text>
-
                 </TouchableOpacity>
 
                 <View className="w-full">

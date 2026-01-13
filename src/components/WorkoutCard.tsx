@@ -28,7 +28,7 @@ export function WorkoutCard({
         className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
         onPress={onPress}
         >
-            <Text className="text-lg font-semibold text-neutra-900 mb-1">
+            <Text className="text-lg font-semibold text-neutral-900 mb-1">
                 {name}
 
             </Text>
@@ -39,7 +39,7 @@ export function WorkoutCard({
                 <Text className="text-neutral-500 text-xs">
                     {exercisesCount} exercícios
                 </Text>
-                <Text className="text-neutral-500 text-xs">
+                <Text className="text-neutral-500 text-xs">S
                     Criado em: {createdAt}
                 </Text>
 
