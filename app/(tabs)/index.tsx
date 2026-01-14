@@ -314,8 +314,7 @@ useEffect(() => {
              onPress={() => router.push('/workouts-library')}
              >
               <Text className="text-white font-semibold text-center text-lg">
-               Meus Treino
-
+               Meus Treinos
               </Text>
              </TouchableOpacity>
           </View>
@@ -326,14 +325,23 @@ useEffect(() => {
             </Text>
 
             {mockAthletes.map((athlete) => (
-              <View key={athlete.id} className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200">
+              <TouchableOpacity
+                key={athlete.id}
+                className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
+                onPress={() => {
+                  router.push({
+                    pathname: '/assign-workout',
+                    params: { athleteId: athlete.id },
+                  });
+                }}
+              >
                 <Text className="text-lg font-semibold text-neutral-900">
                   {athlete.name}
                 </Text>
                 <Text className="text-neutral-600 mt-1">
-                  {athlete.sport}* {athlete.status}
+                  {athlete.sport} • {athlete.status}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
 
           </View>

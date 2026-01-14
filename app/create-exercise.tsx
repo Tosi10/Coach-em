@@ -66,9 +66,9 @@ export default function CreateExerciseScreen() {
 
     return ( 
         <ScrollView className="flex-1 bg-white">
-            <View className="px-6 pt-12 pb-20">
+            <View className="px-6 pt-12 pb-20 ">
                 <TouchableOpacity 
-                 className="mb-6"
+                 className="mb-6 "
                  onPress={() => router.back()}
                 >
                     <Text className="text-primary-600 font-semibold text-lg">
