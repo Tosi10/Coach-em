@@ -1,3 +1,5 @@
+import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -14,11 +16,184 @@ const mockAthletes = [
     { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo' },
   ];
   
-  // Dados mockados de treinos (simplificados - depois virá da biblioteca)
+  const mockExercises: Exercise[] = [
+    { id: 'ex1', name: 'Agachamento', description: 'Agachamento livre', difficulty: 'intermediate', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex2', name: 'Leg Press', description: 'Leg press 45°', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex3', name: 'Extensão de Pernas', description: 'Extensão no aparelho', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex4', name: 'Caminhada Leve', description: '5 minutos de caminhada', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex5', name: 'Alongamento de Pernas', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex6', name: 'Supino Reto', description: 'Supino com barra', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex7', name: 'Supino Inclinado', description: 'Supino inclinado 45°', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex8', name: 'Crucifixo', description: 'Crucifixo com halteres', difficulty: 'beginner', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex9', name: 'Corrida Leve', description: '5 minutos de corrida', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'ex10', name: 'Alongamento de Peito', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
+];
   const mockWorkouts = [
-    { id: '1', name: 'Treino de Força - Pernas', description: 'Treino completo para desenvolvimento de força nas pernas' },
-    { id: '2', name: 'Treino de Força - Peito', description: 'Treino completo para desenvolvimento de força no peito' },
-  ];
+    {
+        id: '1',
+        name: 'Treino de Força - Pernas',
+        description: 'Treino completo para desenvolvimento de força nas pernas',
+        createdAt: '2026-01-05',
+        blocks: [
+            {
+                blockType: WorkoutBlock.WARM_UP,
+                exercises: [
+                    {
+                        exerciseId: 'ex4',
+                        exercise: mockExercises.find(e => e.id === 'ex4'),
+                        sets: undefined,
+                        reps: undefined,
+                        duration: 300,
+                        restTime: undefined,
+                        order: 1,
+                        notes: 'Caminhada leve para aquecer.',
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Aquecimento de 5 minutos',
+            },
+            {
+                blockType: WorkoutBlock.WORK,
+                exercises: [
+                    {
+                        exerciseId: 'ex1',
+                        exercise: mockExercises.find(e => e.id === 'ex1'),
+                        sets: 4,
+                        reps: 12,
+                        duration: undefined,
+                        restTime: 60,
+                        order: 1,
+                    },
+                    {
+                        exerciseId: 'ex2',
+                        exercise: mockExercises.find(e => e.id === 'ex2'),
+                        sets: 3,
+                        reps: 15,
+                        duration: undefined,
+                        restTime: 45,
+                        order: 2,
+                    },
+                    {
+                        exerciseId: 'ex3',
+                        exercise: mockExercises.find(e => e.id === 'ex3'),
+                        sets: 3,
+                        reps: 12,
+                        duration: undefined,
+                        restTime: 45,
+                        order: 3,
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Foco em força e hipertrofia',
+            },
+            {
+                blockType: WorkoutBlock.COOL_DOWN,
+                exercises: [
+                    {
+                        exerciseId: 'ex5',
+                        exercise: mockExercises.find(e => e.id === 'ex5'),
+                        sets: undefined,
+                        reps: undefined,
+                        duration: 180, // 3 minutos
+                        restTime: undefined,
+                        order: 1,
+                        notes: 'Alongamento estático de 3 minutos',
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Alongamento para relaxamento',
+            },
+        ] as WorkoutBlockData[],
+    },
+    {
+        id: '2',
+        name: 'Treino de Força - Peito',
+        description: 'Treino completo para desenvolvimento de força no peito',
+        createdAt: '2026-01-05',
+        blocks: [
+            {
+                blockType: WorkoutBlock.WARM_UP,
+                exercises: [
+                    {
+                        exerciseId: 'ex9',
+                        exercise: mockExercises.find(e => e.id === 'ex9'),
+                        sets: undefined,
+                        reps: undefined,
+                        duration: 300,
+                        restTime: undefined,
+                        order: 1,
+                        notes: 'Corrida leve para aquecer',
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Aquecimento de 5 minutos',
+            },
+            {
+                blockType: WorkoutBlock.WORK,
+                exercises: [
+                    {
+                        exerciseId: 'ex6',
+                        exercise: mockExercises.find(e => e.id === 'ex6'),
+                        sets: 4,
+                        reps: 10,
+                        duration: undefined,
+                        restTime: 90,
+                        order: 1,
+                    },
+                    {
+                        exerciseId: 'ex7',
+                        exercise: mockExercises.find(e => e.id === 'ex7'),
+                        sets: 3,
+                        reps: 12,
+                        duration: undefined,
+                        restTime: 60,
+                        order: 2,
+                    },
+                    {
+                        exerciseId: 'ex8',
+                        exercise: mockExercises.find(e => e.id === 'ex8'),
+                        sets: 3,
+                        reps: 15,
+                        duration: undefined,
+                        restTime: 45,
+                        order: 3,
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Foco em força e hipertrofia do peitoral',
+            },
+            {
+                blockType: WorkoutBlock.COOL_DOWN,
+                exercises: [
+                    {
+                        exerciseId: 'ex10',
+                        exercise: mockExercises.find(e => e.id === 'ex10'),
+                        sets: undefined,
+                        reps: undefined,
+                        duration: 180,
+                        restTime: undefined,
+                        order: 1,
+                        notes: 'Alongamento estático de 3 minutos',
+                    },
+                ] as WorkoutExercise[],
+                notes: 'Alongamento para relaxamento',
+            },
+        ] as WorkoutBlockData[],
+    },
+       
+]
+    
+  function isDateThisWeek(dateString: string): boolean {
+
+    const date = new Date(dateString);
+
+    const today = new Date();
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59 , 59, 999);
+
+    return date >= startOfWeek && date <= endOfWeek;
+  }
   
   export default function AssignWorkoutScreen() {
     const router = useRouter();
@@ -35,9 +210,14 @@ const mockAthletes = [
     // Encontrar o atleta pelo ID recebido
     const athlete = mockAthletes.find(a => a.id === athleteId);
 
-    const handleAssignWorkout = () => {
+    const handleAssignWorkout = async () => {
         if (!selectedWorkoutId) {
             Alert.alert('Erro', 'Por favor, selecione um treino.');
+            return;
+        }
+
+        if(!selectedDate || selectedDate.trim() === '') {
+            Alert.alert('Erro', 'Por favor, inform a data de treino.');
             return;
         }
 
@@ -48,16 +228,64 @@ const mockAthletes = [
             return;
         }
 
-        Alert.alert(
-            'Treino Atribuído',
-            `Treino "${workout.name}" atribuído para ${athlete?.name} em ${selectedDate}`,
-            [
-                {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                }
-            ]
-        );
+        if(!athlete) {
+            Alert.alert('Erro', 'Atleta não encontrado.');
+            return;
+        }
+
+        const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}`;
+
+        const assignedWorkout = {
+            id: assignedWorkoutId,
+            workoutTemplateId: workout.id,
+            name: workout.name,
+            athleteId: athlete.id,
+            scheduledDate: selectedDate,
+            date: selectedDate,
+            status: 'Pendente',
+            coach: 'Treinador',
+            dayOfWeek: new Date(selectedDate).toLocaleDateString('pt-BR', { weekday: 'long'}),
+            isToday: selectedDate === new Date().toISOString().split('T')[0],
+            isThisWeek: isDateThisWeek(selectedDate),
+            createdAt: new Date().toISOString(),
+
+        };
+
+        try {
+            const existingWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+
+            const existingWorkouts = existingWorkoutsJson
+            ? JSON.parse(existingWorkoutsJson)
+            : [];
+
+            const updatedWorkouts = [...existingWorkouts, assignedWorkout];
+
+            await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
+            
+            console.log('💾 Treino salvo! Total de treinos:', updatedWorkouts.length);
+            console.log('📝 Treino salvo:', assignedWorkout);
+            console.log('👤 Atleta ID do treino salvo:', assignedWorkout.athleteId);
+
+            Alert.alert(
+                ' ✅Treino Atribuído!',
+                `Treino"${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`,
+                [
+                    {text: 'OK',
+                        onPress: () => router.back(),
+                    }
+                ]
+            );
+
+        }
+
+        catch(error) {
+            console.error('Erro ao salvar treino:', error);
+            Alert.alert(
+                'Erro',
+                'Não foi possível salvar o treino. Tente novamente.'
+            );
+        }
+
     };
 
     // Se o atleta não foi encontrado, mostra mensagem de erro
@@ -112,24 +340,34 @@ const mockAthletes = [
                             Selecionar Treino *
                         </Text>
 
-                        {mockWorkouts.map((workout) => (
-                            <TouchableOpacity
-                            key={workout.id}
-                            className={`bg-neutral-50 rounded-lg p-4 mb-3 border-2 ${
-                                selectedWorkoutId === workout.id
-                                ? 'border-primary-600 bg-primary-50'
-                                : 'border-neutral-200'
-                            }`}
-                            onPress={() => setSelectedWorkoutId(workout.id)}
-                            >
-                                <Text className="text-lg font-semibold text-neutral-900 mb-1">
-                                    {workout.name}
-                                </Text>
-                                <Text className="text-neutral-600 text-sm">
-                                    {workout.description}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+                        {mockWorkouts.map((workout) => {
+                            const totalExercises = workout.blocks.reduce(
+                                (total, block) => total + block.exercises.length, 0
+                            );
+                            return (
+                                <TouchableOpacity
+                                 key={workout.id}
+                                 className={`bg-neutral-50 rounded-lg p-4 mb-3 border-2 ${
+                                    selectedWorkoutId === workout.id
+                                    ? 'border-primary-600 bg-primary-50'
+                                    : 'border-neutral-200'
+                                 }`}
+                                 onPress={() => setSelectedWorkoutId(workout.id)}
+                                >
+                                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                                        {workout.name}
+                                    </Text>
+                                    <Text className="text-neutral-600 text-sm mb-2">
+                                        {workout.description}
+                                    </Text>
+                                    <Text className="text-primary-600 text-sm font-medium">
+                                    📋 {totalExercises} exercícios • Criado em {workout.createdAt}
+                                    </Text>
+
+                                </TouchableOpacity>
+                            )
+                        })}
+                        
                     </View>
 
                     <View className="mb-6">

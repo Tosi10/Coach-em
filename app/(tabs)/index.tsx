@@ -25,6 +25,7 @@ export default function HomeScreen() {
 
   const router = useRouter();
   const [userType, setUserType] = useState<UserType | null>(null);
+  const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
 
   const mockAthletes = [
     { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
@@ -108,26 +109,71 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const loadUserType = async () => {
+      // PARTE 1: Carregar tipo de usuário
       const savedType = await AsyncStorage.getItem('userType');
       if (savedType) {
         setUserType(savedType as UserType);
       }
-
+  
+      // PARTE 2: Se for atleta, carregar o ID do atleta logado
+      let athleteId = null;
+      if (savedType === UserType.ATHLETE) {
+        athleteId = await AsyncStorage.getItem('currentAthleteId');
+        if (athleteId) {
+          setCurrentAthleteId(athleteId);
+        }
+      }
+  
+      // PARTE 3: Carregar treinos atribuídos
+      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+      let assignedWorkouts = [];
+  
+      if (assignedWorkoutsJson) {
+        assignedWorkouts = JSON.parse(assignedWorkoutsJson);
+        
+        // PARTE 4: Se for atleta, filtrar apenas os treinos dele
+        if (savedType === UserType.ATHLETE && athleteId) {
+          console.log('🔍 Filtrando treinos para atleta ID:', athleteId);
+          console.log('📋 Treinos antes do filtro:', assignedWorkouts.length);
+          console.log('📝 Todos os treinos (antes do filtro):', assignedWorkouts);
+          assignedWorkouts = assignedWorkouts.filter(
+            (workout: any) => {
+              console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId})`);
+              return workout.athleteId === athleteId;
+            }
+          );
+          console.log('✅ Treinos após filtro:', assignedWorkouts.length);
+          console.log('📝 Treinos filtrados:', assignedWorkouts);
+        }
+      }
+  
+      // PARTE 5: Combinar treinos mockados com atribuídos
+      let allWorkouts = [];
+      if (savedType === UserType.ATHLETE) {
+        allWorkouts = assignedWorkouts;
+        console.log('👤 ATLETA - Mostrando apenas treinos atribuídos:', allWorkouts.length);
+      } else {
+        allWorkouts = [...workouts, ...assignedWorkouts];
+        console.log('👨‍🏫 TREINADOR - Mostrando treinos mockados + atribuídos:', allWorkouts.length);
+      }
+  
+      // PARTE 6: Carregar status de todos os treinos
       const updatedWorkouts = await Promise.all(
-        workouts.map(async (workout) => {
+        allWorkouts.map(async (workout: any) => {
           const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-          if(savedStatus) {
-            return {...workout,status: savedStatus };
+          if (savedStatus) {
+            return { ...workout, status: savedStatus };
           }
           return workout;
         })
-      )
+      );
+      setWorkouts(updatedWorkouts);
     };
     loadUserType();
-  }, []);
+  }, []); // Mantém vazio, mas vamos usar useFocusEffect também
 
-  const getTodayWorkout = () => {
-    return workouts.find(w => w.isToday && w.status === 'Pendente');
+  const getTodayWorkouts = () => {
+    return workouts.filter(w => w.isToday && w.status === 'Pendente');
   };
 
   const getThisWeekWorkouts =() => {
@@ -232,8 +278,78 @@ useEffect(() => {
   useFocusEffect(
     useCallback(() => {
       const loadWorkoutStatuses = async () => {
-        const updatedWorkouts = await Promise.all(
-          workouts.map(async (workout) => {
+        // PARTE 1: Carregar tipo de usuário e atleta atual
+        const savedType = await AsyncStorage.getItem('userType');
+        console.log('🔄 useFocusEffect - Tipo carregado:', savedType);
+        
+        // ✅ ADICIONAR: Atualizar o estado userType se mudou
+        if (savedType) {
+          setUserType(savedType as UserType);
+        }
+        
+        let athleteId = null;
+        
+        if (savedType === UserType.ATHLETE) {
+          athleteId = await AsyncStorage.getItem('currentAthleteId');
+          console.log('👤 useFocusEffect - AthleteId carregado:', athleteId);
+          if (athleteId) {
+            setCurrentAthleteId(athleteId);
+          }
+        }
+
+        // PARTE 2: Carregar treinos atribuídos
+        const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+        let assignedWorkouts = [];
+        
+        console.log('📦 useFocusEffect - Treinos no AsyncStorage:', assignedWorkoutsJson ? 'Existem' : 'Não existem');
+
+        if (assignedWorkoutsJson) {
+          assignedWorkouts = JSON.parse(assignedWorkoutsJson);
+          console.log('📋 useFocusEffect - Total de treinos carregados:', assignedWorkouts.length);
+          console.log('📝 useFocusEffect - Todos os treinos:', assignedWorkouts);
+          
+          // PARTE 3: Se for atleta, filtrar apenas os treinos dele
+          if (savedType === UserType.ATHLETE && athleteId) {
+            console.log('🔍 useFocusEffect - Filtrando para atleta ID:', athleteId);
+            assignedWorkouts = assignedWorkouts.filter(
+              (workout: any) => {
+                const match = workout.athleteId === athleteId;
+                console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId}) = ${match}`);
+                return match;
+              }
+            );
+            console.log('✅ useFocusEffect - Treinos após filtro:', assignedWorkouts.length);
+            console.log('📝 useFocusEffect - Treinos filtrados:', assignedWorkouts);
+          }
+        }
+
+        // PARTE 4: Se for ATLETA, mostrar APENAS os treinos atribuídos
+        // Se for TREINADOR, mostrar treinos mockados + atribuídos
+        let allWorkouts = [];
+        
+        if (savedType === UserType.ATHLETE) {
+          // Atleta vê apenas seus treinos atribuídos
+          allWorkouts = assignedWorkouts;
+          console.log('👤 useFocusEffect - ATLETA - Total de treinos:', allWorkouts.length);
+        } else {
+          // Treinador: carregar status dos treinos mockados primeiro
+          const updatedWorkouts = await Promise.all(
+            workouts.map(async (workout: any) => {
+              const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
+              if (savedStatus) {
+                return { ...workout, status: savedStatus };
+              }
+              return workout;
+            })
+          );
+          // Combinar treinos mockados com atribuídos
+          allWorkouts = [...updatedWorkouts, ...assignedWorkouts];
+          console.log('👨‍🏫 useFocusEffect - TREINADOR - Total de treinos:', allWorkouts.length);
+        }
+
+        // PARTE 5: Carregar status dos treinos atribuídos (se houver)
+        const finalWorkouts = await Promise.all(
+          allWorkouts.map(async (workout: any) => {
             const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
             if (savedStatus) {
               return { ...workout, status: savedStatus };
@@ -241,11 +357,13 @@ useEffect(() => {
             return workout;
           })
         );
-        setWorkouts(updatedWorkouts);
+        
+        console.log('💾 useFocusEffect - Salvando no estado:', finalWorkouts.length, 'treinos');
+        setWorkouts(finalWorkouts);
       };
       loadWorkoutStatuses();
-    }, [workouts.length]
-  ));
+    }, [userType]) // ✅ Executa quando userType muda OU quando a tela recebe foco
+  );
 
   const markWorkoutAsCompleted =(workoutId: string) => {
     setWorkouts(workouts.map((workout) => {
@@ -353,48 +471,54 @@ useEffect(() => {
           <Text className="text-2xl font-bold text-neutral-900 mb-6">
             Dashboard do Atleta
           </Text>
+          {currentAthleteId && (
+            <Text className="text-lg font-semibold text-primary-600 mb-2">
+              Olá, {mockAthletes.find(a => a.id === currentAthleteId)?.name || 'Atleta'}!
+            </Text>
+          )}
           <Text className="text-neutral-600 mb-6">
             Veja seus treinos atribuidos e acompanhe seu progresso.
           </Text>
 
-          {getTodayWorkout() && (
+          {getTodayWorkouts().length > 0 && (
             <View className="w-full mt-6 mb-8">
               <View className="flex-row items-center mb-4">
                 <Text className="text-xl font-bold text-neutral-900">
-                🎯Treino de Hoje
+                🎯Treino de Hoje ({getTodayWorkouts().length})
                 </Text>
               </View>
 
-              <TouchableOpacity className="bg-primary-50 border-2 border-primary-600 rounded-lg p-4"
-               onPress={() => {
-                router.push({
-                  pathname: '/workout-details',
-                  params: {workoutId: getTodayWorkout()!.id}
-                });
-               }}
-              >
-
-                <View className="flex-row justify-between items-start mb-2">
-                  <View className="flex-1">
-                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
-                      {getTodayWorkout()!.name}
-                    </Text>
-                    <Text className="text-neutral-600 text-sm mb-1">
-                      Treinador: {getTodayWorkout()!.coach}
-                    </Text>
-                    <Text className="text-neutral-600 text-sm">
-                      {getTodayWorkout()!.dayOfWeek}
-                    </Text>
-
+              {getTodayWorkouts().map((workout) => (
+                <TouchableOpacity 
+                  key={workout.id}
+                  className="bg-primary-50 border-2 border-primary-600 rounded-lg p-4 mb-3"
+                  onPress={() => {
+                    router.push({
+                      pathname: '/workout-details',
+                      params: {workoutId: workout.id}
+                    });
+                  }}
+                >
+                  <View className="flex-row justify-between items-start mb-2">
+                    <View className="flex-1">
+                      <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                        {workout.name}
+                      </Text>
+                      <Text className="text-neutral-600 text-sm mb-1">
+                        Treinador: {workout.coach}
+                      </Text>
+                      <Text className="text-neutral-600 text-sm">
+                        {workout.dayOfWeek}
+                      </Text>
+                    </View>
+                    <View className="bg-yellow-100 px-3 py-1 rounded-full">
+                      <Text className="text-xs font-semibold text-yellow-700">
+                        {workout.status}
+                      </Text>
+                    </View>
                   </View>
-                  <View className="bg-yellow-100 px-3 py-1 rounded-full">
-                    <Text className="text-xs font-semibold text-yellow-700">
-                      {getTodayWorkout()!.status}
-                    </Text>
-
-                  </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
 
             </View>
           )}

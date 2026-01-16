@@ -14,6 +14,12 @@ export default function SelectUserTypeScreen() {
         console.log('Tipo selecionado:', type)
         setSelectedType(type);
         await AsyncStorage.setItem('userType', type);
+        
+        // Se for Atleta, salvar o ID do Pedro Santos como atleta logado
+        if (type === UserType.ATHLETE) {
+            await AsyncStorage.setItem('currentAthleteId', '3'); // Pedro Santos
+        }
+        
         router.push('/(tabs)');
     }
 
