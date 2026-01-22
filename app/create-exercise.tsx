@@ -1,7 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
 
 export default function CreateExerciseScreen() {
     const router = useRouter();
@@ -15,7 +15,7 @@ export default function CreateExerciseScreen() {
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
     
-    const handleSaveExercise = () => {
+    const handleSaveExercise = async () => {
         // Validação dos campos obrigatórios
         if (!name.trim()) {
           Alert.alert('Erro', 'Por favor, preencha o nome do exercício.');
@@ -34,7 +34,7 @@ export default function CreateExerciseScreen() {
       
         // Criar o objeto do exercício
         const newExercise = {
-          id: Date.now().toString(), // ID temporário (depois virá do Firebase)
+          id: `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,
           name: name.trim(),
           description: description.trim(),
           difficulty: difficulty,
@@ -43,22 +43,48 @@ export default function CreateExerciseScreen() {
           duration: duration ? parseInt(duration) : undefined,
           createdBy: 'coach1', // Temporário (depois virá do usuário logado)
           isGlobal: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
       
-        // Por enquanto, apenas mostrar sucesso
-        // Depois vamos salvar no Firebase
-        Alert.alert(
-          'Exercício Criado!',
-          `O exercício "${newExercise.name}" foi criado com sucesso!`,
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        try {
+            console.log('💾 Tentando salvar exercício:', newExercise);
+            
+            const existingExerciseJson = await AsyncStorage.getItem('saved_exercises');
+            console.log('📦 Exercícios existentes (JSON):', existingExerciseJson);
+            
+            const existingExercises = existingExerciseJson
+            ? JSON.parse(existingExerciseJson)
+            : [];
+            
+            console.log('📋 Exercícios existentes (parseados):', existingExercises);
+
+            const updatedExercises = [...existingExercises, newExercise];
+            
+            console.log('🔄 Array atualizado:', updatedExercises);
+            console.log('📊 Total de exercícios após adicionar:', updatedExercises.length);
+
+            await AsyncStorage.setItem('saved_exercises', JSON.stringify(updatedExercises));
+            
+            console.log('✅ Exercício salvo com sucesso no AsyncStorage!');
+
+            Alert.alert(
+                'Exercício Criado!',
+                `O exercício "${newExercise.name}" foi criado com sucesso!`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => router.back(),
+                  },
+                ]
+              );
+        } catch (error) {
+            console.error('❌ Erro ao salvar exercício:', error);
+            Alert.alert('Erro', 'Não foi possível salvar o exercício. Tente novamente.');
+        }
+
+
+       
       
         // TODO: Depois vamos salvar no Firebase aqui
         // await saveExerciseToFirebase(newExercise);

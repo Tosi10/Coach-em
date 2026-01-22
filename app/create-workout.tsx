@@ -13,6 +13,7 @@
  */
 
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -64,7 +65,7 @@ export default function CreateWorkoutScreen() {
      * 4. Salva (por enquanto mostra um alert, depois salvará de verdade)
      * 5. Volta para a tela anterior
      */
-    const handleSaveWorkout = () => {
+    const handleSaveWorkout = async() => {
         // Validação básica
         if (!workoutName.trim()) {
             Alert.alert('Erro', 'Por favor, preencha o nome do treino.');
@@ -79,7 +80,7 @@ export default function CreateWorkoutScreen() {
 
         // Montar a estrutura completa do treino
         const newWorkout = {
-            id: Date.now().toString(), // ID temporário (depois será gerado pelo Firebase)
+            id: `workout_${Date.now()}`,
             name: workoutName,
             description: workoutDescription,
             createdAt: new Date().toISOString().split('T')[0], // Data no formato YYYY-MM-DD
@@ -102,21 +103,34 @@ export default function CreateWorkoutScreen() {
             ] as WorkoutBlockData[],
         };
 
-        // Por enquanto, apenas mostra um alert
-        // TODO: Salvar no estado global ou no Firebase
-        Alert.alert(
-            'Treino Criado!',
-            `Treino "${workoutName}" criado com sucesso!\n\n` +
-            `Aquecimento: ${warmUpExercises.length} exercício(s)\n` +
-            `Principal: ${workExercises.length} exercício(s)\n` +
-            `Finalização: ${coolDownExercises.length} exercício(s)`,
-            [
-                {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                },
-            ]
-        );
+        try {
+            const existingWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let existingWorkouts = [];
+
+            if (existingWorkoutsJson) {
+                existingWorkouts = JSON.parse(existingWorkoutsJson);
+            }
+
+            const updatedWorkouts = [...existingWorkouts, newWorkout];
+            await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
+
+            Alert.alert(
+                'Treino Criado!',
+                `Treino "${workoutName}" criado com sucesso!\n\n` +
+                `Aquecimento: ${warmUpExercises.length} exercício(s)\n` +
+                `Principal: ${workExercises.length} exercício(s)\n` +
+                `Finalização: ${coolDownExercises.length} exercício(s)`,
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
+        } catch (error){
+            console.error('Erro ao salvar treino:', error);
+            Alert.alert('Erro', 'Não foi possível salvar o treino. Por favor, tente novamente.');
+        }
     };
 
     /**

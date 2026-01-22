@@ -7,8 +7,10 @@
 
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (mesmos do workouts-library.tsx)
 const mockExercises: Exercise[] = [
@@ -177,9 +179,51 @@ const mockWorkouts = [
 export default function WorkoutTemplateDetailsScreen() {
     const router = useRouter();
     const { workoutId } = useLocalSearchParams();
+    const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
+    const [loading, setLoading] = useState(true);
 
-    // Buscar o treino correspondente
-    const workout = mockWorkouts.find(w => w.id === workoutId);
+    // Função para carregar treinos salvos do AsyncStorage
+useEffect(() => {
+    const loadSavedWorkouts = async () => {
+        try {
+            // PARTE 1: Buscar treinos salvos do AsyncStorage
+            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let savedWorkouts = [];
+            
+            if (savedWorkoutsJson) {
+                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            }
+
+            // PARTE 2: Combinar treinos mockados com os salvos
+            const combinedWorkouts = [...mockWorkouts, ...savedWorkouts];
+
+            // PARTE 3: Atualizar o estado
+            setAllWorkouts(combinedWorkouts);
+        } catch (error) {
+            console.error('Erro ao carregar treinos:', error);
+            // Se der erro, mantém apenas os mockados
+            setAllWorkouts(mockWorkouts);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    loadSavedWorkouts();
+}, []);
+
+    // Mostrar loading enquanto carrega os treinos
+    if (loading) {
+        return (
+            <View className="flex-1 items-center justify-center bg-white px-6">
+                <Text className="text-xl font-bold text-neutral-900">
+                    Carregando...
+                </Text>
+            </View>
+        );
+    }
+
+    // Buscar o treino correspondente (após carregar)
+    const workout = allWorkouts.find(w => w.id === workoutId);
 
     // Se não encontrou o treino, volta para a tela anterior
     if (!workout) {
@@ -197,6 +241,67 @@ export default function WorkoutTemplateDetailsScreen() {
             </View>
         );
     }
+
+     const handleDeleteWorkout = async () => {
+        Alert.alert(
+            'Deletar treino',
+            `Tem certeza que deseja deletar o treino "${workout.name}"? Esta açaão não pode ser desfeita.`,
+            [
+                {
+                    text:'Cancelar',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Deletar',
+                    style: 'destructive',
+                    onPress: async() => {
+                        try {
+                            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+                            let savedWorkouts = [];
+
+                            if (savedWorkoutsJson) {
+                                savedWorkouts = JSON.parse(savedWorkoutsJson);
+                            }
+
+                            const updatedWorkouts = savedWorkouts.filter(
+                                (w:any) => w.id !== workoutId
+                            );
+
+                            await AsyncStorage.setItem(
+                                'workout_templates',
+                                JSON.stringify(updatedWorkouts)
+                            );
+
+                            Alert.alert('Sucesso', 'Treino deletado com sucesso!');
+                            router.back();
+                        }
+                        catch (error) {
+                            console.error('Erro ao deletar treino:', error);
+                            Alert.alert('Erro', 'Não foi possível deletar o treino.');
+                        }
+                    },
+                },
+            ]
+        );
+     };
+
+     <View className="flex-row justify-between items-center mb-6">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          >
+            <Text className="text-primary-600 font-semibold text-lg">
+                ← Voltar
+            </Text>
+
+          </TouchableOpacity>
+          <TouchableOpacity
+           className="bg-red-500 rounded-lg px-4 py-2"
+           onPress={handleDeleteWorkout}>
+             <Text className="text-white font-semibold">
+             🗑️Deletar
+             </Text>
+           </TouchableOpacity>
+     </View>
 
     return (
         <ScrollView className="flex-1 bg-white">

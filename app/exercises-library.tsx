@@ -5,9 +5,11 @@
  * Por enquanto com dados mockados, depois virá do Firebase.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Dados mockados de exercícios (temporário - depois virá do Firebase)
 const mockExercises = [
@@ -106,12 +108,106 @@ const mockExercises = [
 export default function ExercisesLibraryScreen() {
   const router = useRouter();
   const [searchText, setSearchText] = useState('');
+  const [allExercises, setAllExercises] = useState(mockExercises);
+
+  const loadSavedExercises = useCallback(async () => {
+    try {
+      console.log('🔍 Carregando exercícios salvos...');
+      
+      const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
+      console.log('📦 JSON do AsyncStorage:', savedExercisesJson);
+      
+      const savedExercises = savedExercisesJson
+        ? JSON.parse(savedExercisesJson)
+        : [];
+      
+      console.log('✅ Exercícios salvos parseados:', savedExercises);
+      console.log('📊 Quantidade de exercícios salvos:', savedExercises.length);
+  
+      const combinedExercises = [...mockExercises, ...savedExercises];
+      
+      console.log('🔄 Total de exercícios combinados:', combinedExercises.length);
+      console.log('📋 Lista completa:', combinedExercises.map(e => e.name));
+  
+      setAllExercises(combinedExercises);
+    } catch (error) {
+      console.error('❌ Erro ao carregar exercícios', error);
+      setAllExercises(mockExercises);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSavedExercises();
+  }, []);
+  
+  // E mantenha o useFocusEffect também:
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🎯 Tela recebeu foco - recarregando exercícios...');
+      loadSavedExercises();
+    }, [loadSavedExercises])
+  );
+
+  const handleDeleteExercise = async (exerciseId: string, exerciseName: string) => {
+    // PARTE 1: Confirmar com o usuário antes de deletar
+    Alert.alert(
+        'Deletar Exercício',
+        `Tem certeza que deseja deletar o exercício "${exerciseName}"? Esta ação não pode ser desfeita.`,
+        [
+            {
+                text: 'Cancelar',
+                style: 'cancel', // Botão de cancelar (não faz nada)
+            },
+            {
+                text: 'Deletar',
+                style: 'destructive', // Botão vermelho (iOS) ou destrutivo
+                onPress: async () => {
+                    try {
+                        // PARTE 2: Buscar todos os exercícios salvos do AsyncStorage
+                        const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
+                        let savedExercises = [];
+                        
+                        if (savedExercisesJson) {
+                            savedExercises = JSON.parse(savedExercisesJson);
+                        }
+
+                        // PARTE 3: Filtrar o exercício que queremos deletar
+                        // Usamos filter para criar um novo array SEM o exercício deletado
+                        const updatedExercises = savedExercises.filter(
+                            (ex: any) => ex.id !== exerciseId
+                        );
+
+                        // PARTE 4: Salvar a lista atualizada de volta no AsyncStorage
+                        await AsyncStorage.setItem(
+                            'saved_exercises',
+                            JSON.stringify(updatedExercises)
+                        );
+
+                        // PARTE 5: Recarregar a lista de exercícios
+                        // Isso vai atualizar a tela automaticamente
+                        await loadSavedExercises();
+
+                        // PARTE 6: Mostrar mensagem de sucesso
+                        Alert.alert('Sucesso', 'Exercício deletado com sucesso!');
+                    } catch (error) {
+                        // PARTE 7: Se der erro, mostrar mensagem
+                        console.error('Erro ao deletar exercício:', error);
+                        Alert.alert('Erro', 'Não foi possível deletar o exercício.');
+                    }
+                },
+            },
+        ]
+    );
+};
 
   // Filtrar exercícios baseado na busca
-  const filteredExercises = mockExercises.filter((exercise) =>
-    exercise.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    exercise.muscleGroups.some(group => group.toLowerCase().includes(searchText.toLowerCase()))
-  );
+  const filteredExercises = allExercises.filter((exercise) => {
+    const nameMatch = exercise.name?.toLowerCase().includes(searchText.toLowerCase()) || false;
+    const muscleGroupsMatch = exercise.muscleGroups?.some(group => 
+      group.toLowerCase().includes(searchText.toLowerCase())
+    ) || false;
+    return nameMatch || muscleGroupsMatch;
+  });
 
   // Função para obter cor da dificuldade
   const getDifficultyColor = (difficulty: string) => {
@@ -190,49 +286,87 @@ export default function ExercisesLibraryScreen() {
 
         {/* Lista de exercícios */}
         {filteredExercises.map((exercise) => (
-          <TouchableOpacity
+          <View
             key={exercise.id}
             className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
           >
+            {/* Cabeçalho do card com nome, botões de ação e dificuldade */}
             <View className="flex-row justify-between items-start mb-2">
               <Text className="text-lg font-semibold text-neutral-900 flex-1">
-                {exercise.name}
+                {exercise.name || 'Exercício sem nome'}
               </Text>
-              <View className={`px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
+              
+              {/* Botões de ação - só aparecem para exercícios criados (não mockados) */}
+              {exercise.id.startsWith('exercise_') && (
+                <View className="flex-row gap-2 mr-2">
+                  {/* Botão Editar */}
+                  <TouchableOpacity
+                    className="bg-blue-500 rounded-lg px-3 py-1"
+                    onPress={() => {
+                      router.push({
+                        pathname: '/edit-exercise',
+                        params: { exerciseId: exercise.id },
+                      });
+                    }}
+                  >
+                    <Text className="text-white font-semibold text-xs">
+                      ✏️
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Botão Deletar */}
+                  <TouchableOpacity
+                    className="bg-red-500 rounded-lg px-3 py-1"
+                    onPress={() => handleDeleteExercise(exercise.id, exercise.name || 'Exercício')}
+                  >
+                    <Text className="text-white font-semibold text-xs">
+                      🗑️
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              <View className={`px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty || 'beginner')}`}>
                 <Text className={`text-xs font-semibold`}>
-                  {getDifficultyLabel(exercise.difficulty)}
+                  {getDifficultyLabel(exercise.difficulty || 'beginner')}
                 </Text>
               </View>
             </View>
 
             <Text className="text-neutral-600 text-sm mb-3">
-              {exercise.description}
+              {exercise.description || 'Sem descrição'}
             </Text>
 
             <View className="flex-row flex-wrap gap-2 mb-2">
-              {exercise.muscleGroups.map((group, index) => (
-                <View
-                  key={index}
-                  className="bg-primary-50 px-2 py-1 rounded"
-                >
-                  <Text className="text-xs text-primary-700">
-                    {group}
-                  </Text>
-                </View>
-              ))}
+              {exercise.muscleGroups && exercise.muscleGroups.length > 0 ? (
+                exercise.muscleGroups.map((group, index) => (
+                  <View
+                    key={index}
+                    className="bg-primary-50 px-2 py-1 rounded"
+                  >
+                    <Text className="text-xs text-primary-700">
+                      {group}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text className="text-neutral-400 text-xs">
+                  Nenhum grupo muscular
+                </Text>
+              )}
             </View>
 
             <View className="flex-row gap-4 mt-2">
               <Text className="text-neutral-500 text-xs">
-                Equipamento: {exercise.equipment.join(', ')}
+                Equipamento: {exercise.equipment && exercise.equipment.length > 0 ? exercise.equipment.join(', ') : 'Nenhum'}
               </Text>
-              {exercise.duration && (
+              {exercise.duration !== undefined && exercise.duration !== null && exercise.duration > 0 && (
                 <Text className="text-neutral-500 text-xs">
                   Duração: {exercise.duration}s
                 </Text>
               )}
             </View>
-          </TouchableOpacity>
+          </View>
         ))}
 
         {/* Mensagem se não encontrar */}
