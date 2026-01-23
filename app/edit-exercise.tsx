@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 export default function EditExerciseScreen() {
     const router = useRouter();
@@ -152,8 +153,8 @@ export default function EditExerciseScreen() {
     // Mostrar loading enquanto carrega
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-white">
-                <Text className="text-xl font-bold text-neutral-900">
+            <View className="flex-1 items-center justify-center bg-dark-950">
+                <Text className="text-xl font-bold text-white">
                     Carregando...
                 </Text>
             </View>
@@ -162,32 +163,38 @@ export default function EditExerciseScreen() {
 
     // PARTE 3: JSX (igual ao create-exercise.tsx, mas com título "Editar Exercício")
     return (
-        <ScrollView className="flex-1 bg-white">
-            <View className="px-6 pt-12 pb-20">
+        <ScrollView className="flex-1 bg-dark-950">
+            <View className="px-6 pt-20 pb-20">
+                {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
-                    className="mb-6"
+                    className="mb-6 flex-row items-center"
                     onPress={() => router.back()}
+                    activeOpacity={0.7}
                 >
-                    <Text className="text-primary-600 font-semibold text-lg">
-                        ← Voltar
+                    <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                    </View>
+                    <Text className="text-primary-400 font-semibold text-lg">
+                        Voltar
                     </Text>
                 </TouchableOpacity>
 
-                <Text className="text-3xl font-bold text-neutral-900 mb-2">
+                <Text className="text-3xl font-bold text-white mb-2">
                     Editar Exercício
                 </Text>
-                <Text className="text-neutral-600 mb-6">
+                <Text className="text-neutral-400 mb-6">
                     Atualize as informações do exercício
                 </Text>
 
                 {/* Campo Nome */}
                 <View className="mb-4">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="text-neutral-300 font-semibold mb-2">
                         Nome do Exercício *
                     </Text>
                     <TextInput
-                        className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                         placeholder="Ex: Agachamento"
+                        placeholderTextColor="#737373"
                         value={name}
                         onChangeText={setName}
                     />
@@ -195,12 +202,13 @@ export default function EditExerciseScreen() {
 
                 {/* Campo Descrição */}
                 <View className="mb-4">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="text-neutral-300 font-semibold mb-2">
                         Descrição *
                     </Text>
                     <TextInput
-                        className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                         placeholder="Descreva o exercício..."
+                        placeholderTextColor="#737373"
                         multiline
                         numberOfLines={4}
                         value={description}
@@ -219,14 +227,14 @@ export default function EditExerciseScreen() {
                                 key={level}
                                 className={`flex-1 py-3 rounded-lg border-2 ${
                                     difficulty === level
-                                        ? 'bg-primary-600 border-primary-600'
-                                        : 'bg-neutral-50 border-neutral-200'
+                                        ? 'bg-primary-500 border-primary-500'
+                                        : 'bg-dark-900 border-dark-700'
                                 }`}
                                 onPress={() => setDifficulty(level)}
                             >
                                 <Text
                                     className={`text-center font-semibold ${
-                                        difficulty === level ? 'text-white' : 'text-neutral-700'
+                                        difficulty === level ? 'text-white' : 'text-neutral-300'
                                     }`}
                                 >
                                     {level === 'beginner' ? 'Iniciante' : level === 'intermediate' ? 'Intermediário' : 'Avançado'}
@@ -243,14 +251,15 @@ export default function EditExerciseScreen() {
                     </Text>
                     <View className="flex-row gap-2 mb-2">
                         <TextInput
-                            className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                            className="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                             placeholder="Ex: pernas"
+                            placeholderTextColor="#737373"
                             value={newMuscleGroup}
                             onChangeText={setNewMuscleGroup}
                             onSubmitEditing={addMuscleGroup}
                         />
                         <TouchableOpacity
-                            className="bg-primary-600 rounded-lg px-6 py-3"
+                            className="bg-primary-500 rounded-lg px-6 py-3"
                             onPress={addMuscleGroup}
                         >
                             <Text className="text-white font-semibold">+</Text>
@@ -260,11 +269,11 @@ export default function EditExerciseScreen() {
                         {muscleGroups.map((group, index) => (
                             <TouchableOpacity
                                 key={index}
-                                className="bg-primary-100 px-3 py-1 rounded-full flex-row items-center gap-2"
+                                className="bg-primary-500/20 border border-primary-500/30 px-3 py-1 rounded-full flex-row items-center gap-2"
                                 onPress={() => removeMuscleGroup(group)}
                             >
-                                <Text className="text-primary-700">{group}</Text>
-                                <Text className="text-primary-700">×</Text>
+                                <Text className="text-primary-400">{group}</Text>
+                                <Text className="text-primary-400">×</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -284,7 +293,7 @@ export default function EditExerciseScreen() {
                             onSubmitEditing={addEquipment}
                         />
                         <TouchableOpacity
-                            className="bg-primary-600 rounded-lg px-6 py-3"
+                            className="bg-primary-500 rounded-lg px-6 py-3"
                             onPress={addEquipment}
                         >
                             <Text className="text-white font-semibold">+</Text>
@@ -294,11 +303,11 @@ export default function EditExerciseScreen() {
                         {equipment.map((item, index) => (
                             <TouchableOpacity
                                 key={index}
-                                className="bg-neutral-100 px-3 py-1 rounded-full flex-row items-center gap-2"
+                                className="bg-dark-800 border border-dark-600 px-3 py-1 rounded-full flex-row items-center gap-2"
                                 onPress={() => removeEquipment(item)}
                             >
-                                <Text className="text-neutral-700">{item}</Text>
-                                <Text className="text-neutral-700">×</Text>
+                                <Text className="text-neutral-300">{item}</Text>
+                                <Text className="text-neutral-300">×</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -310,8 +319,9 @@ export default function EditExerciseScreen() {
                         Duração (segundos)
                     </Text>
                     <TextInput
-                        className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                         placeholder="Ex: 60"
+                        placeholderTextColor="#737373"
                         keyboardType="numeric"
                         value={duration}
                         onChangeText={setDuration}
@@ -320,7 +330,14 @@ export default function EditExerciseScreen() {
 
                 {/* Botão Salvar */}
                 <TouchableOpacity
-                    className="bg-primary-600 rounded-lg py-4 px-6"
+                    className="bg-primary-500 rounded-lg py-4 px-6"
+                    style={{
+                      shadowColor: '#fb923c',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
                     onPress={handleUpdateExercise}
                 >
                     <Text className="text-white font-semibold text-center text-lg">

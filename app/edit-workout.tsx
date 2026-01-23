@@ -1,26 +1,10 @@
-/**
- * TELA DE CRIAÇÃO DE TREINO
- * 
- * Esta tela permite ao treinador criar um novo treino completo
- * com os 3 blocos obrigatórios: Aquecimento, Principal e Finalização.
- * 
- * ESTRUTURA:
- * 1. Formulário básico (nome, descrição)
- * 2. Seção para cada bloco (Warm-up, Work, Cool Down)
- * 3. Para cada bloco: adicionar exercícios da biblioteca
- * 4. Para cada exercício: configurar séries, repetições, duração, descanso
- * 5. Botão de salvar
- */
-
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-// Exercícios mockados (mesmos da biblioteca de exercícios)
-// TODO: Depois vamos buscar da biblioteca real
 const mockExercises: Exercise[] = [
     { id: '1', name: 'Agachamento', description: 'Exercício fundamental para desenvolvimento de força nas pernas e glúteos.', difficulty: 'beginner', muscleGroups: ['pernas', 'glúteos'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
     { id: '2', name: 'Supino Reto', description: 'Exercício clássico para desenvolvimento do peitoral, tríceps e deltoides.', difficulty: 'intermediate', muscleGroups: ['peito', 'tríceps', 'ombros'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
@@ -38,28 +22,99 @@ const mockExercises: Exercise[] = [
     { id: '14', name: 'Alongamento de Peito', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
 ];
 
-export default function CreateWorkoutScreen() {
+export default function EditWorkoutScreen() {
     const router = useRouter();
+    const { workoutId } = useLocalSearchParams();
 
-    // Estado para o formulário básico
+    // Garantir que workoutId seja sempre string
+    const workoutIdString = Array.isArray(workoutId) ? workoutId[0] : workoutId;
+    
+    // Estados do formulário básico
     const [workoutName, setWorkoutName] = useState('');
     const [workoutDescription, setWorkoutDescription] = useState('');
 
-    // Estado para os 3 blocos do treino
-    // Cada bloco tem um array de exercícios
+    // Estados para os 3 blocos do treino
     const [warmUpExercises, setWarmUpExercises] = useState<WorkoutExercise[]>([]);
     const [workExercises, setWorkExercises] = useState<WorkoutExercise[]>([]);
     const [coolDownExercises, setCoolDownExercises] = useState<WorkoutExercise[]>([]);
 
-    // Estado para controlar qual bloco está sendo editado (para seleção de exercícios)
-    const [selectingForBlock, setSelectingForBlock] = useState<WorkoutBlock | null>(null);
+    // Estados para notas dos blocos
+    const [warmUpNotes, setWarmUpNotes] = useState('');
+    const [workNotes, setWorkNotes] = useState('');
+    const [coolDownNotes, setCoolDownNotes] = useState('');
 
+    // Estados para o modal de seleção de exercícios
+    const [showExerciseModal, setShowExerciseModal] = useState(false);
+    const [currentBlock, setCurrentBlock] = useState<WorkoutBlock | null>(null);
+
+    // Estado para carregamento
+    const [loading, setLoading] = useState(true);
+
+    // Estado para armazenar o treino original (para manter createdAt, createdBy, etc)
+    const [originalWorkout, setOriginalWorkout] = useState<any>(null);
+
+    // NOVOS ESTADOS: Para carregar e filtrar exercícios
     const [allExercises, setAllExercises] = useState<Exercise[]>(mockExercises);
-
     const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
     const [selectedExerciseType, setSelectedExerciseType] = useState<'warmup' | 'work' | 'cooldown' | null>(null);
     const [searchExerciseText, setSearchExerciseText] = useState('');
 
+    // PARTE 1: Carregar dados do treino quando a tela abrir
+    useEffect(() => {
+        const loadWorkout = async () => {
+            try {
+                // Buscar todos os treinos salvos
+                const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+                let savedWorkouts = [];
+
+                if (savedWorkoutsJson) {
+                    savedWorkouts = JSON.parse(savedWorkoutsJson);
+                }
+
+                // Encontrar o treino pelo ID
+                const workout = savedWorkouts.find((w: any) => w.id === workoutIdString);
+
+                if (workout) {
+                    // Salvar o treino original para manter dados como createdAt, createdBy
+                    setOriginalWorkout(workout);
+
+                    // Preencher os campos com os dados do treino
+                    setWorkoutName(workout.name || '');
+                    setWorkoutDescription(workout.description || '');
+
+                    // Separar os exercícios por bloco
+                    const warmUpBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.WARM_UP);
+                    const workBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.WORK);
+                    const coolDownBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.COOL_DOWN);
+
+                    // Preencher exercícios de cada bloco
+                    setWarmUpExercises(warmUpBlock?.exercises || []);
+                    setWorkExercises(workBlock?.exercises || []);
+                    setCoolDownExercises(coolDownBlock?.exercises || []);
+
+                    // Preencher notas de cada bloco
+                    setWarmUpNotes(warmUpBlock?.notes || '');
+                    setWorkNotes(workBlock?.notes || '');
+                    setCoolDownNotes(coolDownBlock?.notes || '');
+                } else {
+                    Alert.alert('Erro', 'Treino não encontrado.');
+                    router.back();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar treino:', error);
+                Alert.alert('Erro', 'Não foi possível carregar o treino.');
+                router.back();
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (workoutIdString) {
+            loadWorkout();
+        }
+    }, [workoutIdString]);
+
+    // NOVA FUNÇÃO: Carregar exercícios do AsyncStorage
     const loadAllExercises = useCallback(async () => {
         try {
             const savedExerciseJson = await AsyncStorage.getItem('saved_exercises');
@@ -70,21 +125,21 @@ export default function CreateWorkoutScreen() {
             }
 
             const combined = [...mockExercises, ...savedExercises];
-
             setAllExercises(combined);
 
-            console.log('Exercícios carregados:', combined.length);
+            console.log('✅ Exercícios carregados no edit:', combined.length);
         } catch (error) {
-            console.error('Erro ao carregar exercícios:', error);
-
+            console.error('❌ Erro ao carregar exercícios:', error);
             setAllExercises(mockExercises);
         }
     }, []);
 
+    // Carregar exercícios quando a tela abrir
     useEffect(() => {
         loadAllExercises();
     }, [loadAllExercises]);
 
+    // FUNÇÃO: Determinar tipo de exercício
     const getExerciseType = (exercise: Exercise): 'warmup' | 'work' | 'cooldown' => {
         const groups = exercise.muscleGroups || [];
 
@@ -93,21 +148,21 @@ export default function CreateWorkoutScreen() {
             g.toLowerCase().includes('flexibilidade')
         );
 
-        if(hasCardio) {
-            if(groups.some(g => g.toLowerCase().includes('flexibilidade'))) {
+        if (hasCardio) {
+            if (groups.some(g => g.toLowerCase().includes('flexibilidade'))) {
                 return 'cooldown';
             }
-
             return 'warmup';
         }
 
         return 'work';
     };
 
+    // FUNÇÃO: Filtrar exercícios
     const getFilteredExercises = (): Exercise[] => {
         let filtered = allExercises;
 
-        if(searchExerciseText.trim()) {
+        if (searchExerciseText.trim()) {
             const searchLower = searchExerciseText.toLowerCase();
             filtered = filtered.filter(ex =>
                 ex.name.toLowerCase().includes(searchLower) ||
@@ -115,15 +170,15 @@ export default function CreateWorkoutScreen() {
             );
         }
 
-        if(selectedMuscleGroup) {
-            filtered = filtered.filter(ex => 
+        if (selectedMuscleGroup) {
+            filtered = filtered.filter(ex =>
                 ex.muscleGroups?.some(group =>
                     group.toLowerCase() === selectedMuscleGroup.toLowerCase()
                 )
             );
         }
 
-        if(selectedExerciseType) {
+        if (selectedExerciseType) {
             filtered = filtered.filter(ex => {
                 const exerciseType = getExerciseType(ex);
                 return exerciseType === selectedExerciseType;
@@ -133,7 +188,7 @@ export default function CreateWorkoutScreen() {
         return filtered;
     };
 
-
+    // FUNÇÃO: Obter todos os grupos musculares únicos
     const getAllMuscleGroups = (): string[] => {
         const groupsSet = new Set<string>();
 
@@ -146,333 +201,321 @@ export default function CreateWorkoutScreen() {
         return Array.from(groupsSet).sort();
     };
 
+    // FUNÇÃO: Limpar filtros
     const resetFilters = () => {
         setSelectedMuscleGroup(null);
         setSelectedExerciseType(null);
         setSearchExerciseText('');
     };
 
-    
-
-    /**
-     * FUNÇÃO: handleSaveWorkout
-     * 
-     * O que faz: Salva o treino criado
-     * 
-     * Passos:
-     * 1. Valida se o nome foi preenchido
-     * 2. Valida se pelo menos um exercício foi adicionado em cada bloco
-     * 3. Monta a estrutura completa do treino
-     * 4. Salva (por enquanto mostra um alert, depois salvará de verdade)
-     * 5. Volta para a tela anterior
-     */
-    const handleSaveWorkout = async() => {
-        // Validação básica
-        if (!workoutName.trim()) {
-            Alert.alert('Erro', 'Por favor, preencha o nome do treino.');
-            return;
-        }
-
-        // Validação: cada bloco deve ter pelo menos 1 exercício
-        if (warmUpExercises.length === 0 || workExercises.length === 0 || coolDownExercises.length === 0) {
-            Alert.alert('Erro', 'Cada bloco deve ter pelo menos 1 exercício.');
-            return;
-        }
-
-        // Montar a estrutura completa do treino
-        const newWorkout = {
-            id: `workout_${Date.now()}`,
-            name: workoutName,
-            description: workoutDescription,
-            createdAt: new Date().toISOString().split('T')[0], // Data no formato YYYY-MM-DD
-            blocks: [
-                {
-                    blockType: WorkoutBlock.WARM_UP,
-                    exercises: warmUpExercises,
-                    notes: '',
-                },
-                {
-                    blockType: WorkoutBlock.WORK,
-                    exercises: workExercises,
-                    notes: '',
-                },
-                {
-                    blockType: WorkoutBlock.COOL_DOWN,
-                    exercises: coolDownExercises,
-                    notes: '',
-                },
-            ] as WorkoutBlockData[],
-        };
-
-        try {
-            const existingWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let existingWorkouts = [];
-
-            if (existingWorkoutsJson) {
-                existingWorkouts = JSON.parse(existingWorkoutsJson);
-            }
-
-            const updatedWorkouts = [...existingWorkouts, newWorkout];
-            await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
-
-            Alert.alert(
-                'Treino Criado!',
-                `Treino "${workoutName}" criado com sucesso!\n\n` +
-                `Aquecimento: ${warmUpExercises.length} exercício(s)\n` +
-                `Principal: ${workExercises.length} exercício(s)\n` +
-                `Finalização: ${coolDownExercises.length} exercício(s)`,
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.back(),
-                    },
-                ]
-            );
-        } catch (error){
-            console.error('Erro ao salvar treino:', error);
-            Alert.alert('Erro', 'Não foi possível salvar o treino. Por favor, tente novamente.');
-        }
-    };
-
-    /**
-     * FUNÇÃO: addExerciseToBlock
-     * 
-     * O que faz: Adiciona um exercício a um bloco específico
-     * 
-     * Parâmetros:
-     * - exerciseId: ID do exercício selecionado
-     * - blockType: Qual bloco (WARM_UP, WORK, COOL_DOWN)
-     */
-    const addExerciseToBlock = (exerciseId: string, blockType: WorkoutBlock) => {
-        const exercise = allExercises.find(e => e.id === exerciseId);
-        if (!exercise) return;
-
-        // Criar o objeto WorkoutExercise
-        const workoutExercise: WorkoutExercise = {
+    // PARTE 2: Função para adicionar exercício a um bloco
+    const handleAddExercise = (exercise: Exercise, blockType: WorkoutBlock) => {
+        const newExercise: WorkoutExercise = {
             exerciseId: exercise.id,
             exercise: exercise,
             sets: undefined,
             reps: undefined,
             duration: undefined,
             restTime: undefined,
-            order: 0, // Será calculado depois
+            order: 0,
             notes: '',
         };
 
-        // Adicionar ao bloco correto
         if (blockType === WorkoutBlock.WARM_UP) {
-            workoutExercise.order = warmUpExercises.length + 1;
-            setWarmUpExercises([...warmUpExercises, workoutExercise]);
+            newExercise.order = warmUpExercises.length + 1;
+            setWarmUpExercises([...warmUpExercises, newExercise]);
         } else if (blockType === WorkoutBlock.WORK) {
-            workoutExercise.order = workExercises.length + 1;
-            setWorkExercises([...workExercises, workoutExercise]);
+            newExercise.order = workExercises.length + 1;
+            setWorkExercises([...workExercises, newExercise]);
         } else if (blockType === WorkoutBlock.COOL_DOWN) {
-            workoutExercise.order = coolDownExercises.length + 1;
-            setCoolDownExercises([...coolDownExercises, workoutExercise]);
+            newExercise.order = coolDownExercises.length + 1;
+            setCoolDownExercises([...coolDownExercises, newExercise]);
         }
 
-        // Fechar a seleção
-        setSelectingForBlock(null);
+        setShowExerciseModal(false);
+        setCurrentBlock(null);
     };
 
-    /**
-     * FUNÇÃO: removeExerciseFromBlock
-     * 
-     * O que faz: Remove um exercício de um bloco
-     */
-    const removeExerciseFromBlock = (index: number, blockType: WorkoutBlock) => {
+    // PARTE 3: Função para remover exercício de um bloco
+    const handleRemoveExercise = (index: number, blockType: WorkoutBlock) => {
         if (blockType === WorkoutBlock.WARM_UP) {
             const updated = warmUpExercises.filter((_, i) => i !== index);
-            // Reordenar
-            updated.forEach((ex, i) => { ex.order = i + 1; });
+            // Reordenar os exercícios
+            updated.forEach((ex, i) => {
+                ex.order = i + 1;
+            });
             setWarmUpExercises(updated);
         } else if (blockType === WorkoutBlock.WORK) {
             const updated = workExercises.filter((_, i) => i !== index);
-            updated.forEach((ex, i) => { ex.order = i + 1; });
+            updated.forEach((ex, i) => {
+                ex.order = i + 1;
+            });
             setWorkExercises(updated);
         } else if (blockType === WorkoutBlock.COOL_DOWN) {
             const updated = coolDownExercises.filter((_, i) => i !== index);
-            updated.forEach((ex, i) => { ex.order = i + 1; });
+            updated.forEach((ex, i) => {
+                ex.order = i + 1;
+            });
             setCoolDownExercises(updated);
         }
     };
 
-    /**
-     * FUNÇÃO: updateExerciseInBlock
-     * 
-     * O que faz: Atualiza as configurações de um exercício (séries, reps, etc.)
-     */
-    const updateExerciseInBlock = (
-        index: number,
-        blockType: WorkoutBlock,
-        updates: Partial<WorkoutExercise>
-    ) => {
+    // PARTE 4: Função para atualizar um exercício em um bloco
+    const handleUpdateExercise = (index: number, blockType: WorkoutBlock, field: string, value: any) => {
         if (blockType === WorkoutBlock.WARM_UP) {
             const updated = [...warmUpExercises];
-            updated[index] = { ...updated[index], ...updates };
+            (updated[index] as any)[field] = value;
             setWarmUpExercises(updated);
         } else if (blockType === WorkoutBlock.WORK) {
             const updated = [...workExercises];
-            updated[index] = { ...updated[index], ...updates };
+            (updated[index] as any)[field] = value;
             setWorkExercises(updated);
         } else if (blockType === WorkoutBlock.COOL_DOWN) {
             const updated = [...coolDownExercises];
-            updated[index] = { ...updated[index], ...updates };
+            (updated[index] as any)[field] = value;
             setCoolDownExercises(updated);
         }
     };
 
-    /**
-     * FUNÇÃO AUXILIAR: getBlockName
-     * 
-     * Traduz o enum WorkoutBlock para português
-     */
-    const getBlockName = (blockType: WorkoutBlock) => {
-        switch (blockType) {
-            case WorkoutBlock.WARM_UP:
-                return 'Aquecimento';
-            case WorkoutBlock.WORK:
-                return 'Principal';
-            case WorkoutBlock.COOL_DOWN:
-                return 'Finalização';
+    // PARTE 5: Função para salvar as alterações
+    const handleUpdateWorkout = async () => {
+        // Validação básica
+        if (!workoutName.trim()) {
+            Alert.alert('Erro', 'Por favor, preencha o nome do treino.');
+            return;
+        }
+
+        if (!workoutDescription.trim()) {
+            Alert.alert('Erro', 'Por favor, preencha a descrição do treino.');
+            return;
+        }
+
+        try {
+            // Buscar todos os treinos salvos
+            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let savedWorkouts = [];
+
+            if (savedWorkoutsJson) {
+                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            }
+
+            // Encontrar o índice do treino a ser atualizado
+            const workoutIndex = savedWorkouts.findIndex((w: any) => w.id === workoutIdString);
+
+            if (workoutIndex === -1) {
+                Alert.alert('Erro', 'Treino não encontrado.');
+                return;
+            }
+
+            // Criar os blocos atualizados
+            const blocks: WorkoutBlockData[] = [
+                {
+                    blockType: WorkoutBlock.WARM_UP,
+                    exercises: warmUpExercises,
+                    notes: warmUpNotes,
+                },
+                {
+                    blockType: WorkoutBlock.WORK,
+                    exercises: workExercises,
+                    notes: workNotes,
+                },
+                {
+                    blockType: WorkoutBlock.COOL_DOWN,
+                    exercises: coolDownExercises,
+                    notes: coolDownNotes,
+                },
+            ];
+
+            // Criar objeto atualizado (mantém ID, createdAt, createdBy)
+            const updatedWorkout = {
+                ...originalWorkout, // Mantém dados originais
+                name: workoutName.trim(),
+                description: workoutDescription.trim(),
+                blocks: blocks,
+                updatedAt: new Date().toISOString(), // Atualiza data de modificação
+            };
+
+            // Substituir o treino antigo pelo atualizado
+            savedWorkouts[workoutIndex] = updatedWorkout;
+
+            // Salvar de volta no AsyncStorage
+            await AsyncStorage.setItem(
+                'workout_templates',
+                JSON.stringify(savedWorkouts)
+            );
+
+            Alert.alert('Sucesso', 'Treino atualizado com sucesso!');
+            router.back();
+        } catch (error) {
+            console.error('Erro ao atualizar treino:', error);
+            Alert.alert('Erro', 'Não foi possível atualizar o treino.');
         }
     };
 
-    /**
-     * FUNÇÃO AUXILIAR: renderBlockSection
-     * 
-     * Renderiza uma seção de bloco (Aquecimento, Principal ou Finalização)
-     */
-    const renderBlockSection = (
-        blockType: WorkoutBlock,
+    // Mostrar loading enquanto carrega
+    if (loading) {
+        return (
+            <View className="flex-1 items-center justify-center bg-dark-950">
+                <Text className="text-xl font-bold text-white">
+                    Carregando...
+                </Text>
+            </View>
+        );
+    }
+
+    // PARTE 6: Componente para renderizar um bloco de exercícios
+    const renderBlock = (
+        title: string,
         exercises: WorkoutExercise[],
-        setExercises: React.Dispatch<React.SetStateAction<WorkoutExercise[]>>
+        blockType: WorkoutBlock,
+        notes: string,
+        setNotes: (notes: string) => void,
+        setExercises: (exercises: WorkoutExercise[]) => void
     ) => {
         return (
             <View className="mb-6">
-                {/* Cabeçalho do bloco */}
-                <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-xl font-bold text-white">
-                        {getBlockName(blockType)}
+                <Text className="text-xl font-bold text-white mb-3">
+                    {title}
+                </Text>
+
+                {/* Campo de notas do bloco */}
+                <View className="mb-3">
+                    <Text className="text-neutral-300 font-semibold mb-2">
+                        Notas do Bloco
                     </Text>
-                    <TouchableOpacity
-                        className="bg-primary-500 rounded-lg px-4 py-2"
-                        onPress={() => setSelectingForBlock(blockType)}
-                    >
-                        <Text className="text-white font-semibold text-sm">
-                            + Adicionar Exercício
-                        </Text>
-                    </TouchableOpacity>
+                    <TextInput
+                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        placeholder="Ex: Aquecimento de 5 minutos"
+                        placeholderTextColor="#737373"
+                        value={notes}
+                        onChangeText={setNotes}
+                        multiline
+                        numberOfLines={2}
+                    />
                 </View>
 
+                {/* Botão para adicionar exercício */}
+                <TouchableOpacity
+                    className="bg-primary-500 rounded-lg py-3 px-4 mb-3"
+                    onPress={() => {
+                        setCurrentBlock(blockType);
+                        setShowExerciseModal(true);
+                    }}
+                >
+                    <Text className="text-white font-semibold text-center">
+                        ➕ Adicionar Exercício
+                    </Text>
+                </TouchableOpacity>
+
                 {/* Lista de exercícios do bloco */}
-                {exercises.length === 0 ? (
-                    <View className="bg-dark-900 rounded-xl p-4 border border-dark-700">
-                        <Text className="text-neutral-400 text-center">
-                            Nenhum exercício adicionado ainda
-                        </Text>
-                    </View>
-                ) : (
-                    exercises.map((workoutExercise, index) => {
-                        const exercise = workoutExercise.exercise;
-                        if (!exercise) return null;
-
-                        return (
-                            <View
-                                key={`${blockType}-${index}`}
-                                className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+                {exercises.map((exercise, index) => (
+                    <View
+                        key={index}
+                        className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+                    >
+                        <View className="flex-row justify-between items-start mb-2">
+                            <Text className="text-lg font-semibold text-white flex-1">
+                                {exercise.exercise?.name || 'Exercício'}
+                            </Text>
+                            <TouchableOpacity
+                                className="bg-red-500/80 rounded-lg px-3 py-1"
+                                onPress={() => handleRemoveExercise(index, blockType)}
                             >
-                                {/* Nome do exercício e botão remover */}
-                                <View className="flex-row justify-between items-start mb-3">
-                                    <View className="flex-1">
-                                        <Text className="text-lg font-semibold text-white">
-                                            {exercise.name}
-                                        </Text>
-                                        <Text className="text-sm text-neutral-400 mt-1">
-                                            {exercise.description}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        onPress={() => removeExerciseFromBlock(index, blockType)}
-                                        className="ml-2"
-                                    >
-                                        <Text className="text-red-600 font-semibold">✕</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <Text className="text-white font-semibold text-xs">
+                                    🗑️
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
 
-                                {/* Campos de configuração do exercício */}
-                                <View className="flex-row gap-3 mb-2">
-                                    {/* Séries */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs text-neutral-400 mb-1">Séries</Text>
-                                        <TextInput
-                                            className="bg-dark-900 border border-dark-700 rounded px-3 py-2 text-white"
-                                            placeholder="Ex: 3"
-                                            placeholderTextColor="#737373"
-                                            keyboardType="numeric"
-                                            value={workoutExercise.sets?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { sets: value });
-                                            }}
-                                        />
-                                    </View>
-
-                                    {/* Repetições */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Repetições</Text>
-                                        <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
-                                            placeholder="Ex: 12"
-                                            keyboardType="numeric"
-                                            value={workoutExercise.reps?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { reps: value });
-                                            }}
-                                        />
-                                    </View>
-                                </View>
-
-                                <View className="flex-row gap-3">
-                                    {/* Duração (segundos) */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Duração (s)</Text>
-                                        <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
-                                            placeholder="Ex: 60"
-                                            keyboardType="numeric"
-                                            value={workoutExercise.duration?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { duration: value });
-                                            }}
-                                        />
-                                    </View>
-
-                                    {/* Descanso (segundos) */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Descanso (s)</Text>
-                                        <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
-                                            placeholder="Ex: 45"
-                                            keyboardType="numeric"
-                                            value={workoutExercise.restTime?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { restTime: value });
-                                            }}
-                                        />
-                                    </View>
-                                </View>
+                        {/* Campos para configurar o exercício */}
+                        <View className="flex-row gap-2 mb-2">
+                            <View className="flex-1">
+                                <Text className="text-neutral-300 text-xs mb-1">Séries</Text>
+                                <TextInput
+                                    className="bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white"
+                                    placeholder="Ex: 3"
+                                    placeholderTextColor="#737373"
+                                    keyboardType="numeric"
+                                    value={exercise.sets?.toString() || ''}
+                                    onChangeText={(text) => {
+                                        const value = text ? parseInt(text) : undefined;
+                                        handleUpdateExercise(index, blockType, 'sets', value);
+                                    }}
+                                />
                             </View>
-                        );
-                    })
+                            <View className="flex-1">
+                                <Text className="text-neutral-300 text-xs mb-1">Repetições</Text>
+                                <TextInput
+                                    className="bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white"
+                                    placeholder="Ex: 12"
+                                    placeholderTextColor="#737373"
+                                    keyboardType="numeric"
+                                    value={exercise.reps?.toString() || ''}
+                                    onChangeText={(text) => {
+                                        const value = text ? parseInt(text) : undefined;
+                                        handleUpdateExercise(index, blockType, 'reps', value);
+                                    }}
+                                />
+                            </View>
+                        </View>
+
+                        <View className="flex-row gap-2 mb-2">
+                            <View className="flex-1">
+                                <Text className="text-neutral-300 text-xs mb-1">Duração (seg)</Text>
+                                <TextInput
+                                    className="bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white"
+                                    placeholder="Ex: 60"
+                                    placeholderTextColor="#737373"
+                                    keyboardType="numeric"
+                                    value={exercise.duration?.toString() || ''}
+                                    onChangeText={(text) => {
+                                        const value = text ? parseInt(text) : undefined;
+                                        handleUpdateExercise(index, blockType, 'duration', value);
+                                    }}
+                                />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-neutral-700 text-xs mb-1">Descanso (seg)</Text>
+                                <TextInput
+                                    className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
+                                    placeholder="Ex: 45"
+                                    keyboardType="numeric"
+                                    value={exercise.restTime?.toString() || ''}
+                                    onChangeText={(text) => {
+                                        const value = text ? parseInt(text) : undefined;
+                                        handleUpdateExercise(index, blockType, 'restTime', value);
+                                    }}
+                                />
+                            </View>
+                        </View>
+
+                        <View className="mb-2">
+                            <Text className="text-neutral-300 text-xs mb-1">Notas</Text>
+                            <TextInput
+                                className="bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white"
+                                placeholder="Ex: Foco em técnica"
+                                placeholderTextColor="#737373"
+                                value={exercise.notes || ''}
+                                onChangeText={(text) => {
+                                    handleUpdateExercise(index, blockType, 'notes', text);
+                                }}
+                                multiline
+                                numberOfLines={2}
+                            />
+                        </View>
+                    </View>
+                ))}
+
+                {exercises.length === 0 && (
+                    <Text className="text-neutral-400 text-center py-4">
+                        Nenhum exercício adicionado ainda
+                    </Text>
                 )}
             </View>
         );
     };
 
+    // PARTE 7: JSX principal
     return (
         <ScrollView className="flex-1 bg-dark-950">
             <View className="px-6 pt-20 pb-20">
@@ -490,59 +533,117 @@ export default function CreateWorkoutScreen() {
                     </Text>
                 </TouchableOpacity>
 
-                {/* Título */}
                 <Text className="text-3xl font-bold text-white mb-2">
-                    Criar Novo Treino
+                    Editar Treino
                 </Text>
                 <Text className="text-neutral-400 mb-6">
-                    Crie um treino completo com os 3 blocos obrigatórios
+                    Atualize as informações do treino
                 </Text>
 
                 {/* Formulário básico */}
                 <View className="mb-6">
-                    <Text className="text-sm font-semibold text-neutral-700 mb-2">
+                    <Text className="text-neutral-300 font-semibold mb-2">
                         Nome do Treino *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white mb-4"
+                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                         placeholder="Ex: Treino de Força - Pernas"
                         placeholderTextColor="#737373"
                         value={workoutName}
                         onChangeText={setWorkoutName}
                     />
+                </View>
 
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
-                        Descrição (opcional)
+                <View className="mb-6">
+                    <Text className="text-neutral-300 font-semibold mb-2">
+                        Descrição *
                     </Text>
                     <TextInput
                         className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
-                        placeholder="Descreva o objetivo do treino..."
+                        placeholder="Descreva o treino..."
                         placeholderTextColor="#737373"
-                        value={workoutDescription}
-                        onChangeText={setWorkoutDescription}
                         multiline
                         numberOfLines={3}
+                        value={workoutDescription}
+                        onChangeText={setWorkoutDescription}
                     />
                 </View>
 
-               {/* Seção de seleção de exercícios (modal) - ATUALIZADO COM FILTROS */}
+                {/* Renderizar os 3 blocos */}
+                {renderBlock(
+                    '🔥 Aquecimento',
+                    warmUpExercises,
+                    WorkoutBlock.WARM_UP,
+                    warmUpNotes,
+                    setWarmUpNotes,
+                    setWarmUpExercises
+                )}
+
+                {renderBlock(
+                    '💪 Treino Principal',
+                    workExercises,
+                    WorkoutBlock.WORK,
+                    workNotes,
+                    setWorkNotes,
+                    setWorkExercises
+                )}
+
+                {renderBlock(
+                    '🧘 Finalização',
+                    coolDownExercises,
+                    WorkoutBlock.COOL_DOWN,
+                    coolDownNotes,
+                    setCoolDownNotes,
+                    setCoolDownExercises
+                )}
+
+                {/* Botão Salvar */}
+                <TouchableOpacity
+                    className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
+                    style={{
+                      shadowColor: '#fb923c',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
+                    onPress={handleUpdateWorkout}
+                >
+                    <Text className="text-white font-semibold text-center text-lg">
+                        💾 Salvar Alterações
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Modal para seleção de exercícios - ATUALIZADO COM FILTROS */}
                 <Modal
-                    visible={selectingForBlock !== null}
+                    visible={showExerciseModal}
+                    animationType="slide"
                     transparent={true}
-                    animationType="fade"
                     onRequestClose={() => {
-                        setSelectingForBlock(null);
-                        resetFilters(); // Limpar filtros ao fechar
+                        setShowExerciseModal(false);
+                        setCurrentBlock(null);
+                        resetFilters();
                     }}
                 >
                     <View className="flex-1 bg-black/50 justify-center items-center p-6">
                         <View className="bg-dark-900 rounded-3xl p-6 w-full max-h-[80%] min-h-[70%]">
-                            {/* Título */}
-                            <Text className="text-xl font-bold text-white mb-4">
-                                Selecionar Exercício para {selectingForBlock ? getBlockName(selectingForBlock) : ''}
-                            </Text>
+                            <View className="flex-row justify-between items-center mb-4">
+                                <Text className="text-2xl font-bold text-white">
+                                    Selecionar Exercício
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowExerciseModal(false);
+                                        setCurrentBlock(null);
+                                        resetFilters();
+                                    }}
+                                >
+                                    <Text className="text-primary-400 font-semibold text-lg">
+                                        Fechar
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
 
-                            {/* BUSCA POR TEXTO */}
                             <TextInput
                                 className="bg-dark-800 border border-dark-700 rounded-lg px-4 py-2 text-white mb-3"
                                 placeholder="Buscar exercício..."
@@ -627,8 +728,8 @@ export default function CreateWorkoutScreen() {
                                 <Text className="text-sm font-semibold text-neutral-300 mb-2">
                                     Grupo Muscular
                                 </Text>
-                                <ScrollView 
-                                    horizontal 
+                                <ScrollView
+                                    horizontal
                                     showsHorizontalScrollIndicator={false}
                                     className="mb-2"
                                 >
@@ -645,7 +746,7 @@ export default function CreateWorkoutScreen() {
                                             <Text className={`text-sm font-semibold ${
                                                 selectedMuscleGroup === null
                                                     ? 'text-white'
-                                                    : 'text-neutral-900'
+                                                    : 'text-neutral-300'
                                             }`}>
                                                 Todos
                                             </Text>
@@ -657,8 +758,8 @@ export default function CreateWorkoutScreen() {
                                                 key={group}
                                                 className={`px-4 py-2 rounded-lg ${
                                                     selectedMuscleGroup === group
-                                                        ? 'bg-primary-600'
-                                                        : 'bg-neutral-200'
+                                                        ? 'bg-primary-500'
+                                                        : 'bg-dark-800'
                                                 }`}
                                                 onPress={() => {
                                                     setSelectedMuscleGroup(
@@ -669,7 +770,7 @@ export default function CreateWorkoutScreen() {
                                                 <Text className={`text-sm font-semibold ${
                                                     selectedMuscleGroup === group
                                                         ? 'text-white'
-                                                        : 'text-neutral-900'
+                                                        : 'text-neutral-300'
                                                 }`}>
                                                     {group.charAt(0).toUpperCase() + group.slice(1)}
                                                 </Text>
@@ -680,11 +781,7 @@ export default function CreateWorkoutScreen() {
                             </View>
 
                             {/* LISTA DE EXERCÍCIOS FILTRADOS */}
-                            <ScrollView 
-                                className="max-h-96"
-                                nestedScrollEnabled={true}
-                                keyboardShouldPersistTaps="handled"
-                            >
+                            <ScrollView>
                                 {getFilteredExercises().length === 0 ? (
                                     <Text className="text-neutral-500 text-center py-8">
                                         Nenhum exercício encontrado
@@ -693,18 +790,18 @@ export default function CreateWorkoutScreen() {
                                     getFilteredExercises().map((exercise) => (
                                         <TouchableOpacity
                                             key={exercise.id}
-                                            className="bg-dark-900 rounded-xl p-4 mb-2 border border-dark-700"
+                                            className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
                                             onPress={() => {
-                                                if (selectingForBlock) {
-                                                    addExerciseToBlock(exercise.id, selectingForBlock);
-                                                    resetFilters(); // Limpar filtros após seleção
+                                                if (currentBlock) {
+                                                    handleAddExercise(exercise, currentBlock);
+                                                    resetFilters();
                                                 }
                                             }}
                                         >
                                             <Text className="text-lg font-semibold text-white">
                                                 {exercise.name}
                                             </Text>
-                                            <Text className="text-sm text-neutral-400 mt-1">
+                                            <Text className="text-neutral-400 text-sm mt-1">
                                                 {exercise.description}
                                             </Text>
                                             {/* Mostrar grupos musculares */}
@@ -724,44 +821,9 @@ export default function CreateWorkoutScreen() {
                                     ))
                                 )}
                             </ScrollView>
-
-                            {/* Botão Cancelar */}
-                            <TouchableOpacity
-                                className="mt-4 bg-dark-800 border border-dark-700 rounded-lg py-3"
-                                onPress={() => {
-                                    setSelectingForBlock(null);
-                                    resetFilters();
-                                }}
-                            >
-                                <Text className="text-center text-neutral-300 font-semibold">
-                                    Cancelar
-                                </Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
-
-                {/* Seções dos 3 blocos */}
-                {renderBlockSection(WorkoutBlock.WARM_UP, warmUpExercises, setWarmUpExercises)}
-                {renderBlockSection(WorkoutBlock.WORK, workExercises, setWorkExercises)}
-                {renderBlockSection(WorkoutBlock.COOL_DOWN, coolDownExercises, setCoolDownExercises)}
-
-                {/* Botão de salvar */}
-                <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
-                    style={{
-                      shadowColor: '#fb923c',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 6,
-                    }}
-                    onPress={handleSaveWorkout}
-                >
-                    <Text className="text-white font-semibold text-center text-lg">
-                        💾 Salvar Treino
-                    </Text>
-                </TouchableOpacity>
             </View>
         </ScrollView>
     );

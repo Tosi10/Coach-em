@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Exercícios mockados (simplificados para aprendizado)
 const mockExercises: Exercise[] = [
@@ -200,26 +201,38 @@ export default function WorkoutLibraryScreen() {
     
 
     return (
-        <ScrollView className="flex-1 bg-white">
-            <View className="px-6 pt-12 pb-20">
+        <ScrollView className="flex-1 bg-dark-950">
+            <View className="px-6 pt-20 pb-20">
+                {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
-                  className="mb-6"
+                  className="mb-6 flex-row items-center"
                   onPress={() => router.back()}
+                  activeOpacity={0.7}
                 >
-                    <Text className="text-primary-600 font-semibold text-lg">
+                    <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                    </View>
+                    <Text className="text-primary-400 font-semibold text-lg">
                         Voltar
-                    </Text>                    
+                    </Text>
                 </TouchableOpacity>
 
-                <Text className="text-3xl font-bold text-neutral-900 mb-2">
+                <Text className="text-3xl font-bold text-white mb-2">
                     Meus Treinos
                 </Text>
-                <Text className="text-neutral-600 mb-6">
+                <Text className="text-neutral-400 mb-6">
                     Gerencie seus treinos e templates
                 </Text>
 
                 <TouchableOpacity 
-                    className="bg-primary-600 rounded-lg py-4 px-6 mb-6"
+                    className="bg-primary-500 rounded-lg py-4 px-6 mb-6"
+                    style={{
+                      shadowColor: '#fb923c',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
                     onPress={() => router.push('/create-workout')}
                 >
                     <Text className="text-white font-semibold text-center text-lg">
@@ -228,9 +241,8 @@ export default function WorkoutLibraryScreen() {
                 </TouchableOpacity>
 
                 <View className="w-full">
-                    <Text className="text-xl font-bold text-neutral-900 mb-4">
+                    <Text className="text-xl font-bold text-white mb-4">
                         Meus Treinos ({allWorkouts.length})
-
                     </Text>
 
                     {allWorkouts.map((workout) => {

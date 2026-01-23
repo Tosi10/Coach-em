@@ -1,19 +1,19 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+const tintColorLight = '#fb923c'; // Orange accent
+const tintColorDark = '#fb923c'; // Orange accent for dark theme
 
 export default {
   light: {
-    text: '#000',
-    background: '#fff',
+    text: '#fff', // White text for dark theme
+    background: '#0a0a0a', // Almost black background
     tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
+    tabIconDefault: '#737373', // Neutral gray for inactive tabs
+    tabIconSelected: tintColorLight, // Orange for active tab
   },
   dark: {
     text: '#fff',
-    background: '#000',
+    background: '#0a0a0a', // Almost black
     tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    tabIconDefault: '#737373', // Neutral gray
+    tabIconSelected: tintColorDark, // Orange
   },
 };

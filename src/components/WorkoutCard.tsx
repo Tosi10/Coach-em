@@ -25,26 +25,30 @@ export function WorkoutCard({
 
     return (
         <TouchableOpacity
-        className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
+        className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+        style={{
+          shadowColor: '#fb923c',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 4,
+          elevation: 4,
+        }}
         onPress={onPress}
         >
-            <Text className="text-lg font-semibold text-neutral-900 mb-1">
+            <Text className="text-lg font-semibold text-white mb-1">
                 {name}
-
             </Text>
-            <Text className="text-neutral-600 text-sm mb-2">
+            <Text className="text-neutral-400 text-sm mb-2">
                 {description}
             </Text>
             <View className="flex-row gap-4">
                 <Text className="text-neutral-500 text-xs">
                     {exercisesCount} exercícios
                 </Text>
-                <Text className="text-neutral-500 text-xs">S
+                <Text className="text-neutral-500 text-xs">
                     Criado em: {createdAt}
                 </Text>
-
             </View>
-
         </TouchableOpacity>
     )
 }

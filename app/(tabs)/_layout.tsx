@@ -21,7 +21,21 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#fb923c', // Orange for active tab
+        tabBarInactiveTintColor: '#737373', // Gray for inactive tabs
+        tabBarStyle: {
+          backgroundColor: '#171717', // Dark gray background
+          borderTopColor: '#262626', // Dark border
+          borderTopWidth: 1,
+        },
+        headerStyle: {
+          backgroundColor: '#0a0a0a', // Almost black header
+        },
+        headerTintColor: '#fff', // White text/icon in header
+        headerTitleStyle: {
+          color: '#fff', // White title
+          fontWeight: 'bold',
+        },
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
@@ -29,8 +43,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Home',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
           headerRight: () => (
             <Link href="/modal" asChild>
               <Pressable>
@@ -38,7 +52,7 @@ export default function TabLayout() {
                   <FontAwesome
                     name="info-circle"
                     size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
+                    color="#fff" // White icon
                     style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
@@ -50,8 +64,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Atletas',
+          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
         }}
       />
     </Tabs>

@@ -24,47 +24,57 @@ export default function SelectUserTypeScreen() {
     }
 
     return (
-        <View className="flex-1 items-center justify-center bg-white px-6">
-            <Text className="text-3xl font-bold text-neutral-900 mb-8">
+        <View className="flex-1 items-center justify-center bg-dark-950 px-6">
+            <Text className="text-3xl font-bold text-white mb-8">
                 Escolha seu perfil
             </Text>
             
             <View className="flex-row gap-4 w-full">
-                <TouchableOpacity className={`flex-1 py-6 px-4 rounded-lg border-2 ${
+                <TouchableOpacity className={`flex-1 py-6 px-4 rounded-xl border-2 ${
                     selectedType === UserType.COACH
-                    ? 'border-primary-600 bg-primary-50'
-                    : 'border-neutral-200 bg-neutral-50'
+                    ? 'border-primary-500 bg-primary-500/20'
+                    : 'border-dark-700 bg-dark-900'
                   }`}
+                  style={selectedType === UserType.COACH ? {
+                    shadowColor: '#fb923c',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                  } : {}}
                   onPress={() => handleSelectType(UserType.COACH)}
                 >
                   <Text className={`text-center font-semibold text-lg ${
                         selectedType === UserType.COACH
-                        ? 'text-primary-600'
-                        : 'text-neutral-600'
+                        ? 'text-primary-400'
+                        : 'text-neutral-300'
                     }`}>
                         Treinador
                     </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity className={`flex-1 py-6 px-4 rounded-lg border-2 ${
+                <TouchableOpacity className={`flex-1 py-6 px-4 rounded-xl border-2 ${
                     selectedType === UserType.ATHLETE
-                    ? 'border-primary-600 bg-primary-50'
-                    : 'border-neutral-200 bg-neutral-50'
+                    ? 'border-primary-500 bg-primary-500/20'
+                    : 'border-dark-700 bg-dark-900'
                 }`}
+                style={selectedType === UserType.ATHLETE ? {
+                  shadowColor: '#fb923c',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 6,
+                } : {}}
                 onPress={() => handleSelectType(UserType.ATHLETE)}
                 >
                     <Text className={`text-center font-semibold text-lg ${
                         selectedType === UserType.ATHLETE
-                        ? 'text-primary-600'
-                        : 'text-neutral-600'
+                        ? 'text-primary-400'
+                        : 'text-neutral-300'
                     }`}>
                         Atleta
                     </Text>
-
                 </TouchableOpacity>
-
-                
-
             </View>
         </View>
     );

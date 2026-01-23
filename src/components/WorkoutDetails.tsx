@@ -42,7 +42,7 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
     <View className="w-full">
       {/* Título do treino (opcional) */}
       {workoutName && (
-        <Text className="text-2xl font-bold text-neutral-900 mb-6">
+        <Text className="text-2xl font-bold text-white mb-6">
           {workoutName}
         </Text>
       )}
@@ -51,19 +51,19 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
       {blocks.map((block, blockIndex) => (
         <View key={blockIndex} className="mb-6">
           {/* Cabeçalho do bloco */}
-          <View className="bg-primary-50 rounded-t-lg px-4 py-3 border-b border-primary-200">
-            <Text className="text-lg font-bold text-primary-900">
+          <View className="bg-primary-500/20 border border-primary-500/30 rounded-t-xl px-4 py-3">
+            <Text className="text-lg font-bold text-primary-400">
               {getBlockName(block.blockType)}
             </Text>
             {block.notes && (
-              <Text className="text-sm text-primary-700 mt-1">
+              <Text className="text-sm text-primary-300 mt-1">
                 {block.notes}
               </Text>
             )}
           </View>
 
           {/* Lista de exercícios do bloco */}
-          <View className="bg-neutral-50 rounded-b-lg p-4 border border-neutral-200 border-t-0">
+          <View className="bg-dark-900 rounded-b-xl p-4 border border-dark-700 border-t-0">
             {block.exercises.length === 0 ? (
               <Text className="text-neutral-500 text-sm italic">
                 Nenhum exercício neste bloco
@@ -74,32 +74,39 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
                 .map((exercise, exerciseIndex) => (
                   <View
                     key={exerciseIndex}
-                    className="bg-white rounded-lg p-4 mb-3 border border-neutral-200"
+                    className="bg-dark-800 rounded-xl p-4 mb-3 border border-dark-600"
+                    style={{
+                      shadowColor: '#fb923c',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}
                   >
                     {/* Nome do exercício */}
-                    <Text className="text-base font-semibold text-neutral-900 mb-2">
+                    <Text className="text-base font-semibold text-white mb-2">
                       {exercise.exercise?.name || `Exercício ${exercise.order}`}
                     </Text>
 
                     {/* Detalhes do exercício */}
                     <View className="flex-row flex-wrap gap-3">
                       {exercise.sets && (
-                        <Text className="text-sm text-neutral-600">
+                        <Text className="text-sm text-neutral-400">
                           Séries: {exercise.sets}
                         </Text>
                       )}
                       {exercise.reps && (
-                        <Text className="text-sm text-neutral-600">
+                        <Text className="text-sm text-neutral-400">
                           Reps: {exercise.reps}
                         </Text>
                       )}
                       {exercise.duration && (
-                        <Text className="text-sm text-neutral-600">
+                        <Text className="text-sm text-neutral-400">
                           Duração: {exercise.duration}s
                         </Text>
                       )}
                       {exercise.restTime && (
-                        <Text className="text-sm text-neutral-600">
+                        <Text className="text-sm text-neutral-400">
                           Descanso: {exercise.restTime}s
                         </Text>
                       )}

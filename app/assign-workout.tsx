@@ -1,8 +1,9 @@
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Dados mockados de atletas (temporário - depois virá do Firebase)
 const mockAthletes = [
@@ -206,9 +207,38 @@ const mockAthletes = [
     const [selectedDate, setSelectedDate] = useState<string>(
       new Date().toISOString().split('T')[0] // Data de hoje como padrão
     );
+
+    // NOVO ESTADO: Lista completa de treinos (mock + salvos)
+    const [allWorkouts, setAllWorkouts] = useState<any[]>(mockWorkouts);
   
     // Encontrar o atleta pelo ID recebido
     const athlete = mockAthletes.find(a => a.id === athleteId);
+
+    // FUNÇÃO: Carregar treinos do AsyncStorage
+    const loadAllWorkouts = useCallback(async () => {
+        try {
+            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let savedWorkouts: any[] = [];
+
+            if (savedWorkoutsJson) {
+                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            }
+
+            // Combinar mockWorkouts + savedWorkouts
+            const combined = [...mockWorkouts, ...savedWorkouts];
+            setAllWorkouts(combined);
+
+            console.log('✅ Treinos carregados no assign:', combined.length);
+        } catch (error) {
+            console.error('❌ Erro ao carregar treinos:', error);
+            setAllWorkouts(mockWorkouts);
+        }
+    }, []);
+
+    // Carregar treinos quando a tela abrir
+    useEffect(() => {
+        loadAllWorkouts();
+    }, [loadAllWorkouts]);
 
     const handleAssignWorkout = async () => {
         if (!selectedWorkoutId) {
@@ -221,7 +251,7 @@ const mockAthletes = [
             return;
         }
 
-        const workout = mockWorkouts.find(w => w.id === selectedWorkoutId);
+        const workout = allWorkouts.find(w => w.id === selectedWorkoutId);
 
         if(!workout) {
             Alert.alert('Erro', 'Treino não encontrado.');
@@ -239,6 +269,7 @@ const mockAthletes = [
             id: assignedWorkoutId,
             workoutTemplateId: workout.id,
             name: workout.name,
+            description: workout.description || '',
             athleteId: athlete.id,
             scheduledDate: selectedDate,
             date: selectedDate,
@@ -248,7 +279,8 @@ const mockAthletes = [
             isToday: selectedDate === new Date().toISOString().split('T')[0],
             isThisWeek: isDateThisWeek(selectedDate),
             createdAt: new Date().toISOString(),
-
+            // IMPORTANTE: Salvar os blocks completos do treino
+            blocks: workout.blocks || [],
         };
 
         try {
@@ -291,12 +323,12 @@ const mockAthletes = [
     // Se o atleta não foi encontrado, mostra mensagem de erro
     if (!athlete) {
         return (
-            <View className="flex-1 bg-white justify-center items-center px-6">
-                <Text className="text-xl font-bold text-neutral-900 mb-4">
+            <View className="flex-1 bg-dark-950 justify-center items-center px-6">
+                <Text className="text-xl font-bold text-white mb-4">
                     Atleta não encontrado
                 </Text>
                 <TouchableOpacity
-                    className="bg-primary-600 rounded-lg py-3 px-6"
+                    className="bg-primary-500 rounded-lg py-3 px-6"
                     onPress={() => router.back()}
                 >
                     <Text className="text-white font-semibold">
@@ -308,14 +340,19 @@ const mockAthletes = [
     }
 
     return (
-            <ScrollView className="flex-1 bg-white">
-                <View className="px-6 pt-12 pb-20">
+            <ScrollView className="flex-1 bg-dark-950">
+                <View className="px-6 pt-20 pb-20">
+                    {/* Header com botão voltar melhorado */}
                     <TouchableOpacity 
-                        className="mb-6"
+                        className="mb-6 flex-row items-center"
                         onPress={() => router.back()}
+                        activeOpacity={0.7}
                     >
-                        <Text className="text-primary-600 font-semibold text-lg">
-                            ← Voltar
+                        <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+                            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                        </View>
+                        <Text className="text-primary-400 font-semibold text-lg">
+                            Voltar
                         </Text>
                     </TouchableOpacity>
 
@@ -336,34 +373,40 @@ const mockAthletes = [
                     </View>
 
                     <View className="mb-6">
-                        <Text className="text-xl font-bold text-neutral-900 mb-4">
+                        <Text className="text-xl font-bold text-white mb-4">
                             Selecionar Treino *
                         </Text>
 
-                        {mockWorkouts.map((workout) => {
+                        {allWorkouts.map((workout) => {
                             const totalExercises = workout.blocks.reduce(
-                                (total, block) => total + block.exercises.length, 0
+                                (total: number, block: any) => total + block.exercises.length, 0
                             );
                             return (
                                 <TouchableOpacity
                                  key={workout.id}
-                                 className={`bg-neutral-50 rounded-lg p-4 mb-3 border-2 ${
+                                 className={`bg-dark-900 rounded-xl p-4 mb-3 border-2 ${
                                     selectedWorkoutId === workout.id
-                                    ? 'border-primary-600 bg-primary-50'
-                                    : 'border-neutral-200'
+                                    ? 'border-primary-500 bg-primary-500/20'
+                                    : 'border-dark-700'
                                  }`}
+                                 style={selectedWorkoutId === workout.id ? {
+                                   shadowColor: '#fb923c',
+                                   shadowOffset: { width: 0, height: 2 },
+                                   shadowOpacity: 0.3,
+                                   shadowRadius: 4,
+                                   elevation: 4,
+                                 } : {}}
                                  onPress={() => setSelectedWorkoutId(workout.id)}
                                 >
-                                    <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                                    <Text className="text-lg font-semibold text-white mb-1">
                                         {workout.name}
                                     </Text>
-                                    <Text className="text-neutral-600 text-sm mb-2">
+                                    <Text className="text-neutral-400 text-sm mb-2">
                                         {workout.description}
                                     </Text>
-                                    <Text className="text-primary-600 text-sm font-medium">
+                                    <Text className="text-primary-400 text-sm font-medium">
                                     📋 {totalExercises} exercícios • Criado em {workout.createdAt}
                                     </Text>
-
                                 </TouchableOpacity>
                             )
                         })}
@@ -371,12 +414,13 @@ const mockAthletes = [
                     </View>
 
                     <View className="mb-6">
-                        <Text className="text-xl font-bold text-neutral-900 mb-4">
+                        <Text className="text-xl font-bold text-white mb-4">
                             Data do Treino *
                         </Text>
                         <TextInput
-                            className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                            className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
                             placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#737373"
                             value={selectedDate}
                             onChangeText={setSelectedDate}
                         />
@@ -387,7 +431,14 @@ const mockAthletes = [
 
                     {/* Botão de Atribuir */}
                     <TouchableOpacity
-                        className="bg-primary-600 rounded-lg py-4 px-6 mt-6"
+                        className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
+                        style={{
+                          shadowColor: '#fb923c',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 6,
+                        }}
                         onPress={handleAssignWorkout}
                     >
                         <Text className="text-white font-semibold text-center text-lg">

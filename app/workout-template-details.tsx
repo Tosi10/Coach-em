@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Exercícios mockados (mesmos do workouts-library.tsx)
 const mockExercises: Exercise[] = [
@@ -179,6 +180,10 @@ const mockWorkouts = [
 export default function WorkoutTemplateDetailsScreen() {
     const router = useRouter();
     const { workoutId } = useLocalSearchParams();
+    
+    // Garantir que workoutId seja sempre string
+    const workoutIdString = Array.isArray(workoutId) ? workoutId[0] : workoutId;
+    
     const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
     const [loading, setLoading] = useState(true);
 
@@ -214,8 +219,8 @@ useEffect(() => {
     // Mostrar loading enquanto carrega os treinos
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-white px-6">
-                <Text className="text-xl font-bold text-neutral-900">
+            <View className="flex-1 items-center justify-center bg-dark-950 px-6">
+                <Text className="text-xl font-bold text-white">
                     Carregando...
                 </Text>
             </View>
@@ -223,17 +228,17 @@ useEffect(() => {
     }
 
     // Buscar o treino correspondente (após carregar)
-    const workout = allWorkouts.find(w => w.id === workoutId);
+    const workout = allWorkouts.find(w => w.id === workoutIdString);
 
     // Se não encontrou o treino, volta para a tela anterior
     if (!workout) {
         return (
-            <View className="flex-1 items-center justify-center bg-white px-6">
-                <Text className="text-xl font-bold text-neutral-900 mb-4">
+            <View className="flex-1 items-center justify-center bg-dark-950 px-6">
+                <Text className="text-xl font-bold text-white mb-4">
                     Treino não encontrado
                 </Text>
                 <TouchableOpacity
-                    className="bg-primary-600 rounded-lg py-3 px-6"
+                    className="bg-primary-500 rounded-lg py-3 px-6"
                     onPress={() => router.back()}
                 >
                     <Text className="text-white font-semibold">Voltar</Text>
@@ -264,7 +269,7 @@ useEffect(() => {
                             }
 
                             const updatedWorkouts = savedWorkouts.filter(
-                                (w:any) => w.id !== workoutId
+                                (w:any) => w.id !== workoutIdString
                             );
 
                             await AsyncStorage.setItem(
@@ -285,40 +290,61 @@ useEffect(() => {
         );
      };
 
-     <View className="flex-row justify-between items-center mb-6">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          >
-            <Text className="text-primary-600 font-semibold text-lg">
-                ← Voltar
-            </Text>
-
-          </TouchableOpacity>
-          <TouchableOpacity
-           className="bg-red-500 rounded-lg px-4 py-2"
-           onPress={handleDeleteWorkout}>
-             <Text className="text-white font-semibold">
-             🗑️Deletar
-             </Text>
-           </TouchableOpacity>
-     </View>
-
     return (
-        <ScrollView className="flex-1 bg-white">
-            <View className="px-6 pt-12 pb-20">
-                {/* Header com botão voltar */}
-                <TouchableOpacity
-                    className="mb-6"
-                    onPress={() => router.back()}
-                >
-                    <Text className="text-primary-600 font-semibold text-lg">
-                        ← Voltar
-                    </Text>
-                </TouchableOpacity>
+        <ScrollView className="flex-1 bg-dark-950">
+            <View className="px-6 pt-20 pb-20">
+                {/* Header com botão voltar melhorado */}
+                <View className="flex-row justify-between items-center mb-6">
+                    <TouchableOpacity
+                        className="flex-row items-center"
+                        onPress={() => router.back()}
+                        activeOpacity={0.7}
+                    >
+                        <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+                            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                        </View>
+                        <Text className="text-primary-400 font-semibold text-lg">
+                            Voltar
+                        </Text>
+                    </TouchableOpacity>
+                    
+                    {/* Botões de ação - só aparecem para treinos criados (não mockados) */}
+                    {workout.id.startsWith('workout_') && (
+                        <View className="flex-row gap-2">
+                            {/* Botão Editar */}
+                            <TouchableOpacity
+                                className="bg-blue-500/80 rounded-lg px-4 py-2"
+                                onPress={() => {
+                                    router.push({
+                                        pathname: '/edit-workout',
+                                        params: { workoutId: workoutIdString },
+                                    });
+                                }}
+                            >
+                                <Text className="text-white font-semibold">
+                                    ✏️ Editar
+                                </Text>
+                            </TouchableOpacity>
+                            
+                            {/* Botão Deletar */}
+                            <TouchableOpacity
+                                className="bg-red-500/80 rounded-lg px-4 py-2"
+                                onPress={handleDeleteWorkout}
+                            >
+                                <Text className="text-white font-semibold">
+                                    🗑️ Deletar
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
 
                 {/* Informações do treino */}
                 <View className="mb-6">
-                    <Text className="text-neutral-600 mb-2">
+                    <Text className="text-3xl font-bold text-white mb-2">
+                        {workout.name}
+                    </Text>
+                    <Text className="text-neutral-400 mb-2">
                         {workout.description}
                     </Text>
                     <Text className="text-neutral-500 text-sm">

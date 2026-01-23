@@ -10,6 +10,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Exercise } from '@/src/types';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Dados mockados de exercícios (temporário - depois virá do Firebase)
 const mockExercises = [
@@ -110,6 +112,9 @@ export default function ExercisesLibraryScreen() {
   const [searchText, setSearchText] = useState('');
   const [allExercises, setAllExercises] = useState(mockExercises);
 
+  // ESTADO: Filtro por grupo muscular
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
+
   const loadSavedExercises = useCallback(async () => {
     try {
       console.log('🔍 Carregando exercícios salvos...');
@@ -200,26 +205,64 @@ export default function ExercisesLibraryScreen() {
     );
 };
 
-  // Filtrar exercícios baseado na busca
+  // FUNÇÃO: Obter todos os grupos musculares únicos
+  const getAllMuscleGroups = (): string[] => {
+    const groupsSet = new Set<string>();
+
+    allExercises.forEach(ex => {
+      ex.muscleGroups?.forEach((group: string) => {
+        groupsSet.add(group.toLowerCase());
+      });
+    });
+
+    return Array.from(groupsSet).sort();
+  };
+
+  // FUNÇÃO: Filtrar exercícios
   const filteredExercises = allExercises.filter((exercise) => {
-    const nameMatch = exercise.name?.toLowerCase().includes(searchText.toLowerCase()) || false;
-    const muscleGroupsMatch = exercise.muscleGroups?.some(group => 
-      group.toLowerCase().includes(searchText.toLowerCase())
-    ) || false;
-    return nameMatch || muscleGroupsMatch;
+    // FILTRO 1: Busca por texto
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      const nameMatch = exercise.name?.toLowerCase().includes(searchLower) || false;
+      const descMatch = exercise.description?.toLowerCase().includes(searchLower) || false;
+      if (!nameMatch && !descMatch) return false;
+    }
+
+    // FILTRO 2: Grupo muscular
+    if (selectedMuscleGroup) {
+      const hasGroup = exercise.muscleGroups?.some((group: string) =>
+        group.toLowerCase() === selectedMuscleGroup.toLowerCase()
+      );
+      if (!hasGroup) return false;
+    }
+
+    return true;
   });
 
-  // Função para obter cor da dificuldade
+  // Função para obter cor da dificuldade (tema escuro)
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner':
-        return 'bg-green-100 text-green-700';
+        return 'bg-green-500/20 border border-green-500/30';
       case 'intermediate':
-        return 'bg-yellow-100 text-yellow-700';
+        return 'bg-yellow-500/20 border border-yellow-500/30';
       case 'advanced':
-        return 'bg-red-100 text-red-700';
+        return 'bg-red-500/20 border border-red-500/30';
       default:
-        return 'bg-neutral-100 text-neutral-700';
+        return 'bg-neutral-500/20 border border-neutral-500/30';
+    }
+  };
+
+  const getDifficultyTextColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner':
+        return 'text-green-400';
+      case 'intermediate':
+        return 'text-yellow-400';
+      case 'advanced':
+        return 'text-red-400';
+      default:
+        return 'text-neutral-400';
     }
   };
 
@@ -238,29 +281,40 @@ export default function ExercisesLibraryScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="px-6 pt-12 pb-20">
-        {/* Header com botão voltar */}
+    <ScrollView className="flex-1 bg-dark-950">
+      <View className="px-6 pt-20 pb-20">
+        {/* Header com botão voltar melhorado */}
         <TouchableOpacity
-          className="mb-6"
+          className="mb-6 flex-row items-center"
           onPress={() => router.back()}
+          activeOpacity={0.7}
         >
-          <Text className="text-primary-600 font-semibold text-lg">
-            ← Voltar
+          <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+          </View>
+          <Text className="text-primary-400 font-semibold text-lg">
+            Voltar
           </Text>
         </TouchableOpacity>
 
         {/* Título */}
-        <Text className="text-3xl font-bold text-neutral-900 mb-2">
+        <Text className="text-3xl font-bold text-white mb-2">
           Biblioteca de Exercícios
         </Text>
-        <Text className="text-neutral-600 mb-6">
+        <Text className="text-neutral-400 mb-6">
           Gerencie seu repertório de exercícios
         </Text>
 
         {/* Botão Criar Exercício */}
         <TouchableOpacity
-          className="bg-primary-600 rounded-lg py-3 px-6 mb-6"
+          className="bg-primary-500 rounded-lg py-3 px-6 mb-6"
+          style={{
+            shadowColor: '#fb923c',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 6,
+          }}
           onPress={() => router.push('/create-exercise')}
         >
           <Text className="text-white font-semibold text-center text-lg">
@@ -269,18 +323,75 @@ export default function ExercisesLibraryScreen() {
         </TouchableOpacity>
 
         {/* Campo de busca */}
-        <View className="mb-6">
+        <View className="mb-4">
           <TextInput
-            className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
-            placeholder="Buscar exercício ou grupo muscular..."
-            placeholderTextColor="#9CA3AF"
+            className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+            placeholder="Buscar exercício..."
+            placeholderTextColor="#737373"
             value={searchText}
             onChangeText={setSearchText}
           />
         </View>
 
+        {/* FILTRO POR GRUPO MUSCULAR */}
+        <View className="mb-4">
+          <Text className="text-sm font-semibold text-neutral-300 mb-2">
+            Grupo Muscular
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-2"
+          >
+            <View className="flex-row gap-2">
+              {/* Botão "Todos" */}
+              <TouchableOpacity
+                className={`px-4 py-2 rounded-lg ${
+                  selectedMuscleGroup === null
+                    ? 'bg-primary-500'
+                    : 'bg-dark-800'
+                }`}
+                onPress={() => setSelectedMuscleGroup(null)}
+              >
+                <Text className={`text-sm font-semibold ${
+                  selectedMuscleGroup === null
+                    ? 'text-white'
+                    : 'text-neutral-300'
+                }`}>
+                  Todos
+                </Text>
+              </TouchableOpacity>
+
+              {/* Lista de grupos musculares */}
+              {getAllMuscleGroups().map((group) => (
+                <TouchableOpacity
+                  key={group}
+                  className={`px-4 py-2 rounded-lg ${
+                    selectedMuscleGroup === group
+                      ? 'bg-primary-500'
+                      : 'bg-dark-800'
+                  }`}
+                  onPress={() => {
+                    setSelectedMuscleGroup(
+                      selectedMuscleGroup === group ? null : group
+                    );
+                  }}
+                >
+                  <Text className={`text-sm font-semibold ${
+                    selectedMuscleGroup === group
+                      ? 'text-white'
+                      : 'text-neutral-300'
+                  }`}>
+                    {group.charAt(0).toUpperCase() + group.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
         {/* Contador de resultados */}
-        <Text className="text-neutral-600 mb-4">
+        <Text className="text-neutral-400 mb-4">
           {filteredExercises.length} exercício{filteredExercises.length !== 1 ? 's' : ''} encontrado{filteredExercises.length !== 1 ? 's' : ''}
         </Text>
 
@@ -288,11 +399,18 @@ export default function ExercisesLibraryScreen() {
         {filteredExercises.map((exercise) => (
           <View
             key={exercise.id}
-            className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
+            className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+            style={{
+              shadowColor: '#fb923c',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
           >
             {/* Cabeçalho do card com nome, botões de ação e dificuldade */}
             <View className="flex-row justify-between items-start mb-2">
-              <Text className="text-lg font-semibold text-neutral-900 flex-1">
+              <Text className="text-lg font-semibold text-white flex-1">
                 {exercise.name || 'Exercício sem nome'}
               </Text>
               
@@ -301,7 +419,7 @@ export default function ExercisesLibraryScreen() {
                 <View className="flex-row gap-2 mr-2">
                   {/* Botão Editar */}
                   <TouchableOpacity
-                    className="bg-blue-500 rounded-lg px-3 py-1"
+                    className="bg-blue-500/80 rounded-lg px-3 py-1"
                     onPress={() => {
                       router.push({
                         pathname: '/edit-exercise',
@@ -316,7 +434,7 @@ export default function ExercisesLibraryScreen() {
                   
                   {/* Botão Deletar */}
                   <TouchableOpacity
-                    className="bg-red-500 rounded-lg px-3 py-1"
+                    className="bg-red-500/80 rounded-lg px-3 py-1"
                     onPress={() => handleDeleteExercise(exercise.id, exercise.name || 'Exercício')}
                   >
                     <Text className="text-white font-semibold text-xs">
@@ -327,13 +445,13 @@ export default function ExercisesLibraryScreen() {
               )}
               
               <View className={`px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty || 'beginner')}`}>
-                <Text className={`text-xs font-semibold`}>
+                <Text className={`text-xs font-semibold ${getDifficultyTextColor(exercise.difficulty || 'beginner')}`}>
                   {getDifficultyLabel(exercise.difficulty || 'beginner')}
                 </Text>
               </View>
             </View>
 
-            <Text className="text-neutral-600 text-sm mb-3">
+            <Text className="text-neutral-400 text-sm mb-3">
               {exercise.description || 'Sem descrição'}
             </Text>
 
@@ -342,15 +460,15 @@ export default function ExercisesLibraryScreen() {
                 exercise.muscleGroups.map((group, index) => (
                   <View
                     key={index}
-                    className="bg-primary-50 px-2 py-1 rounded"
+                    className="bg-primary-500/20 border border-primary-500/30 px-2 py-1 rounded"
                   >
-                    <Text className="text-xs text-primary-700">
+                    <Text className="text-xs text-primary-400">
                       {group}
                     </Text>
                   </View>
                 ))
               ) : (
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-neutral-500 text-xs">
                   Nenhum grupo muscular
                 </Text>
               )}

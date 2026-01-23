@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -49,8 +50,23 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
+  // Custom dark theme matching Zeus app style
+  const customDarkTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: '#fb923c', // Orange accent
+      background: '#0a0a0a', // Almost black
+      card: '#171717', // Dark gray for cards
+      text: '#fff', // White text
+      border: '#262626', // Dark border
+      notification: '#fb923c', // Orange for notifications
+    },
+  };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={customDarkTheme}>
+      <StatusBar style="light" backgroundColor="#0a0a0a" />
       <Stack>
         <Stack.Screen name="select-user-type" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

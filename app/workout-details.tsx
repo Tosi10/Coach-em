@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View, } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -201,11 +202,30 @@ export default function WorkoutDetailsScreen() {
 
         setAssignedWorkout(found);
 
-        const templates = getMockWorkoutTemplates();
-        const template = templates.find((t: any) => t.id === found.workoutTemplateId);
+        // Se o treino já tem blocks salvos, usar diretamente
+        if (found.blocks && found.blocks.length > 0) {
+          setWorkoutTemplate({
+            id: found.workoutTemplateId || found.id,
+            name: found.name,
+            blocks: found.blocks,
+          });
+        } else {
+          // Caso contrário, buscar do template (compatibilidade com treinos antigos)
+          const mockTemplates = getMockWorkoutTemplates();
+          let template = mockTemplates.find((t: any) => t.id === found.workoutTemplateId);
 
-        if(template) {
-          setWorkoutTemplate(template);
+          // Se não encontrou nos mockados, buscar no AsyncStorage
+          if (!template) {
+            const savedTemplatesJson = await AsyncStorage.getItem('workout_templates');
+            if (savedTemplatesJson) {
+              const savedTemplates = JSON.parse(savedTemplatesJson);
+              template = savedTemplates.find((t: any) => t.id === found.workoutTemplateId);
+            }
+          }
+
+          if(template) {
+            setWorkoutTemplate(template);
+          }
         }
 
       } catch (error) {
@@ -224,8 +244,8 @@ export default function WorkoutDetailsScreen() {
   // Se não encontrou o treino, volta para a tela anterior
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-xl font-bold text-neutral-900 mb-4">
+      <View className="flex-1 items-center justify-center bg-dark-950 px-6">
+        <Text className="text-xl font-bold text-white mb-4">
           Carregando treino
         </Text>
       </View>
@@ -234,12 +254,12 @@ export default function WorkoutDetailsScreen() {
 
   if (!assignedWorkout) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className='text-xl font-bold text-neutral-900 mb-4'>
-          Treinao não encontrado
+      <View className="flex-1 items-center justify-center bg-dark-950 px-6">
+        <Text className='text-xl font-bold text-white mb-4'>
+          Treino não encontrado
         </Text>
         <TouchableOpacity 
-         className="bg-primary-600 rounded-lg py-3 px-6"
+         className="bg-primary-500 rounded-lg py-3 px-6"
          onPress={() => router.back()}
          >
           <Text className="text-white font-semibold">
@@ -297,40 +317,44 @@ export default function WorkoutDetailsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="px-6 pt-12 pb-20">
-        {/* Header com botão voltar */}
+    <ScrollView className="flex-1 bg-dark-950">
+      <View className="px-6 pt-20 pb-20">
+        {/* Header com botão voltar melhorado */}
         <TouchableOpacity
-          className="mb-6"
+          className="mb-6 flex-row items-center"
           onPress={() => router.back()}
+          activeOpacity={0.7}
         >
-          <Text className="text-primary-600 font-semibold text-lg">
-            ← Voltar
+          <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
+            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+          </View>
+          <Text className="text-primary-400 font-semibold text-lg">
+            Voltar
           </Text>
         </TouchableOpacity>
 
                 {/* Informações do treino */}
                 <View className="mb-6">
-          <Text className="text-3xl font-bold text-neutral-900 mb-2">
+          <Text className="text-3xl font-bold text-white mb-2">
             {assignedWorkout.name}
           </Text>
-          <Text className="text-neutral-600 mb-1">
+          <Text className="text-neutral-400 mb-1">
             Treinador: {assignedWorkout.coach}
           </Text>
-          <Text className="text-neutral-600 mb-4">
+          <Text className="text-neutral-400 mb-4">
             Data: {assignedWorkout.date} ({assignedWorkout.dayOfWeek})
           </Text>
           
           {/* Badge de status */}
           <View className={`self-start px-4 py-2 rounded-full ${
             assignedWorkout.status === 'Concluído'
-              ? 'bg-green-100'
-              : 'bg-yellow-100'
+              ? 'bg-green-500/20 border border-green-500/30'
+              : 'bg-yellow-500/20 border border-yellow-500/30'
           }`}>
             <Text className={`text-sm font-semibold ${
               assignedWorkout.status === 'Concluído'
-                ? 'text-green-700'
-                : 'text-yellow-700'
+                ? 'text-green-400'
+                : 'text-yellow-400'
             }`}>
               {assignedWorkout.status}
             </Text>
@@ -340,7 +364,7 @@ export default function WorkoutDetailsScreen() {
                 {/* Lista de blocos e exercícios */}
           {workoutTemplate && (
           <View className="mb-6">
-            <Text className="text-2xl font-bold text-neutral-900 mb-4">
+            <Text className="text-2xl font-bold text-white mb-4">
               Detalhes do Treino
             </Text>
             
@@ -353,43 +377,50 @@ export default function WorkoutDetailsScreen() {
               
               return (
                 <View key={blockIndex} className="mb-6">
-                  <Text className="text-xl font-semibold text-neutral-900 mb-3">
+                  <Text className="text-xl font-semibold text-white mb-3">
                     {blockNames[block.blockType] || block.blockType}
                   </Text>
                   
                   {block.exercises.map((exercise: any, exerciseIndex: number) => (
                     <View
                       key={exerciseIndex}
-                      className="bg-neutral-50 rounded-lg p-4 mb-3 border border-neutral-200"
+                      className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+                      style={{
+                        shadowColor: '#fb923c',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 4,
+                        elevation: 4,
+                      }}
                     >
-                      <Text className="text-lg font-semibold text-neutral-900 mb-2">
+                      <Text className="text-lg font-semibold text-white mb-2">
                         {exercise.exercise?.name || `Exercício ${exerciseIndex + 1}`}
                       </Text>
                       
                       {exercise.exercise?.description && (
-                        <Text className="text-neutral-600 text-sm mb-2">
+                        <Text className="text-neutral-400 text-sm mb-2">
                           {exercise.exercise.description}
                         </Text>
                       )}
                       
                       <View className="flex-row gap-4 flex-wrap">
                         {exercise.sets && (
-                          <Text className="text-neutral-600">
+                          <Text className="text-neutral-400">
                             Séries: {exercise.sets}
                           </Text>
                         )}
                         {exercise.reps && (
-                          <Text className="text-neutral-600">
+                          <Text className="text-neutral-400">
                             Repetições: {exercise.reps}
                           </Text>
                         )}
                         {exercise.duration && (
-                          <Text className="text-neutral-600">
+                          <Text className="text-neutral-400">
                             Duração: {Math.floor(exercise.duration / 60)}min
                           </Text>
                         )}
                         {exercise.restTime && (
-                          <Text className="text-neutral-600">
+                          <Text className="text-neutral-400">
                             Descanso: {exercise.restTime}s
                           </Text>
                         )}
@@ -411,7 +442,14 @@ export default function WorkoutDetailsScreen() {
                 {/* Botão marcar como concluído (só aparece se estiver pendente) */}
                 {assignedWorkout.status === 'Pendente' && (
           <TouchableOpacity
-            className="bg-primary-600 rounded-lg py-4 px-6"
+            className="bg-primary-500 rounded-lg py-4 px-6"
+            style={{
+              shadowColor: '#fb923c',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
             onPress={handleMarkAsCompleted}
           >
             <Text className="text-white font-semibold text-center text-lg">
@@ -422,8 +460,8 @@ export default function WorkoutDetailsScreen() {
 
         {/* Mensagem se já estiver concluído */}
         {assignedWorkout.status === 'Concluído' && (
-          <View className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <Text className="text-green-700 font-semibold text-center">
+          <View className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
+            <Text className="text-green-400 font-semibold text-center">
               ✅ Este treino já foi concluído!
             </Text>
           </View>
