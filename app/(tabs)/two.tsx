@@ -45,7 +45,7 @@ export default function TabTwoScreen() {
             }}
             onPress={() => {
               router.push({
-                pathname: '/assign-workout',
+                pathname: '/athlete-profile',
                 params: { athleteId: athlete.id },
               });
             }}
@@ -54,7 +54,7 @@ export default function TabTwoScreen() {
               {athlete.name}
             </Text>
             <Text className="text-neutral-400 mt-1">
-              {athlete.sport} • {athlete.status}
+              {athlete.status}
             </Text>
           </TouchableOpacity>
         ))}

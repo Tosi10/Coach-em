@@ -6,12 +6,12 @@
  */
 
 import { UserType } from '@/src/types';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 
 
@@ -551,7 +551,7 @@ useEffect(() => {
         Coach<Text className="text-primary-400">'em</Text>
       </Text>
       <Text className="text-neutral-400 text-center mb-6 px-4 text-base leading-6">
-        Bem-vindo ao seu app de gestão esportiva!
+        Bem vindo Rodrigo ao seu app de gestão esportiva.
       </Text>
 
       {userType === UserType.COACH ? (
@@ -693,7 +693,7 @@ useEffect(() => {
                   }}
                   onPress={() => {
                     router.push({
-                      pathname: '/assign-workout',
+                      pathname: '/athlete-profile',
                       params: { athleteId: athlete.id },
                     });
                   }}
@@ -743,7 +743,7 @@ useEffect(() => {
                   }}
                   onPress={() => {
                     router.push({
-                      pathname: '/assign-workout',
+                      pathname: '/athlete-profile',
                       params: { athleteId: athlete.id },
                     });
                   }}

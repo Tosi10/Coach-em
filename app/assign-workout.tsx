@@ -2,8 +2,9 @@ import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Calendar } from 'react-native-calendars';
 
 // Dados mockados de atletas (temporário - depois virá do Firebase)
 const mockAthletes = [
@@ -208,6 +209,17 @@ const mockAthletes = [
       new Date().toISOString().split('T')[0] // Data de hoje como padrão
     );
 
+    // Estados para recorrência
+    const [isRecurring, setIsRecurring] = useState<boolean>(false);
+    const [recurrenceType, setRecurrenceType] = useState<'weekly' | 'monthly'>('weekly');
+    const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number | null>(null); // 0 = Domingo, 1 = Segunda, etc.
+    const [recurrenceCount, setRecurrenceCount] = useState<number>(4); // quantidade de treinos
+    const [startDate, setStartDate] = useState<string>(
+      new Date().toISOString().split('T')[0]
+    );
+    const [showCalendar, setShowCalendar] = useState<boolean>(false);
+    const [showWorkoutModal, setShowWorkoutModal] = useState<boolean>(false);
+
     // NOVO ESTADO: Lista completa de treinos (mock + salvos)
     const [allWorkouts, setAllWorkouts] = useState<any[]>(mockWorkouts);
   
@@ -240,14 +252,71 @@ const mockAthletes = [
         loadAllWorkouts();
     }, [loadAllWorkouts]);
 
+    // Quando ativar "Recorrente" ou quando startDate mudar, auto-selecionar o dia da semana
+    useEffect(() => {
+        if (isRecurring && startDate) {
+            const dateObj = new Date(startDate);
+            const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+            setSelectedDayOfWeek(dayOfWeek);
+        }
+    }, [isRecurring, startDate]);
+
+    // Função para gerar datas recorrentes baseado na quantidade de treinos
+    const generateRecurringDates = (start: string, dayOfWeek: number, workoutCount: number): string[] => {
+        const dates: string[] = [];
+        
+        // Parse da data inicial (formato YYYY-MM-DD)
+        const [year, month, day] = start.split('-').map(Number);
+        const startDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Usar meio-dia para evitar problemas de timezone
+        
+        console.log(`🔍 Debug generateRecurringDates:`);
+        console.log(`   - Data inicial recebida: ${start}`);
+        console.log(`   - Quantidade de treinos: ${workoutCount}`);
+        console.log(`   - Dia da semana: ${dayOfWeek} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayOfWeek]})`);
+
+        // Encontrar a primeira ocorrência do dia da semana
+        let currentDate = new Date(startDate);
+        
+        // Se a data inicial já é o dia correto, usar ela
+        // Senão, encontrar a próxima ocorrência do dia da semana
+        if (currentDate.getDay() !== dayOfWeek) {
+            // Calcular quantos dias até o próximo dia da semana desejado
+            const currentDay = currentDate.getDay();
+            let daysToAdd = (dayOfWeek - currentDay + 7) % 7;
+            // Se daysToAdd é 0, significa que já é o dia correto (não deveria acontecer aqui)
+            if (daysToAdd === 0) {
+                daysToAdd = 7; // Ir para a próxima semana
+            }
+            currentDate.setDate(currentDate.getDate() + daysToAdd);
+            console.log(`   - Data inicial não era o dia correto, ajustando para: ${currentDate.toISOString().split('T')[0]}`);
+        } else {
+            console.log(`   - Data inicial já é o dia correto, usando: ${currentDate.toISOString().split('T')[0]}`);
+        }
+
+        // Gerar exatamente a quantidade de treinos solicitada
+        for (let i = 0; i < workoutCount; i++) {
+            // Formatar data como YYYY-MM-DD
+            const yearStr = currentDate.getFullYear();
+            const monthStr = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(currentDate.getDate()).padStart(2, '0');
+            const dateString = `${yearStr}-${monthStr}-${dayStr}`;
+            
+            dates.push(dateString);
+            console.log(`   - Adicionada data ${i + 1}/${workoutCount}: ${dateString} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][currentDate.getDay()]})`);
+            
+            // Avançar para a próxima semana (apenas se não for o último)
+            if (i < workoutCount - 1) {
+                currentDate.setDate(currentDate.getDate() + 7);
+            }
+        }
+
+        console.log(`📅 Total: ${dates.length} datas geradas (de ${dates[0] || 'N/A'} até ${dates[dates.length - 1] || 'N/A'})`);
+        return dates;
+    };
+
     const handleAssignWorkout = async () => {
         if (!selectedWorkoutId) {
             Alert.alert('Erro', 'Por favor, selecione um treino.');
-            return;
-        }
-
-        if(!selectedDate || selectedDate.trim() === '') {
-            Alert.alert('Erro', 'Por favor, inform a data de treino.');
             return;
         }
 
@@ -263,61 +332,94 @@ const mockAthletes = [
             return;
         }
 
-        const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}`;
-
-        const assignedWorkout = {
-            id: assignedWorkoutId,
-            workoutTemplateId: workout.id,
-            name: workout.name,
-            description: workout.description || '',
-            athleteId: athlete.id,
-            scheduledDate: selectedDate,
-            date: selectedDate,
-            status: 'Pendente',
-            coach: 'Treinador',
-            dayOfWeek: new Date(selectedDate).toLocaleDateString('pt-BR', { weekday: 'long'}),
-            isToday: selectedDate === new Date().toISOString().split('T')[0],
-            isThisWeek: isDateThisWeek(selectedDate),
-            createdAt: new Date().toISOString(),
-            // IMPORTANTE: Salvar os blocks completos do treino
-            blocks: workout.blocks || [],
-        };
+        // Validar recorrência
+        if (isRecurring) {
+            if (!startDate || startDate.trim() === '') {
+                Alert.alert('Erro', 'Por favor, selecione a data inicial.');
+                return;
+            }
+            if (selectedDayOfWeek === null) {
+                Alert.alert('Erro', 'Por favor, selecione o dia da semana.');
+                return;
+            }
+        } else {
+            if(!selectedDate || selectedDate.trim() === '') {
+                Alert.alert('Erro', 'Por favor, informe a data do treino.');
+                return;
+            }
+        }
 
         try {
             const existingWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+            const existingWorkouts = existingWorkoutsJson ? JSON.parse(existingWorkoutsJson) : [];
 
-            const existingWorkouts = existingWorkoutsJson
-            ? JSON.parse(existingWorkoutsJson)
-            : [];
+            let datesToAssign: string[] = [];
 
-            const updatedWorkouts = [...existingWorkouts, assignedWorkout];
+            if (isRecurring) {
+                // Gerar todas as datas recorrentes baseado na quantidade de treinos
+                console.log(`🔄 Gerando treinos recorrentes:`);
+                console.log(`   - Data inicial: ${startDate}`);
+                console.log(`   - Dia da semana: ${selectedDayOfWeek} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][selectedDayOfWeek!]})`);
+                console.log(`   - Quantidade de treinos: ${recurrenceCount}`);
+                datesToAssign = generateRecurringDates(startDate, selectedDayOfWeek!, recurrenceCount);
+                console.log(`   ✅ Total de datas geradas: ${datesToAssign.length}`);
+                console.log(`   📋 Datas: ${datesToAssign.join(', ')}`);
+            } else {
+                // Apenas uma data
+                datesToAssign = [selectedDate];
+            }
 
+            // Criar um ID único para este grupo de atribuição recorrente
+            const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
+            
+            // Criar uma atribuição para cada data
+            const newAssignments = datesToAssign.map((date) => {
+                const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
+                return {
+                    id: assignedWorkoutId,
+                    workoutTemplateId: workout.id,
+                    name: workout.name,
+                    description: workout.description || '',
+                    athleteId: athlete.id,
+                    scheduledDate: date,
+                    date: date,
+                    status: 'Pendente',
+                    coach: 'Treinador',
+                    dayOfWeek: new Date(date).toLocaleDateString('pt-BR', { weekday: 'long'}),
+                    isToday: date === new Date().toISOString().split('T')[0],
+                    isThisWeek: isDateThisWeek(date),
+                    createdAt: new Date().toISOString(),
+                    blocks: workout.blocks || [],
+                    isRecurring: isRecurring,
+                    recurrenceGroupId: recurrenceGroupId, // ID do grupo de atribuição recorrente
+                };
+            });
+
+            const updatedWorkouts = [...existingWorkouts, ...newAssignments];
             await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
             
-            console.log('💾 Treino salvo! Total de treinos:', updatedWorkouts.length);
-            console.log('📝 Treino salvo:', assignedWorkout);
-            console.log('👤 Atleta ID do treino salvo:', assignedWorkout.athleteId);
+            console.log('💾 Treinos salvos! Total:', updatedWorkouts.length);
+            console.log('📝 Novos treinos:', newAssignments.length);
+
+            const message = isRecurring 
+                ? `Treino "${workout.name}" atribuído para ${athlete.name} em ${newAssignments.length} datas (${recurrenceCount} treinos)`
+                : `Treino "${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`;
 
             Alert.alert(
-                ' ✅Treino Atribuído!',
-                `Treino"${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`,
+                '✅ Treino Atribuído!',
+                message,
                 [
-                    {text: 'OK',
-                        onPress: () => router.back(),
-                    }
+                    {text: 'OK', onPress: () => router.back()}
                 ]
             );
 
-        }
-
-        catch(error) {
+        } catch(error) {
             console.error('Erro ao salvar treino:', error);
             Alert.alert(
                 'Erro',
                 'Não foi possível salvar o treino. Tente novamente.'
             );
         }
-
     };
 
     // Se o atleta não foi encontrado, mostra mensagem de erro
@@ -356,19 +458,19 @@ const mockAthletes = [
                         </Text>
                     </TouchableOpacity>
 
-                    <Text className="text-3xl font-bold text-neutral-900 mb-2">
+                    <Text className="text-3xl font-bold text-white mb-2">
                         Atribuir Treino
                     </Text>
-                    <Text className="text-neutral-600 mb-6">
+                    <Text className="text-neutral-400 mb-6">
                         Escolha um treino e a data para {athlete.name}
                     </Text>
 
-                    <View className="bg-primary-50 rounded-lg p-4 mb-6 border border-primary-200">
-                        <Text className="text-lg font-semibold text-neutral-900 mb-1">
+                    <View className="bg-dark-900 rounded-lg p-4 mb-6 border border-dark-700">
+                        <Text className="text-lg font-semibold text-white mb-1">
                             {athlete.name}
                         </Text>
-                        <Text className="text-neutral-600">
-                            {athlete.sport} • {athlete.status}
+                        <Text className="text-neutral-400">
+                            {athlete.status}
                         </Text>
                     </View>
 
@@ -377,56 +479,330 @@ const mockAthletes = [
                             Selecionar Treino *
                         </Text>
 
-                        {allWorkouts.map((workout) => {
-                            const totalExercises = workout.blocks.reduce(
-                                (total: number, block: any) => total + block.exercises.length, 0
-                            );
-                            return (
-                                <TouchableOpacity
-                                 key={workout.id}
-                                 className={`bg-dark-900 rounded-xl p-4 mb-3 border-2 ${
-                                    selectedWorkoutId === workout.id
+                        {/* Botão para abrir modal de seleção */}
+                        <TouchableOpacity
+                            className={`bg-dark-900 rounded-xl p-4 mb-3 border-2 ${
+                                selectedWorkoutId
                                     ? 'border-primary-500 bg-primary-500/20'
                                     : 'border-dark-700'
-                                 }`}
-                                 style={selectedWorkoutId === workout.id ? {
-                                   shadowColor: '#fb923c',
-                                   shadowOffset: { width: 0, height: 2 },
-                                   shadowOpacity: 0.3,
-                                   shadowRadius: 4,
-                                   elevation: 4,
-                                 } : {}}
-                                 onPress={() => setSelectedWorkoutId(workout.id)}
-                                >
-                                    <Text className="text-lg font-semibold text-white mb-1">
-                                        {workout.name}
+                            }`}
+                            style={selectedWorkoutId ? {
+                                shadowColor: '#fb923c',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 4,
+                                elevation: 4,
+                            } : {}}
+                            onPress={() => setShowWorkoutModal(true)}
+                        >
+                            {selectedWorkoutId ? (
+                                (() => {
+                                    const selectedWorkout = allWorkouts.find(w => w.id === selectedWorkoutId);
+                                    const totalExercises = selectedWorkout?.blocks.reduce(
+                                        (total: number, block: any) => total + block.exercises.length, 0
+                                    ) || 0;
+                                    return (
+                                        <>
+                                            <Text className="text-lg font-semibold text-white mb-1">
+                                                {selectedWorkout?.name}
+                                            </Text>
+                                            <Text className="text-neutral-400 text-sm mb-2">
+                                                {selectedWorkout?.description}
+                                            </Text>
+                                            <Text className="text-primary-400 text-sm font-medium">
+                                                📋 {totalExercises} exercícios • Criado em {selectedWorkout?.createdAt}
+                                            </Text>
+                                        </>
+                                    );
+                                })()
+                            ) : (
+                                <View className="flex-row items-center justify-between">
+                                    <Text className="text-neutral-400 text-base">
+                                        Toque para selecionar um treino
                                     </Text>
-                                    <Text className="text-neutral-400 text-sm mb-2">
-                                        {workout.description}
-                                    </Text>
-                                    <Text className="text-primary-400 text-sm font-medium">
-                                    📋 {totalExercises} exercícios • Criado em {workout.createdAt}
-                                    </Text>
-                                </TouchableOpacity>
-                            )
-                        })}
-                        
+                                    <FontAwesome name="chevron-right" size={16} color="#737373" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Modal de Seleção de Treinos */}
+                        <Modal
+                            visible={showWorkoutModal}
+                            transparent={true}
+                            animationType="fade"
+                            onRequestClose={() => setShowWorkoutModal(false)}
+                        >
+                            <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                                <View className="bg-dark-900 rounded-3xl p-6 w-full max-h-[80%] min-h-[70%]">
+                                    {/* Header do Modal */}
+                                    <View className="flex-row justify-between items-center mb-4">
+                                        <Text className="text-xl font-bold text-white">
+                                            Selecionar Treino
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => setShowWorkoutModal(false)}
+                                            className="bg-dark-800 rounded-full w-8 h-8 items-center justify-center"
+                                        >
+                                            <Text className="text-white text-lg">✕</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Lista de Treinos */}
+                                    <ScrollView 
+                                        className="flex-1"
+                                        nestedScrollEnabled={true}
+                                        showsVerticalScrollIndicator={true}
+                                    >
+                                        {allWorkouts.length === 0 ? (
+                                            <View className="bg-dark-800 rounded-xl p-6 mb-2">
+                                                <Text className="text-neutral-400 text-center">
+                                                    Nenhum treino disponível
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            allWorkouts.map((workout) => {
+                                                const totalExercises = workout.blocks.reduce(
+                                                    (total: number, block: any) => total + block.exercises.length, 0
+                                                );
+                                                const isSelected = selectedWorkoutId === workout.id;
+                                                
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={workout.id}
+                                                        className={`bg-dark-800 rounded-xl p-4 mb-3 border-2 ${
+                                                            isSelected
+                                                                ? 'border-primary-500 bg-primary-500/20'
+                                                                : 'border-dark-700'
+                                                        }`}
+                                                        style={isSelected ? {
+                                                            shadowColor: '#fb923c',
+                                                            shadowOffset: { width: 0, height: 2 },
+                                                            shadowOpacity: 0.3,
+                                                            shadowRadius: 4,
+                                                            elevation: 4,
+                                                        } : {}}
+                                                        onPress={() => {
+                                                            setSelectedWorkoutId(workout.id);
+                                                            setShowWorkoutModal(false);
+                                                        }}
+                                                    >
+                                                        <View className="flex-row items-start justify-between">
+                                                            <View className="flex-1">
+                                                                <Text className="text-lg font-semibold text-white mb-1">
+                                                                    {workout.name}
+                                                                </Text>
+                                                                <Text className="text-neutral-400 text-sm mb-2">
+                                                                    {workout.description}
+                                                                </Text>
+                                                                <Text className="text-primary-400 text-sm font-medium">
+                                                                    📋 {totalExercises} exercícios • Criado em {workout.createdAt}
+                                                                </Text>
+                                                            </View>
+                                                            {isSelected && (
+                                                                <View className="ml-2 bg-primary-500 rounded-full w-6 h-6 items-center justify-center">
+                                                                    <FontAwesome name="check" size={12} color="#000" />
+                                                                </View>
+                                                            )}
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                );
+                                            })
+                                        )}
+                                    </ScrollView>
+                                </View>
+                            </View>
+                        </Modal>
                     </View>
 
                     <View className="mb-6">
                         <Text className="text-xl font-bold text-white mb-4">
                             Data do Treino *
                         </Text>
-                        <TextInput
-                            className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor="#737373"
-                            value={selectedDate}
-                            onChangeText={setSelectedDate}
-                        />
-                        <Text className="text-neutral-500 text-xs mt-2">
-                            Formato: YYYY-MM-DD (ex: 2026-01-15)
-                        </Text>
+
+                        {/* Toggle entre data única e recorrente */}
+                        <View className="flex-row mb-4 bg-dark-800 rounded-lg p-1">
+                            <TouchableOpacity
+                                className={`flex-1 py-2 rounded-lg ${
+                                    !isRecurring ? 'bg-primary-500' : 'bg-transparent'
+                                }`}
+                                onPress={() => setIsRecurring(false)}
+                            >
+                                <Text className={`text-center font-semibold ${
+                                    !isRecurring ? 'text-black' : 'text-neutral-400'
+                                }`}>
+                                    Data Única
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className={`flex-1 py-2 rounded-lg ${
+                                    isRecurring ? 'bg-primary-500' : 'bg-transparent'
+                                }`}
+                                onPress={() => setIsRecurring(true)}
+                            >
+                                <Text className={`text-center font-semibold ${
+                                    isRecurring ? 'text-black' : 'text-neutral-400'
+                                }`}>
+                                    Recorrente
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {!isRecurring ? (
+                            // Data única
+                            <View>
+                                <TouchableOpacity
+                                    className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 mb-2"
+                                    onPress={() => setShowCalendar(true)}
+                                >
+                                    <Text className="text-white">
+                                        {selectedDate ? new Date(selectedDate).toLocaleDateString('pt-BR') : 'Selecione uma data'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <Text className="text-neutral-500 text-xs">
+                                    Toque para abrir o calendário
+                                </Text>
+                            </View>
+                        ) : (
+                            // Recorrente
+                            <View>
+                                {/* Data inicial */}
+                                <Text className="text-white font-semibold mb-2">Data Inicial:</Text>
+                                <TouchableOpacity
+                                    className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 mb-4"
+                                    onPress={() => {
+                                        setShowCalendar(true);
+                                    }}
+                                >
+                                    <Text className="text-white">
+                                        {startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Selecione a data inicial'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Dia da semana */}
+                                <Text className="text-white font-semibold mb-2">Dia da Semana:</Text>
+                                <View className="flex-row flex-wrap gap-2 mb-4">
+                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            className={`py-2 px-4 rounded-lg border-2 ${
+                                                selectedDayOfWeek === index
+                                                    ? 'bg-primary-500 border-primary-400'
+                                                    : 'bg-dark-900 border-dark-700'
+                                            }`}
+                                            onPress={() => setSelectedDayOfWeek(index)}
+                                        >
+                                            <Text className={`font-semibold ${
+                                                selectedDayOfWeek === index ? 'text-black' : 'text-white'
+                                            }`}>
+                                                {day}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Quantidade de treinos */}
+                                <Text className="text-white font-semibold mb-2">Quantidade de treinos:</Text>
+                                <View className="flex-row items-center gap-4 mb-4">
+                                    <TouchableOpacity
+                                        className="bg-dark-900 border border-dark-700 rounded-lg w-12 h-12 items-center justify-center"
+                                        onPress={() => setRecurrenceCount(Math.max(1, recurrenceCount - 1))}
+                                    >
+                                        <Text className="text-white text-xl font-bold">-</Text>
+                                    </TouchableOpacity>
+                                    <Text className="text-white text-xl font-semibold min-w-[60px] text-center">
+                                        {recurrenceCount}
+                                    </Text>
+                                    <TouchableOpacity
+                                        className="bg-dark-900 border border-dark-700 rounded-lg w-12 h-12 items-center justify-center"
+                                        onPress={() => setRecurrenceCount(recurrenceCount + 1)}
+                                    >
+                                        <Text className="text-white text-xl font-bold">+</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Preview das datas */}
+                                {startDate && selectedDayOfWeek !== null && (
+                                    <View className="bg-dark-800 rounded-lg p-3 mb-2">
+                                        <Text className="text-neutral-400 text-xs mb-1">
+                                            Serão criados exatamente {recurrenceCount} treino{recurrenceCount !== 1 ? 's' : ''} toda{' '}
+                                            {['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][selectedDayOfWeek]}
+                                        </Text>
+                                        {recurrenceCount > 1 && (
+                                            <Text className="text-neutral-500 text-xs mt-1">
+                                                Período aproximado: {recurrenceCount} semana{recurrenceCount !== 1 ? 's' : ''}
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
+                        {/* Modal do Calendário */}
+                        <Modal
+                            visible={showCalendar}
+                            transparent={true}
+                            animationType="slide"
+                            onRequestClose={() => setShowCalendar(false)}
+                        >
+                            <View className="flex-1 bg-black/50 justify-end">
+                                <View className="bg-dark-900 rounded-t-3xl p-6">
+                                    <View className="flex-row justify-between items-center mb-4">
+                                        <Text className="text-white text-xl font-bold">
+                                            Selecionar Data
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => setShowCalendar(false)}
+                                            className="bg-dark-800 rounded-full w-8 h-8 items-center justify-center"
+                                        >
+                                            <Text className="text-white text-lg">✕</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <Calendar
+                                        current={isRecurring ? startDate : selectedDate}
+                                        markedDates={{
+                                            [isRecurring ? startDate : selectedDate]: {
+                                                selected: true,
+                                                selectedColor: '#fb923c',
+                                            }
+                                        }}
+                                        onDayPress={(day) => {
+                                            if (isRecurring) {
+                                                setStartDate(day.dateString);
+                                                // Auto-selecionar o dia da semana baseado na data escolhida
+                                                const selectedDateObj = new Date(day.dateString);
+                                                const dayOfWeek = selectedDateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+                                                setSelectedDayOfWeek(dayOfWeek);
+                                            } else {
+                                                setSelectedDate(day.dateString);
+                                            }
+                                            setShowCalendar(false);
+                                        }}
+                                        minDate={new Date().toISOString().split('T')[0]}
+                                        theme={{
+                                            backgroundColor: '#171717',
+                                            calendarBackground: '#171717',
+                                            textSectionTitleColor: '#a3a3a3',
+                                            selectedDayBackgroundColor: '#fb923c',
+                                            selectedDayTextColor: '#000',
+                                            todayTextColor: '#fb923c',
+                                            dayTextColor: '#fff',
+                                            textDisabledColor: '#404040',
+                                            dotColor: '#fb923c',
+                                            selectedDotColor: '#000',
+                                            arrowColor: '#fb923c',
+                                            monthTextColor: '#fff',
+                                            indicatorColor: '#fb923c',
+                                            textDayFontWeight: '600',
+                                            textMonthFontWeight: 'bold',
+                                            textDayHeaderFontWeight: '600',
+                                            textDayFontSize: 14,
+                                            textMonthFontSize: 16,
+                                            textDayHeaderFontSize: 13,
+                                        }}
+                                    />
+                                </View>
+                            </View>
+                        </Modal>
                     </View>
 
                     {/* Botão de Atribuir */}
