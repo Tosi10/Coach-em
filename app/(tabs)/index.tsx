@@ -189,6 +189,159 @@ export default function HomeScreen() {
     return workouts.filter(w =>w.status === 'Concluído');
   };
 
+  // Funções auxiliares para o Dashboard do Treinador
+  const getTodayCompletedWorkouts = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return workouts.filter((w: any) => {
+      if (w.status !== 'Concluído') return false;
+      // Verificar se foi concluído hoje pela data ou completedDate
+      const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
+      return completedDate === today;
+    });
+  };
+
+  const getAthletesWhoTrainedToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayCompleted = workouts.filter((w: any) => {
+      if (w.status !== 'Concluído') return false;
+      const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
+      return completedDate === today;
+    });
+    
+    // Extrair atletas únicos que completaram treinos hoje
+    const athleteMap = new Map();
+    
+    todayCompleted.forEach((w: any) => {
+      const athleteId = w.athleteId || w.coach; // Fallback para mockados
+      if (!athleteMap.has(athleteId)) {
+        const athlete = mockAthletes.find(a => a.id === athleteId);
+        if (athlete) {
+          athleteMap.set(athleteId, {
+            ...athlete,
+            completedWorkouts: [],
+            lastWorkoutName: '',
+            completedAt: w.completedDate || new Date().toISOString(),
+          });
+        }
+      }
+      const athleteData = athleteMap.get(athleteId);
+      if (athleteData) {
+        athleteData.completedWorkouts.push(w);
+        athleteData.lastWorkoutName = w.name;
+        // Manter o timestamp mais recente
+        const workoutTime = w.completedDate || new Date().toISOString();
+        if (new Date(workoutTime) > new Date(athleteData.completedAt)) {
+          athleteData.completedAt = workoutTime;
+        }
+      }
+    });
+    
+    // Ordenar por timestamp mais recente primeiro
+    return Array.from(athleteMap.values()).sort((a: any, b: any) => 
+      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
+  };
+
+  const getTimeAgo = (completedDate: string) => {
+    if (!completedDate) return 'há alguns minutos';
+    const now = new Date().getTime();
+    const completed = new Date(completedDate).getTime();
+    const diffMinutes = Math.floor((now - completed) / (1000 * 60));
+    
+    if (diffMinutes < 1) return 'há alguns segundos';
+    if (diffMinutes < 60) return `há ${diffMinutes} min`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `há ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `há ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
+  };
+
+  const getAthletesNeedingAttention = () => {
+    // Atletas que não completaram treinos nos últimos 5 dias
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const fiveDaysAgoTime = fiveDaysAgo.getTime();
+    
+    // Pegar TODOS os atletas (não apenas os que têm treinos)
+    // Para mostrar atletas que nunca treinaram também
+    const allAthleteIds = new Set([
+      ...workouts.map((w: any) => w.athleteId || w.coach),
+      ...mockAthletes.map(a => a.id)
+    ]);
+    
+    return Array.from(allAthleteIds)
+      .map(id => {
+        const athlete = mockAthletes.find(a => a.id === id);
+        if (!athlete) return null;
+        
+        // Verificar último treino concluído
+        const athleteWorkouts = workouts.filter((w: any) => 
+          (w.athleteId || w.coach) === id && 
+          w.status === 'Concluído'
+        );
+        
+        // Usar completedDate se disponível, senão usar date
+        const lastCompleted = athleteWorkouts.sort((a: any, b: any) => {
+          const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
+          const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+          return dateB - dateA;
+        })[0];
+        
+        if (!lastCompleted) {
+          // Atleta nunca completou um treino
+          return {
+            ...athlete,
+            daysSinceLastWorkout: 999,
+          };
+        }
+        
+        // Calcular dias desde o último treino usando completedDate ou date
+        const lastCompletedDate = (lastCompleted as any).completedDate 
+          ? new Date((lastCompleted as any).completedDate).getTime()
+          : new Date(lastCompleted.date).getTime();
+        
+        const daysSince = Math.floor((new Date().getTime() - lastCompletedDate) / (1000 * 60 * 60 * 24));
+        
+        // Retornar apenas se não treinou há mais de 5 dias
+        if (daysSince > 5) {
+          return {
+            ...athlete,
+            daysSinceLastWorkout: daysSince,
+          };
+        }
+        
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.daysSinceLastWorkout - a.daysSinceLastWorkout);
+  };
+
+  // Estatísticas para o Panorama Semanal
+  const getWeeklyStats = () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Atletas únicos que treinaram hoje
+    const athletesToday = getAthletesWhoTrainedToday().length;
+    
+    // Treinos concluídos hoje
+    const completedToday = getTodayCompletedWorkouts().length;
+    
+    // Treinos pendentes (todos os status Pendente)
+    const pendingWorkouts = workouts.filter((w: any) => w.status === 'Pendente').length;
+    
+    // Debug logs
+    console.log('📊 getWeeklyStats - Atletas hoje:', athletesToday);
+    console.log('📊 getWeeklyStats - Treinos concluídos hoje:', completedToday);
+    console.log('📊 getWeeklyStats - Pendentes:', pendingWorkouts);
+    console.log('📊 getWeeklyStats - Atletas precisando atenção:', getAthletesNeedingAttention().length);
+    
+    return {
+      athletesToday,
+      completedToday,
+      pendingWorkouts,
+    };
+  };
+
   // ⚠️ CÓDIGO TEMPORÁRIO - REMOVER DEPOIS DE USAR
 useEffect(() => {
   const clearAllStatuses = async () => {
@@ -344,8 +497,11 @@ useEffect(() => {
             })
           );
           // Combinar treinos mockados com atribuídos
+          // IMPORTANTE: assignedWorkouts já vêm com status e completedDate do AsyncStorage
           allWorkouts = [...updatedWorkouts, ...assignedWorkouts];
           console.log('👨‍🏫 useFocusEffect - TREINADOR - Total de treinos:', allWorkouts.length);
+          console.log('👨‍🏫 useFocusEffect - TREINADOR - Treinos atribuídos:', assignedWorkouts.length);
+          console.log('👨‍🏫 useFocusEffect - TREINADOR - Treinos concluídos:', allWorkouts.filter((w: any) => w.status === 'Concluído').length);
         }
 
         // PARTE 5: Carregar status dos treinos atribuídos (se houver)
@@ -353,13 +509,19 @@ useEffect(() => {
           allWorkouts.map(async (workout: any) => {
             const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
             if (savedStatus) {
+              // Se tem status salvo, usar ele
               return { ...workout, status: savedStatus };
+            }
+            // Se o treino já tem status e completedDate (treinos atribuídos), manter
+            if (workout.status && workout.completedDate) {
+              return workout;
             }
             return workout;
           })
         );
         
         console.log('💾 useFocusEffect - Salvando no estado:', finalWorkouts.length, 'treinos');
+        console.log('📊 useFocusEffect - Treinos com status:', finalWorkouts.filter((w: any) => w.status === 'Concluído').length);
         setWorkouts(finalWorkouts);
       };
       loadWorkoutStatuses();
@@ -392,96 +554,219 @@ useEffect(() => {
         Bem-vindo ao seu app de gestão esportiva!
       </Text>
 
-      {userType && (
-        <View className="bg-dark-800 rounded-full px-6 py-2 mb-8 self-center border border-dark-700">
-          <Text className="text-white font-semibold text-base">
-            {userType === UserType.COACH ? '👨‍🏫 Treinador' : '👤 Atleta'}
-          </Text>
-        </View>
-      )}
-
       {userType === UserType.COACH ? (
         //Dashboard do Treinador - Tema Escuro Estilo Zeus
         <View className="w-full mt-8">
-          <View className="mb-8">
-            <Text className="text-3xl font-bold text-white mb-2">
-              Dashboard do Treinador
+
+          {/* Panorama Semanal - Cards de Estatísticas */}
+          <View className="mb-6">
+            <Text className="text-xl font-bold text-white mb-4">
+              Panorama Semanal
             </Text>
-            <Text className="text-neutral-400 text-base leading-6">
-              Gerencie seus atletas e crie treinos personalizados
-            </Text>
+            <View className="flex-row gap-3">
+              {/* Card: Ativos Hoje */}
+              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+                style={{
+                  shadowColor: '#fb923c',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
+                }}
+              >
+                <View className="flex-row items-center mb-2">
+                  <FontAwesome name="users" size={20} color="#fb923c" />
+                </View>
+                <Text className="text-2xl font-bold text-white mb-1">
+                  {getWeeklyStats().athletesToday}
+                </Text>
+                <Text className="text-neutral-400 text-xs">
+                  Ativos Hoje
+                </Text>
+              </View>
+
+              {/* Card: Treinos Concluídos */}
+              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+                style={{
+                  shadowColor: '#10b981',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
+                }}
+              >
+                <View className="flex-row items-center mb-2">
+                  <FontAwesome name="check-circle" size={20} color="#10b981" />
+                </View>
+                <Text className="text-2xl font-bold text-white mb-1">
+                  {getWeeklyStats().completedToday}
+                </Text>
+                <Text className="text-neutral-400 text-xs">
+                  Treinos Concluídos
+                </Text>
+              </View>
+
+              {/* Card: Pendentes */}
+              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+                style={{
+                  shadowColor: '#f59e0b',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
+                }}
+              >
+                <View className="flex-row items-center mb-2">
+                  <FontAwesome name="clock-o" size={20} color="#f59e0b" />
+                </View>
+                <Text className="text-2xl font-bold text-white mb-1">
+                  {getWeeklyStats().pendingWorkouts}
+                </Text>
+                <Text className="text-neutral-400 text-xs">
+                  Pendentes
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Botões principais - Design Escuro Estilo Zeus */}
           <View className="flex-row gap-5 mb-8">
             {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
-              className="bg-dark-900 border border-dark-700 rounded-3xl flex-1 items-center justify-center overflow-hidden"
+              className="bg-primary-500 border-2 border-primary-400 rounded-3xl flex-1 items-center justify-center overflow-hidden py-6"
               style={{ 
-                minHeight: 180,
                 shadowColor: '#fb923c',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.3,
-                shadowRadius: 16,
-                elevation: 12,
+                shadowOffset: { width: 0, height: 12 },
+                shadowOpacity: 0.6,
+                shadowRadius: 20,
+                elevation: 16,
               }}
               onPress={() => router.push('/exercises-library')}
               activeOpacity={0.8}
             >
-              <View 
-                className="bg-dark-800 rounded-2xl p-5 mb-5 border border-dark-600"
-                style={{
-                  shadowColor: '#fb923c',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 8,
-                  elevation: 6,
-                }}
-              >
-                <FontAwesome name="book" size={32} color="#fb923c" />
+              <View className="mb-4">
+                <FontAwesome name="book" size={40} color="#0a0a0a" />
               </View>
-              <Text className="text-white font-bold text-center text-base mb-2 tracking-tight">
+              <Text className="text-black font-bold text-center text-base tracking-tight">
                 Biblioteca de Exercícios
-              </Text>
-              <Text className="text-neutral-400 text-center text-xs px-3 leading-4">
-                Gerencie seu repertório
               </Text>
             </TouchableOpacity>
 
             {/* Botão Meus Treinos */}
             <TouchableOpacity 
-              className="bg-dark-900 border border-dark-700 rounded-3xl flex-1 items-center justify-center overflow-hidden"
+              className="bg-primary-500 border-2 border-primary-400 rounded-3xl flex-1 items-center justify-center overflow-hidden py-6"
               style={{ 
-                minHeight: 180,
                 shadowColor: '#fb923c',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.3,
-                shadowRadius: 16,
-                elevation: 12,
+                shadowOffset: { width: 0, height: 12 },
+                shadowOpacity: 0.6,
+                shadowRadius: 20,
+                elevation: 16,
               }}
               onPress={() => router.push('/workouts-library')}
               activeOpacity={0.8}
             >
-              <View 
-                className="bg-dark-800 rounded-2xl p-5 mb-5 border border-dark-600"
-                style={{
-                  shadowColor: '#fb923c',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 8,
-                  elevation: 6,
-                }}
-              >
-                <FontAwesome name="trophy" size={32} color="#fb923c" />
+              <View className="mb-4">
+                <FontAwesome name="trophy" size={40} color="#0a0a0a" />
               </View>
-              <Text className="text-white font-bold text-center text-base mb-2 tracking-tight">
+              <Text className="text-black font-bold text-center text-base tracking-tight">
                 Meus Treinos
-              </Text>
-              <Text className="text-neutral-400 text-center text-xs px-3 leading-4">
-                Crie e gerencie treinos
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Atividade Recente - Atletas que completaram treinos hoje */}
+          {getAthletesWhoTrainedToday().length > 0 && (
+            <View className="mb-8">
+              <Text className="text-xl font-bold text-white mb-4">
+                Atividade Recente
+              </Text>
+              {getAthletesWhoTrainedToday().slice(0, 5).map((athlete: any) => (
+                <TouchableOpacity
+                  key={athlete.id}
+                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3 flex-row items-center"
+                  style={{
+                    shadowColor: '#10b981',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/assign-workout',
+                      params: { athleteId: athlete.id },
+                    });
+                  }}
+                >
+                  {/* Avatar placeholder */}
+                  <View className="w-12 h-12 rounded-full bg-primary-500/20 border border-primary-500/30 items-center justify-center mr-3">
+                    <Text className="text-primary-400 font-bold text-lg">
+                      {athlete.name.charAt(0)}
+                    </Text>
+                  </View>
+                  
+                  <View className="flex-1">
+                    <Text className="text-white font-semibold mb-1">
+                      {athlete.name} finalizou o '{athlete.lastWorkoutName}'
+                    </Text>
+                    <Text className="text-neutral-400 text-xs">
+                      {getTimeAgo(athlete.completedAt)}
+                    </Text>
+                  </View>
+                  
+                  <View className="bg-green-500/20 border border-green-500/30 px-3 py-1 rounded">
+                    <Text className="text-green-400 font-semibold text-xs">
+                      CONCLUÍDO
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Atenção Necessária - Atletas que não treinam há tempo */}
+          {getAthletesNeedingAttention().length > 0 && (
+            <View className="mb-8">
+              <Text className="text-xl font-bold text-white mb-4">
+                Atenção Necessária
+              </Text>
+              {getAthletesNeedingAttention().slice(0, 3).map((athlete: any) => (
+                <TouchableOpacity
+                  key={athlete.id}
+                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3 flex-row items-center"
+                  style={{
+                    shadowColor: '#ef4444',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/assign-workout',
+                      params: { athleteId: athlete.id },
+                    });
+                  }}
+                >
+                  {/* Avatar placeholder */}
+                  <View className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 items-center justify-center mr-3">
+                    <Text className="text-red-400 font-bold text-lg">
+                      {athlete.name.charAt(0)}
+                    </Text>
+                  </View>
+                  
+                  <View className="flex-1">
+                    <Text className="text-white font-semibold mb-1">
+                      {athlete.name}
+                    </Text>
+                    <Text className="text-neutral-400 text-sm">
+                      Não treina há {athlete.daysSinceLastWorkout} {athlete.daysSinceLastWorkout === 1 ? 'dia' : 'dias'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
         </View>
       ) : userType === UserType.ATHLETE ? (
