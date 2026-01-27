@@ -48,6 +48,11 @@ export default function AthleteProfileScreen() {
   const [activeTab, setActiveTab] = useState<'treinos' | 'graficos' | 'fotos'>('graficos');
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
   const [hasTrainedToday, setHasTrainedToday] = useState(false);
+  
+  // Estados para gráfico de evolução de peso
+  const [weightHistory, setWeightHistory] = useState<any[]>([]);
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [availableExercises, setAvailableExercises] = useState<any[]>([]);
   const [workoutsToShow, setWorkoutsToShow] = useState(5); // Mostrar apenas 5 treinos inicialmente
   const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos'>('proximos'); // Sub-tab dentro de Treinos
 
@@ -60,6 +65,8 @@ export default function AthleteProfileScreen() {
 
     // Verificar se treinou hoje
     loadAthleteWorkouts();
+    // Carregar histórico de peso
+    loadWeightHistory();
   }, [athleteIdString]);
 
   const loadAthleteWorkouts = async () => {
@@ -98,6 +105,65 @@ export default function AthleteProfileScreen() {
       console.error('Erro ao carregar treinos do atleta:', error);
     }
   };
+
+  // Carregar histórico de peso do atleta
+  const loadWeightHistory = async () => {
+    try {
+      const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
+      if (!weightHistoryJson) {
+        setWeightHistory([]);
+        setAvailableExercises([]);
+        return;
+      }
+
+      const allHistory = JSON.parse(weightHistoryJson);
+      
+      // Filtrar apenas registros deste atleta
+      // Nota: Por enquanto, vamos mostrar todos os registros, já que não temos sistema de autenticação
+      // Quando implementar autenticação, filtrar por athleteId
+      const athleteHistory = allHistory; // TODO: Filtrar por athleteId quando tiver autenticação
+      
+      // Agrupar por exercício para criar lista de exercícios disponíveis
+      const exercisesMap = new Map<string, string>();
+      athleteHistory.forEach((record: any) => {
+        if (record.exerciseId && record.exerciseName) {
+          exercisesMap.set(record.exerciseId, record.exerciseName);
+        }
+      });
+      
+      const exercises = Array.from(exercisesMap.entries()).map(([id, name]) => ({
+        id,
+        name,
+      }));
+      
+      setAvailableExercises(exercises);
+      
+      // Se há exercícios e nenhum selecionado, selecionar o primeiro
+      if (exercises.length > 0 && !selectedExercise) {
+        setSelectedExercise(exercises[0].id);
+      }
+      
+      // Filtrar histórico pelo exercício selecionado
+      if (selectedExercise) {
+        const filtered = athleteHistory
+          .filter((r: any) => r.exerciseId === selectedExercise)
+          .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setWeightHistory(filtered);
+      } else {
+        setWeightHistory([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar histórico de peso:', error);
+    }
+  };
+
+  // Recarregar histórico quando exercício selecionado mudar
+  useEffect(() => {
+    if (athleteIdString) {
+      loadWeightHistory();
+    }
+  }, [selectedExercise, athleteIdString]);
+
 
   // Função para deletar treino(s)
   const handleDeleteWorkout = async (workoutIds: string[], isGroup: boolean = false) => {
@@ -271,74 +337,170 @@ export default function AthleteProfileScreen() {
         {activeTab === 'graficos' && (
           <View className="mb-6">
             <Text className="text-xl font-bold text-white mb-4">
-              Volume de Carga (kg)
+              Evolução de Peso/Carga
             </Text>
             
-            {/* Gráfico de linha com área preenchida usando react-native-gifted-charts */}
-            <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-6">
-              <LineChart
-                data={mockEvolutionData.map((data) => ({ value: data.value }))}
-                width={280}
-                height={200}
-                color="#fb923c"
-                thickness={3}
-                curved
-                areaChart
-                startFillColor="#fb923c"
-                endFillColor="#fb923c"
-                startOpacity={0.3}
-                endOpacity={0.05}
-                spacing={60}
-                initialSpacing={0}
-                noOfSections={4}
-                maxValue={40}
-                yAxisColor="#404040"
-                xAxisColor="#404040"
-                yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
-                hideDataPoints={false}
-                dataPointsColor="#fb923c"
-                dataPointsRadius={6}
-                dataPointsWidth={6}
-                dataPointsHeight={6}
-                textShiftY={-2}
-                textShiftX={-5}
-                textFontSize={10}
-                hideRules={false}
-                rulesColor="#262626"
-                rulesType="solid"
-                yAxisTextNumberOfLines={1}
-                showVerticalLines={false}
-                xAxisLabelsVerticalShift={10}
-                xAxisLabelTexts={mockEvolutionData.map((data) => data.month)}
-                pointerConfig={{
-                  pointer1Color: '#fb923c',
-                  pointerStripUptoDataPoint: true,
-                  pointerStripColor: '#fb923c',
-                  pointerStripWidth: 2,
-                  activatePointersOnLongPress: true,
-                  autoAdjustPointerLabelPosition: true,
-                  pointerLabelComponent: (items: any) => {
-                    return (
-                      <View
-                        style={{
-                          height: 40,
-                          width: 60,
-                          backgroundColor: '#fb923c',
-                          borderRadius: 8,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
-                          {items[0].value}kg
-                        </Text>
+            {/* Seletor de Exercício */}
+            {availableExercises.length > 0 ? (
+              <>
+                <View className="mb-4">
+                  <Text className="text-neutral-400 text-sm mb-2">Selecione o exercício:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                    <View className="flex-row gap-2">
+                      {availableExercises.map((exercise) => (
+                        <TouchableOpacity
+                          key={exercise.id}
+                          onPress={() => setSelectedExercise(exercise.id)}
+                          className={`px-4 py-2 rounded-lg border ${
+                            selectedExercise === exercise.id
+                              ? 'bg-primary-500/20 border-primary-500'
+                              : 'bg-dark-800 border-dark-700'
+                          }`}
+                        >
+                          <Text className={`font-semibold ${
+                            selectedExercise === exercise.id
+                              ? 'text-primary-400'
+                              : 'text-neutral-400'
+                          }`}>
+                            {exercise.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+                
+                {/* Gráfico de Evolução */}
+                {weightHistory.length > 0 ? (
+                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-6">
+                    <Text className="text-white font-semibold mb-2 text-center">
+                      {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
+                    </Text>
+                    
+                    <LineChart
+                      data={weightHistory.map((record, index) => ({
+                        value: record.weight,
+                        label: new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                      }))}
+                      width={280}
+                      height={200}
+                      color="#fb923c"
+                      thickness={3}
+                      curved
+                      areaChart
+                      startFillColor="#fb923c"
+                      endFillColor="#fb923c"
+                      startOpacity={0.3}
+                      endOpacity={0.05}
+                      spacing={weightHistory.length > 1 ? Math.max(60, 280 / (weightHistory.length - 1)) : 60}
+                      initialSpacing={0}
+                      noOfSections={4}
+                      maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
+                      yAxisColor="#404040"
+                      xAxisColor="#404040"
+                      yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                      hideDataPoints={false}
+                      dataPointsColor="#fb923c"
+                      dataPointsRadius={6}
+                      dataPointsWidth={6}
+                      dataPointsHeight={6}
+                      textShiftY={-2}
+                      textShiftX={-5}
+                      textFontSize={10}
+                      hideRules={false}
+                      rulesColor="#262626"
+                      rulesType="solid"
+                      yAxisTextNumberOfLines={1}
+                      showVerticalLines={false}
+                      xAxisLabelsVerticalShift={10}
+                      xAxisLabelTexts={weightHistory.map((record) => 
+                        new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                      )}
+                      pointerConfig={{
+                        pointer1Color: '#fb923c',
+                        pointerStripUptoDataPoint: true,
+                        pointerStripColor: '#fb923c',
+                        pointerStripWidth: 2,
+                        activatePointersOnLongPress: true,
+                        hidePointer1: false,
+                        pointer1Length: 10,
+                        autoAdjustPointerLabelPosition: true,
+                        pointerLabelComponent: (items: any) => {
+                          return (
+                            <View
+                              style={{
+                                height: 40,
+                                width: 60,
+                                backgroundColor: '#fb923c',
+                                borderRadius: 8,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
+                                {items[0].value}kg
+                              </Text>
+                            </View>
+                          );
+                        },
+                      }}
+                    />
+                    
+                    {/* Estatísticas */}
+                    {weightHistory.length > 1 && (
+                      <View className="mt-4 pt-4 border-t border-dark-700">
+                        <View className="flex-row justify-between">
+                          <View>
+                            <Text className="text-neutral-400 text-xs">Primeiro registro</Text>
+                            <Text className="text-white font-semibold">
+                              {weightHistory[0]?.weight} kg
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-neutral-400 text-xs">Último registro</Text>
+                            <Text className="text-white font-semibold">
+                              {weightHistory[weightHistory.length - 1]?.weight} kg
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-neutral-400 text-xs">Evolução</Text>
+                            <Text className={`font-semibold ${
+                              weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
+                                ? 'text-green-400'
+                                : weightHistory[weightHistory.length - 1]?.weight < weightHistory[0]?.weight
+                                ? 'text-red-400'
+                                : 'text-neutral-400'
+                            }`}>
+                              {weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight ? '+' : ''}
+                              {(weightHistory[weightHistory.length - 1]?.weight - weightHistory[0]?.weight).toFixed(1)} kg
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                    );
-                  },
-                }}
-              />
-            </View>
+                    )}
+                  </View>
+                ) : (
+                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
+                    <Text className="text-neutral-400 text-center">
+                      Nenhum registro de peso encontrado para este exercício.
+                    </Text>
+                    <Text className="text-neutral-500 text-sm text-center mt-2">
+                      Registre o peso usado durante os treinos para ver a evolução aqui.
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
+                <Text className="text-neutral-400 text-center mb-2">
+                  Nenhum exercício com registro de peso ainda.
+                </Text>
+                <Text className="text-neutral-500 text-sm text-center">
+                  Complete treinos e registre o peso usado para ver a evolução aqui.
+                </Text>
+              </View>
+            )}
 
             {/* Meta */}
             <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-4">
@@ -487,6 +649,13 @@ export default function AthleteProfileScreen() {
                                       {workout.status}
                                     </Text>
                                   </View>
+                                  
+                                  {/* Emoji de feedback */}
+                                  {workout.feedbackEmoji && (
+                                    <Text className="text-2xl mb-2">
+                                      {workout.feedbackEmoji}
+                                    </Text>
+                                  )}
                                   
                                   {/* Botão de deletar - menor, abaixo do badge */}
                                   <TouchableOpacity
