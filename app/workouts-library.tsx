@@ -1,11 +1,13 @@
 import { WorkoutCard } from '@/src/components/WorkoutCard';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (simplificados para aprendizado)
 const mockExercises: Exercise[] = [
@@ -171,8 +173,11 @@ const mockWorkouts = [
 ];
 
 export default function WorkoutLibraryScreen() {
-    const router = useRouter();
-    const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
+  const router = useRouter();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
+  const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
+  const [searchText, setSearchText] = useState('');
 
     const loadSavedWorkouts = async () => {
         try {
@@ -198,10 +203,56 @@ export default function WorkoutLibraryScreen() {
         }, [])
     );
 
-    
+    // Função para filtrar treinos por busca
+    const getFilteredWorkouts = () => {
+        if (!searchText.trim()) {
+            return allWorkouts;
+        }
+        const searchLower = searchText.toLowerCase();
+        return allWorkouts.filter(workout =>
+            workout.name.toLowerCase().includes(searchLower) ||
+            workout.description?.toLowerCase().includes(searchLower)
+        );
+    };
+
+
+    // Função para duplicar treino
+    const handleDuplicateWorkout = async (workout: any) => {
+        try {
+            const newWorkout = {
+                ...workout,
+                id: `workout_${Date.now()}`,
+                name: `${workout.name} (Cópia)`,
+                createdAt: new Date().toISOString().split('T')[0],
+            };
+
+            // Buscar treinos salvos
+            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let savedWorkouts = [];
+
+            if (savedWorkoutsJson) {
+                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            }
+
+            // Adicionar cópia
+            const updatedWorkouts = [...savedWorkouts, newWorkout];
+            await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
+
+            // Atualizar estado local
+            const updatedAll = [...allWorkouts, newWorkout];
+            setAllWorkouts(updatedAll);
+
+            Alert.alert('Sucesso', 'Treino duplicado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao duplicar treino:', error);
+            Alert.alert('Erro', 'Não foi possível duplicar o treino.');
+        }
+    };
+
+    const filteredWorkouts = getFilteredWorkouts();
 
     return (
-        <ScrollView className="flex-1 bg-dark-950">
+        <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
@@ -209,65 +260,106 @@ export default function WorkoutLibraryScreen() {
                   onPress={() => router.back()}
                   activeOpacity={0.7}
                 >
-                    <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-                        <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                    <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                        <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
-                    <Text className="text-primary-400 font-semibold text-lg">
+                    <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
                         Voltar
                     </Text>
                 </TouchableOpacity>
 
-                <Text className="text-3xl font-bold text-white mb-2">
+                <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
                     Meus Treinos
                 </Text>
-                <Text className="text-neutral-400 mb-6">
+                <Text className="mb-6" style={themeStyles.textSecondary}>
                     Gerencie seus treinos e templates
                 </Text>
 
                 <TouchableOpacity 
-                    className="bg-primary-500 rounded-lg py-4 px-6 mb-6"
+                    className="rounded-lg py-4 px-6 mb-6 border"
                     style={{
-                      shadowColor: '#fb923c',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 6,
+                      backgroundColor: theme.mode === 'dark' 
+                        ? 'rgba(249, 115, 22, 0.4)' 
+                        : 'rgba(251, 146, 60, 0.2)',
+                      borderColor: theme.colors.primary + '50',
                     }}
                     onPress={() => router.push('/create-workout')}
                 >
-                    <Text className="text-white font-semibold text-center text-lg">
+                    <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
                         ➕ Criar Novo Treino
                     </Text>
                 </TouchableOpacity>
 
+                {/* Busca */}
+                <View className="mb-6">
+                    <TextInput
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
+                        placeholder="🔍 Buscar treinos..."
+                        placeholderTextColor={theme.colors.textTertiary}
+                        value={searchText}
+                        onChangeText={setSearchText}
+                    />
+                </View>
+
                 <View className="w-full">
-                    <Text className="text-xl font-bold text-white mb-4">
-                        Meus Treinos ({allWorkouts.length})
+                    <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
+                        Meus Treinos ({filteredWorkouts.length})
+                        {searchText.trim() && ` de ${allWorkouts.length} total`}
                     </Text>
 
-                    {allWorkouts.map((workout) => {
-                        // Calcular total de exercícios de todos os blocos
-                        const totalExercises = workout.blocks.reduce(
-                            (total, block) => total + block.exercises.length,
-                            0
-                        );
+                    {filteredWorkouts.length === 0 ? (
+                        <View className="rounded-xl p-6 border" style={themeStyles.card}>
+                            <Text className="text-center" style={themeStyles.textSecondary}>
+                                {searchText.trim() 
+                                    ? 'Nenhum treino encontrado com essa busca'
+                                    : 'Nenhum treino criado ainda'}
+                            </Text>
+                        </View>
+                    ) : (
+                        filteredWorkouts.map((workout) => {
+                            // Calcular total de exercícios de todos os blocos
+                            const totalExercises = workout.blocks.reduce(
+                                (total, block) => total + block.exercises.length,
+                                0
+                            );
 
-                        return (
-                            <WorkoutCard
-                                key={workout.id}
-                                name={workout.name}
-                                description={workout.description}
-                                exercisesCount={totalExercises}
-                                createdAt={workout.createdAt}
-                                onPress={() => {
-                                    router.push({
-                                        pathname: '/workout-template-details',
-                                        params: { workoutId: workout.id },
-                                    });
-                                }}
-                            />
-                        );
-                    })}
+                            return (
+                                <View key={workout.id} className="mb-3">
+                                    <WorkoutCard
+                                        name={workout.name}
+                                        description={workout.description}
+                                        exercisesCount={totalExercises}
+                                        createdAt={workout.createdAt}
+                                        onPress={() => {
+                                            router.push({
+                                                pathname: '/workout-template-details',
+                                                params: { workoutId: workout.id },
+                                            });
+                                        }}
+                                    />
+                                    
+                                    {/* Botão de duplicar (ação rápida que não precisa ver detalhes) */}
+                                    <TouchableOpacity
+                                        className="rounded-lg py-2 px-4 border mt-2"
+                                        style={{
+                                          backgroundColor: theme.colors.backgroundTertiary,
+                                          borderColor: theme.colors.border,
+                                        }}
+                                        onPress={() => handleDuplicateWorkout(workout)}
+                                    >
+                                        <Text className="text-center font-semibold" style={themeStyles.text}>
+                                            📋 Duplicar Treino
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            );
+                        })
+                    )}
                 </View>
             </View>
         </ScrollView>

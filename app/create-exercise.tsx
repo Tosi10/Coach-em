@@ -3,9 +3,13 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 
 export default function CreateExerciseScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const themeStyles = getThemeStyles(theme.colors);
 
     const [name,setName] = useState('');
     const [description, setDescription] = useState('')
@@ -92,7 +96,7 @@ export default function CreateExerciseScreen() {
       };
 
     return ( 
-        <ScrollView className="flex-1 bg-dark-950">
+        <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20 ">
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity 
@@ -100,29 +104,34 @@ export default function CreateExerciseScreen() {
                  onPress={() => router.back()}
                  activeOpacity={0.7}
                 >
-                    <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-                        <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                    <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                        <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
-                    <Text className="text-primary-400 font-semibold text-lg">
+                    <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
                         Voltar
                     </Text>
                 </TouchableOpacity>
 
-                <Text className="text-3xl font-bold text-white mb-2">
+                <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
                     Criar Novo Exercício
                 </Text>
-                <Text className="text-neutral-400 mb-6">
+                <Text className="mb-6" style={themeStyles.textSecondary}>
                     Preencha os dados do exercício
                 </Text>
 
                 <View className="mb-4">
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Nome do Exercício *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Ex: Agachamento"
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         value={name}
                         onChangeText={setName}
                     />    
@@ -130,13 +139,18 @@ export default function CreateExerciseScreen() {
                 </View>
 
                 <View className="mb-4">
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Descrição *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Descreva o exercício..."
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         value={description}
                         onChangeText={setDescription}
                         multiline={true}
@@ -145,25 +159,26 @@ export default function CreateExerciseScreen() {
                 </View>
 
                 <View className="mb-4">
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Dificuldade *
                     </Text>
 
                     <View className="flex-row">
                         <TouchableOpacity 
-                            className={`w-1/3 py-3 px-1 rounded-lg border-2 mr-1 ${
-                            difficulty === 'beginner'
-                                ? 'border-primary-500 bg-primary-500/20'
-                                : 'border-dark-700 bg-dark-900'
-                            }`}
+                            className="w-1/3 py-3 px-1 rounded-lg border-2 mr-1"
+                            style={{
+                              borderColor: difficulty === 'beginner' ? theme.colors.primary : theme.colors.border,
+                              backgroundColor: difficulty === 'beginner' 
+                                ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                                : theme.colors.card,
+                            }}
                             onPress={() => setDifficulty('beginner')}
                         >
                             <Text 
-                            className={`text-center font-semibold text-xs ${
-                                difficulty === 'beginner'
-                                ? 'text-primary-400'
-                                : 'text-neutral-300'
-                            }`}
+                            className="text-center font-semibold text-xs"
+                            style={{
+                              color: difficulty === 'beginner' ? theme.colors.primary : theme.colors.textSecondary
+                            }}
                             numberOfLines={1}
                             >
                             Iniciante
@@ -171,19 +186,20 @@ export default function CreateExerciseScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity 
-                            className={`w-1/3 py-3 px-1 rounded-lg border-2 mr-1 ${
-                            difficulty === 'intermediate'
-                                ? 'border-primary-600 bg-primary-50'
-                                : 'border-neutral-200 bg-neutral-50'
-                            }`}
+                            className="w-1/3 py-3 px-1 rounded-lg border-2 mr-1"
+                            style={{
+                              borderColor: difficulty === 'intermediate' ? theme.colors.primary : theme.colors.border,
+                              backgroundColor: difficulty === 'intermediate' 
+                                ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                                : theme.colors.card,
+                            }}
                             onPress={() => setDifficulty('intermediate')}
                         >
                             <Text 
-                            className={`text-center font-semibold text-xs ${
-                                difficulty === 'intermediate'
-                                ? 'text-primary-600'
-                                : 'text-neutral-600'
-                            }`}
+                            className="text-center font-semibold text-xs"
+                            style={{
+                              color: difficulty === 'intermediate' ? theme.colors.primary : theme.colors.textSecondary
+                            }}
                             numberOfLines={1}
                             >
                             Intermediário
@@ -191,19 +207,20 @@ export default function CreateExerciseScreen() {
                         </TouchableOpacity>
                         
                         <TouchableOpacity
-                            className={`w-1/3 py-3 px-1 rounded-lg border-2 ${
-                            difficulty === 'advanced'
-                                ? 'border-primary-500 bg-primary-500/20'
-                                : 'border-dark-700 bg-dark-900'
-                            }`}
+                            className="w-1/3 py-3 px-1 rounded-lg border-2"
+                            style={{
+                              borderColor: difficulty === 'advanced' ? theme.colors.primary : theme.colors.border,
+                              backgroundColor: difficulty === 'advanced' 
+                                ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                                : theme.colors.card,
+                            }}
                             onPress={() => setDifficulty('advanced')}
                         >
                             <Text 
-                            className={`text-center font-semibold text-xs ${
-                                difficulty === 'advanced'
-                                ? 'text-primary-400'
-                                : 'text-neutral-300'
-                            }`}
+                            className="text-center font-semibold text-xs"
+                            style={{
+                              color: difficulty === 'advanced' ? theme.colors.primary : theme.colors.textSecondary
+                            }}
                             numberOfLines={1}
                             >
                             Avançado
@@ -214,37 +231,46 @@ export default function CreateExerciseScreen() {
                 </View>
 
                 <View className="mb-4">
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Duração (segundos)
                     </Text>
                     <TextInput
-                     className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                     className="border rounded-lg px-4 py-3"
+                     style={{
+                       backgroundColor: theme.colors.card,
+                       borderColor: theme.colors.border,
+                       color: theme.colors.text,
+                     }}
                      placeholder="Ex: 60"
-                     placeholderTextColor="#737373"
+                     placeholderTextColor={theme.colors.textTertiary}
                      value={duration}
                      onChangeText={setDuration}
                      keyboardType="numeric"
-                    >
-
-                    </TextInput>
+                    />
 
                 </View>
 
                 <View className="mb-4">
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Grupos Musculares *
                     </Text>
 
                     <View className="flex-row gap-2 mb-3">
                         <TextInput
-                         className="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                         className="flex-1 border rounded-lg px-4 py-3"
+                         style={{
+                           backgroundColor: theme.colors.card,
+                           borderColor: theme.colors.border,
+                           color: theme.colors.text,
+                         }}
                          placeholder="Ex: pernas, peito, costas..."
-                         placeholderTextColor="#737373"
+                         placeholderTextColor={theme.colors.textTertiary}
                          value={newMuscleGroup}
                          onChangeText={setNewMuscleGroup}
                         />
                         <TouchableOpacity
-                         className="bg-primary-500 rounded-lg px-4 py-3 justify-center"
+                         className="rounded-lg px-4 py-3 justify-center"
+                         style={{ backgroundColor: theme.colors.primary }}
                          onPress={() => {
                             if (newMuscleGroup.trim() !== '') {
                                 setMuscleGroups([...muscleGroups, newMuscleGroup.trim()]);
@@ -252,7 +278,7 @@ export default function CreateExerciseScreen() {
                             }
                          }}
                         >
-                            <Text className="text-white font-semibold">
+                            <Text className="font-semibold" style={{ color: '#ffffff' }}>
                                 +
                             </Text>
 
@@ -265,9 +291,15 @@ export default function CreateExerciseScreen() {
                             {muscleGroups.map((group, index) => (
                                 <View
                                     key={index}
-                                    className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-3 py-2 flex-row items-center"
+                                    className="rounded-lg px-3 py-2 flex-row items-center border"
+                                    style={{
+                                      backgroundColor: theme.mode === 'dark' 
+                                        ? theme.colors.primary + '30'
+                                        : theme.colors.primary + '20',
+                                      borderColor: theme.colors.primary + '60',
+                                    }}
                                 >
-                                    <Text className="text-primary-400 text-sm mr-2">
+                                    <Text className="text-sm mr-2" style={{ color: theme.colors.primary }}>
                                         {group}
                                     </Text>
                                     <TouchableOpacity 
@@ -275,7 +307,7 @@ export default function CreateExerciseScreen() {
                                             setMuscleGroups(muscleGroups.filter((_, i) => i !== index));
                                         }}
                                     >
-                                        <Text className="text-primary-400 font-bold">
+                                        <Text className="font-bold" style={{ color: theme.colors.primary }}>
                                             ×
                                         </Text>
                                     </TouchableOpacity>
@@ -283,27 +315,33 @@ export default function CreateExerciseScreen() {
                             ))}
                         </View>
                     ) : (
-                        <Text className="text-neutral-500 text-sm">
+                        <Text className="text-sm" style={themeStyles.textTertiary}>
                             Nenhum grupo muscular adicionado ainda
                         </Text>
                     )}
 
                     {/* Campo: Equipamentos */}
                         <View className="mb-4">
-                        <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                        <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                             Equipamentos
                         </Text>
                         
                         <View className="flex-row gap-2 mb-3">
                             <TextInput
-                            className="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                            className="flex-1 border rounded-lg px-4 py-3"
+                            style={{
+                              backgroundColor: theme.colors.card,
+                              borderColor: theme.colors.border,
+                              color: theme.colors.text,
+                            }}
                             placeholder="Ex: Halteres, Barra, Banco..."
-                            placeholderTextColor="#737373"
+                            placeholderTextColor={theme.colors.textTertiary}
                             value={newEquipment}
                             onChangeText={setNewEquipment}
                             />
                             <TouchableOpacity
-                            className="bg-primary-500 rounded-lg px-4 py-3 justify-center"
+                            className="rounded-lg px-4 py-3 justify-center"
+                            style={{ backgroundColor: theme.colors.primary }}
                             onPress={() => {
                                 if (newEquipment.trim() !== '') {
                                 setEquipment([...equipment, newEquipment.trim()]);
@@ -311,7 +349,7 @@ export default function CreateExerciseScreen() {
                                 }
                             }}
                             >
-                            <Text className="text-white font-semibold">+</Text>
+                            <Text className="font-semibold" style={{ color: '#ffffff' }}>+</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -320,9 +358,15 @@ export default function CreateExerciseScreen() {
                             {equipment.map((item, index) => (
                                 <View
                                 key={index}
-                                className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-3 py-2 flex-row items-center"
+                                className="rounded-lg px-3 py-2 flex-row items-center border"
+                                style={{
+                                  backgroundColor: theme.mode === 'dark' 
+                                    ? theme.colors.primary + '30'
+                                    : theme.colors.primary + '20',
+                                  borderColor: theme.colors.primary + '60',
+                                }}
                                 >
-                                <Text className="text-primary-400 text-sm mr-2">
+                                <Text className="text-sm mr-2" style={{ color: theme.colors.primary }}>
                                     {item}
                                 </Text>
                                 <TouchableOpacity 
@@ -330,13 +374,13 @@ export default function CreateExerciseScreen() {
                                     setEquipment(equipment.filter((_, i) => i !== index));
                                     }}
                                 >
-                                    <Text className="text-primary-400 font-bold">×</Text>
+                                    <Text className="font-bold" style={{ color: theme.colors.primary }}>×</Text>
                                 </TouchableOpacity>
                                 </View>
                             ))}
                             </View>
                         ) : (
-                            <Text className="text-neutral-500 text-sm">
+                            <Text className="text-sm" style={themeStyles.textTertiary}>
                             Nenhum equipamento adicionado ainda
                             </Text>
                         )}
@@ -346,9 +390,10 @@ export default function CreateExerciseScreen() {
 
                                 {/* Botão Salvar */}
                 <TouchableOpacity
-                className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
+                className="rounded-lg py-4 px-6 mt-6"
                 style={{
-                  shadowColor: '#fb923c',
+                  backgroundColor: theme.colors.primary,
+                  shadowColor: theme.colors.primary,
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
@@ -356,7 +401,7 @@ export default function CreateExerciseScreen() {
                 }}
                 onPress={handleSaveExercise}
                 >
-                <Text className="text-white font-semibold text-center text-lg">
+                <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
                     💾 Salvar Exercício
                 </Text>
                 </TouchableOpacity>

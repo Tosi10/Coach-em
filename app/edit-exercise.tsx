@@ -3,9 +3,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 
 export default function EditExerciseScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const themeStyles = getThemeStyles(theme.colors);
     const { exerciseId } = useLocalSearchParams();
     
     // Garantir que exerciseId seja sempre string (useLocalSearchParams pode retornar array)
@@ -153,8 +157,8 @@ export default function EditExerciseScreen() {
     // Mostrar loading enquanto carrega
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-dark-950">
-                <Text className="text-xl font-bold text-white">
+            <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
+                <Text className="text-xl font-bold" style={themeStyles.text}>
                     Carregando...
                 </Text>
             </View>
@@ -188,13 +192,18 @@ export default function EditExerciseScreen() {
 
                 {/* Campo Nome */}
                 <View className="mb-4">
-                    <Text className="text-neutral-300 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Nome do Exercício *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Ex: Agachamento"
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         value={name}
                         onChangeText={setName}
                     />
@@ -202,13 +211,18 @@ export default function EditExerciseScreen() {
 
                 {/* Campo Descrição */}
                 <View className="mb-4">
-                    <Text className="text-neutral-300 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Descrição *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Descreva o exercício..."
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         multiline
                         numberOfLines={4}
                         value={description}
@@ -218,24 +232,29 @@ export default function EditExerciseScreen() {
 
                 {/* Campo Dificuldade */}
                 <View className="mb-4">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Dificuldade *
                     </Text>
                     <View className="flex-row gap-3">
                         {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
                             <TouchableOpacity
                                 key={level}
-                                className={`flex-1 py-3 rounded-lg border-2 ${
-                                    difficulty === level
-                                        ? 'bg-primary-500 border-primary-500'
-                                        : 'bg-dark-900 border-dark-700'
-                                }`}
+                                className="flex-1 py-3 rounded-lg border-2"
+                                style={{
+                                  backgroundColor: difficulty === level 
+                                    ? theme.colors.primary
+                                    : theme.colors.card,
+                                  borderColor: difficulty === level 
+                                    ? theme.colors.primary
+                                    : theme.colors.border,
+                                }}
                                 onPress={() => setDifficulty(level)}
                             >
                                 <Text
-                                    className={`text-center font-semibold ${
-                                        difficulty === level ? 'text-white' : 'text-neutral-300'
-                                    }`}
+                                    className="text-center font-semibold"
+                                    style={{
+                                      color: difficulty === level ? '#ffffff' : theme.colors.textSecondary
+                                    }}
                                 >
                                     {level === 'beginner' ? 'Iniciante' : level === 'intermediate' ? 'Intermediário' : 'Avançado'}
                                 </Text>
@@ -246,34 +265,46 @@ export default function EditExerciseScreen() {
 
                 {/* Grupos Musculares */}
                 <View className="mb-4">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Grupos Musculares *
                     </Text>
                     <View className="flex-row gap-2 mb-2">
                         <TextInput
-                            className="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                            className="flex-1 border rounded-lg px-4 py-3"
+                            style={{
+                              backgroundColor: theme.colors.card,
+                              borderColor: theme.colors.border,
+                              color: theme.colors.text,
+                            }}
                             placeholder="Ex: pernas"
-                            placeholderTextColor="#737373"
+                            placeholderTextColor={theme.colors.textTertiary}
                             value={newMuscleGroup}
                             onChangeText={setNewMuscleGroup}
                             onSubmitEditing={addMuscleGroup}
                         />
                         <TouchableOpacity
-                            className="bg-primary-500 rounded-lg px-6 py-3"
+                            className="rounded-lg px-6 py-3"
+                            style={{ backgroundColor: theme.colors.primary }}
                             onPress={addMuscleGroup}
                         >
-                            <Text className="text-white font-semibold">+</Text>
+                            <Text className="font-semibold" style={{ color: '#ffffff' }}>+</Text>
                         </TouchableOpacity>
                     </View>
                     <View className="flex-row flex-wrap gap-2">
                         {muscleGroups.map((group, index) => (
                             <TouchableOpacity
                                 key={index}
-                                className="bg-primary-500/20 border border-primary-500/30 px-3 py-1 rounded-full flex-row items-center gap-2"
+                                className="px-3 py-1 rounded-full flex-row items-center gap-2 border"
+                                style={{
+                                  backgroundColor: theme.mode === 'dark' 
+                                    ? theme.colors.primary + '30'
+                                    : theme.colors.primary + '20',
+                                  borderColor: theme.colors.primary + '60',
+                                }}
                                 onPress={() => removeMuscleGroup(group)}
                             >
-                                <Text className="text-primary-400">{group}</Text>
-                                <Text className="text-primary-400">×</Text>
+                                <Text style={{ color: theme.colors.primary }}>{group}</Text>
+                                <Text style={{ color: theme.colors.primary }}>×</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -281,33 +312,41 @@ export default function EditExerciseScreen() {
 
                 {/* Equipamentos */}
                 <View className="mb-4">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Equipamentos
                     </Text>
                     <View className="flex-row gap-2 mb-2">
                         <TextInput
-                            className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900"
+                            className="flex-1 border rounded-lg px-4 py-3"
+                            style={{
+                              backgroundColor: theme.colors.card,
+                              borderColor: theme.colors.border,
+                              color: theme.colors.text,
+                            }}
                             placeholder="Ex: Barra"
+                            placeholderTextColor={theme.colors.textTertiary}
                             value={newEquipment}
                             onChangeText={setNewEquipment}
                             onSubmitEditing={addEquipment}
                         />
                         <TouchableOpacity
-                            className="bg-primary-500 rounded-lg px-6 py-3"
+                            className="rounded-lg px-6 py-3"
+                            style={{ backgroundColor: theme.colors.primary }}
                             onPress={addEquipment}
                         >
-                            <Text className="text-white font-semibold">+</Text>
+                            <Text className="font-semibold" style={{ color: '#ffffff' }}>+</Text>
                         </TouchableOpacity>
                     </View>
                     <View className="flex-row flex-wrap gap-2">
                         {equipment.map((item, index) => (
                             <TouchableOpacity
                                 key={index}
-                                className="bg-dark-800 border border-dark-600 px-3 py-1 rounded-full flex-row items-center gap-2"
+                                className="px-3 py-1 rounded-full flex-row items-center gap-2 border"
+                                style={themeStyles.cardSecondary}
                                 onPress={() => removeEquipment(item)}
                             >
-                                <Text className="text-neutral-300">{item}</Text>
-                                <Text className="text-neutral-300">×</Text>
+                                <Text style={themeStyles.textSecondary}>{item}</Text>
+                                <Text style={themeStyles.textSecondary}>×</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -315,13 +354,18 @@ export default function EditExerciseScreen() {
 
                 {/* Duração */}
                 <View className="mb-6">
-                    <Text className="text-neutral-900 font-semibold mb-2">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Duração (segundos)
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Ex: 60"
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         keyboardType="numeric"
                         value={duration}
                         onChangeText={setDuration}
@@ -330,9 +374,10 @@ export default function EditExerciseScreen() {
 
                 {/* Botão Salvar */}
                 <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-4 px-6"
+                    className="rounded-lg py-4 px-6"
                     style={{
-                      shadowColor: '#fb923c',
+                      backgroundColor: theme.colors.primary,
+                      shadowColor: theme.colors.primary,
                       shadowOffset: { width: 0, height: 4 },
                       shadowOpacity: 0.3,
                       shadowRadius: 8,
@@ -340,7 +385,7 @@ export default function EditExerciseScreen() {
                     }}
                     onPress={handleUpdateExercise}
                 >
-                    <Text className="text-white font-semibold text-center text-lg">
+                    <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
                         💾 Salvar Alterações
                     </Text>
                 </TouchableOpacity>

@@ -9,11 +9,13 @@
  * - Botão para atribuir treino
  */
 
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LineChart } from 'react-native-gifted-charts';
 
 // Dados mockados de atletas
@@ -40,6 +42,8 @@ const mockEvolutionData = [
 export default function AthleteProfileScreen() {
   const router = useRouter();
   const { athleteId } = useLocalSearchParams();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   
   // Garantir que athleteId seja sempre string
   const athleteIdString = Array.isArray(athleteId) ? athleteId[0] : athleteId;
@@ -218,20 +222,21 @@ export default function AthleteProfileScreen() {
 
   if (!athlete) {
     return (
-      <View className="flex-1 items-center justify-center bg-dark-950">
-        <Text className="text-white text-xl">Atleta não encontrado</Text>
+      <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
+        <Text className="text-xl" style={themeStyles.text}>Atleta não encontrado</Text>
         <TouchableOpacity
-          className="bg-primary-500 rounded-lg py-3 px-6 mt-4"
+          className="rounded-lg py-3 px-6 mt-4"
+          style={{ backgroundColor: theme.colors.primary }}
           onPress={() => router.back()}
         >
-          <Text className="text-white font-semibold">Voltar</Text>
+          <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-dark-950">
+    <ScrollView className="flex-1" style={themeStyles.bg}>
       <View className="px-6 pt-20 pb-20">
         {/* Header com botão voltar */}
         <TouchableOpacity
@@ -239,10 +244,10 @@ export default function AthleteProfileScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+          <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+            <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
-          <Text className="text-primary-400 font-semibold text-lg">
+          <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
             Voltar
           </Text>
         </TouchableOpacity>
@@ -250,28 +255,43 @@ export default function AthleteProfileScreen() {
         {/* Seção de perfil do atleta */}
         <View className="flex-row items-center mb-6">
           {/* Avatar placeholder */}
-          <View className="w-20 h-20 rounded-full bg-primary-500/20 border-2 border-primary-500/30 items-center justify-center mr-4">
-            <Text className="text-primary-400 font-bold text-2xl">
+          <View className="w-20 h-20 rounded-full border-2 items-center justify-center mr-4"
+            style={{
+              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+              borderColor: theme.colors.primary + '50',
+            }}
+          >
+            <Text className="font-bold text-2xl" style={{ color: theme.colors.primary }}>
               {athlete.name.charAt(0)}
             </Text>
           </View>
 
           <View className="flex-1">
             {/* Nome do atleta ao lado da foto */}
-            <Text className="text-3xl font-bold text-white mb-2">
+            <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
               {athlete.name}
             </Text>
             
             {/* Status "Treinou Hoje" */}
             {hasTrainedToday ? (
-              <View className="bg-green-500/20 border border-green-500/30 px-4 py-2 rounded-lg self-start">
-                <Text className="text-green-400 font-semibold text-sm">
+              <View className="border px-4 py-2 rounded-lg self-start"
+                style={{
+                  backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                  borderColor: '#10b981' + '50',
+                }}
+              >
+                <Text className="font-semibold text-sm" style={{ color: '#10b981' }}>
                   Treinou Hoje
                 </Text>
               </View>
             ) : (
-              <View className="bg-neutral-500/20 border border-neutral-500/30 px-4 py-2 rounded-lg self-start">
-                <Text className="text-neutral-400 font-semibold text-sm">
+              <View className="border px-4 py-2 rounded-lg self-start"
+                style={{
+                  backgroundColor: theme.colors.backgroundTertiary,
+                  borderColor: theme.colors.border,
+                }}
+              >
+                <Text className="font-semibold text-sm" style={themeStyles.textTertiary}>
                   Não treinou hoje
                 </Text>
               </View>
@@ -280,53 +300,53 @@ export default function AthleteProfileScreen() {
         </View>
 
         {/* Tabs - Ordem: Gráficos, Treinos, Fotos */}
-        <View className="flex-row mb-6 border-b border-dark-700">
+        <View className="flex-row mb-6" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
           <TouchableOpacity
-            className={`flex-1 py-3 border-b-2 ${
-              activeTab === 'graficos'
-                ? 'border-primary-500'
-                : 'border-transparent'
-            }`}
+            className="flex-1 py-3 border-b-2"
+            style={{
+              borderBottomColor: activeTab === 'graficos' ? theme.colors.primary : 'transparent',
+            }}
             onPress={() => setActiveTab('graficos')}
           >
             <Text
-              className={`text-center font-semibold ${
-                activeTab === 'graficos' ? 'text-white' : 'text-neutral-400'
-              }`}
+              className="text-center font-semibold"
+              style={{
+                color: activeTab === 'graficos' ? theme.colors.text : theme.colors.textTertiary
+              }}
             >
               Gráficos
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className={`flex-1 py-3 border-b-2 ${
-              activeTab === 'treinos'
-                ? 'border-primary-500'
-                : 'border-transparent'
-            }`}
+            className="flex-1 py-3 border-b-2"
+            style={{
+              borderBottomColor: activeTab === 'treinos' ? theme.colors.primary : 'transparent',
+            }}
             onPress={() => setActiveTab('treinos')}
           >
             <Text
-              className={`text-center font-semibold ${
-                activeTab === 'treinos' ? 'text-white' : 'text-neutral-400'
-              }`}
+              className="text-center font-semibold"
+              style={{
+                color: activeTab === 'treinos' ? theme.colors.text : theme.colors.textTertiary
+              }}
             >
               Treinos
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className={`flex-1 py-3 border-b-2 ${
-              activeTab === 'fotos'
-                ? 'border-primary-500'
-                : 'border-transparent'
-            }`}
+            className="flex-1 py-3 border-b-2"
+            style={{
+              borderBottomColor: activeTab === 'fotos' ? theme.colors.primary : 'transparent',
+            }}
             onPress={() => setActiveTab('fotos')}
           >
             <Text
-              className={`text-center font-semibold ${
-                activeTab === 'fotos' ? 'text-white' : 'text-neutral-400'
-              }`}
+              className="text-center font-semibold"
+              style={{
+                color: activeTab === 'fotos' ? theme.colors.text : theme.colors.textTertiary
+              }}
             >
               Fotos
             </Text>
@@ -336,7 +356,7 @@ export default function AthleteProfileScreen() {
         {/* Conteúdo das Tabs */}
         {activeTab === 'graficos' && (
           <View className="mb-6">
-            <Text className="text-xl font-bold text-white mb-4">
+            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               Evolução de Peso/Carga
             </Text>
             
@@ -344,24 +364,28 @@ export default function AthleteProfileScreen() {
             {availableExercises.length > 0 ? (
               <>
                 <View className="mb-4">
-                  <Text className="text-neutral-400 text-sm mb-2">Selecione o exercício:</Text>
+                  <Text className="text-sm mb-2" style={themeStyles.textSecondary}>Selecione o exercício:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                     <View className="flex-row gap-2">
                       {availableExercises.map((exercise) => (
                         <TouchableOpacity
                           key={exercise.id}
                           onPress={() => setSelectedExercise(exercise.id)}
-                          className={`px-4 py-2 rounded-lg border ${
-                            selectedExercise === exercise.id
-                              ? 'bg-primary-500/20 border-primary-500'
-                              : 'bg-dark-800 border-dark-700'
-                          }`}
+                          className="px-4 py-2 rounded-lg border"
+                          style={{
+                            backgroundColor: selectedExercise === exercise.id
+                              ? (theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)')
+                              : theme.colors.backgroundTertiary,
+                            borderColor: selectedExercise === exercise.id
+                              ? theme.colors.primary
+                              : theme.colors.border,
+                          }}
                         >
-                          <Text className={`font-semibold ${
-                            selectedExercise === exercise.id
-                              ? 'text-primary-400'
-                              : 'text-neutral-400'
-                          }`}>
+                          <Text className="font-semibold" style={{
+                            color: selectedExercise === exercise.id
+                              ? theme.colors.primary
+                              : theme.colors.textTertiary
+                          }}>
                             {exercise.name}
                           </Text>
                         </TouchableOpacity>
@@ -372,8 +396,8 @@ export default function AthleteProfileScreen() {
                 
                 {/* Gráfico de Evolução */}
                 {weightHistory.length > 0 ? (
-                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-6">
-                    <Text className="text-white font-semibold mb-2 text-center">
+                  <View className="rounded-xl p-4 mb-6 border" style={themeStyles.card}>
+                    <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
                       {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
                     </Text>
                     
@@ -396,10 +420,10 @@ export default function AthleteProfileScreen() {
                       initialSpacing={0}
                       noOfSections={4}
                       maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
-                      yAxisColor="#404040"
-                      xAxisColor="#404040"
-                      yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                      yAxisColor={theme.colors.borderSecondary}
+                      xAxisColor={theme.colors.borderSecondary}
+                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                       hideDataPoints={false}
                       dataPointsColor="#fb923c"
                       dataPointsRadius={6}
@@ -409,7 +433,7 @@ export default function AthleteProfileScreen() {
                       textShiftX={-5}
                       textFontSize={10}
                       hideRules={false}
-                      rulesColor="#262626"
+                      rulesColor={theme.colors.border}
                       rulesType="solid"
                       yAxisTextNumberOfLines={1}
                       showVerticalLines={false}
@@ -481,40 +505,45 @@ export default function AthleteProfileScreen() {
                     )}
                   </View>
                 ) : (
-                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
-                    <Text className="text-neutral-400 text-center">
+                  <View className="rounded-xl p-8 items-center border" style={themeStyles.card}>
+                    <Text className="text-center" style={themeStyles.textSecondary}>
                       Nenhum registro de peso encontrado para este exercício.
                     </Text>
-                    <Text className="text-neutral-500 text-sm text-center mt-2">
+                    <Text className="text-sm text-center mt-2" style={themeStyles.textTertiary}>
                       Registre o peso usado durante os treinos para ver a evolução aqui.
                     </Text>
                   </View>
                 )}
               </>
             ) : (
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
-                <Text className="text-neutral-400 text-center mb-2">
+              <View className="rounded-xl p-8 items-center border" style={themeStyles.card}>
+                <Text className="text-center mb-2" style={themeStyles.textSecondary}>
                   Nenhum exercício com registro de peso ainda.
                 </Text>
-                <Text className="text-neutral-500 text-sm text-center">
+                <Text className="text-sm text-center" style={themeStyles.textTertiary}>
                   Complete treinos e registre o peso usado para ver a evolução aqui.
                 </Text>
               </View>
             )}
 
             {/* Meta */}
-            <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-4">
+            <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
               <View className="flex-row items-center justify-between">
                 <View className="flex-1">
-                  <Text className="text-white font-semibold mb-1">
+                  <Text className="font-semibold mb-1" style={themeStyles.text}>
                     Meta: 100kg no Agachamento
                   </Text>
-                  <Text className="text-neutral-400 text-sm">
+                  <Text className="text-sm" style={themeStyles.textSecondary}>
                     Progresso: 40.32%
                   </Text>
                 </View>
-                <View className="w-10 h-10 rounded-full bg-primary-500/20 border border-primary-500/30 items-center justify-center ml-3">
-                  <Text className="text-primary-400 font-bold text-sm">
+                <View className="w-10 h-10 rounded-full border items-center justify-center ml-3"
+                  style={{
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                    borderColor: theme.colors.primary + '50',
+                  }}
+                >
+                  <Text className="font-bold text-sm" style={{ color: theme.colors.primary }}>
                     T
                   </Text>
                 </View>
@@ -522,11 +551,11 @@ export default function AthleteProfileScreen() {
             </View>
 
             {/* Último Feedback */}
-            <View className="bg-dark-900 border border-dark-700 rounded-xl p-4">
-              <Text className="text-white font-semibold mb-3">
+            <View className="rounded-xl p-4 border" style={themeStyles.card}>
+              <Text className="font-semibold mb-3" style={themeStyles.text}>
                 Último Feedback
               </Text>
-              <Text className="text-neutral-400 text-sm leading-5">
+              <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
                 {athlete.name} disse: 'Senti um pouco de dor no joelho no Leg Press' - 23/01/2026
               </Text>
             </View>
@@ -536,41 +565,41 @@ export default function AthleteProfileScreen() {
         {activeTab === 'treinos' && (
           <View className="mb-6">
             {/* Sub-tabs dentro de Treinos */}
-            <View className="flex-row mb-4 border-b border-dark-700">
+            <View className="flex-row mb-4" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
               <TouchableOpacity
-                className={`flex-1 py-2 border-b-2 ${
-                  workoutSubTab === 'proximos'
-                    ? 'border-primary-500'
-                    : 'border-transparent'
-                }`}
+                className="flex-1 py-2 border-b-2"
+                style={{
+                  borderBottomColor: workoutSubTab === 'proximos' ? theme.colors.primary : 'transparent',
+                }}
                 onPress={() => {
                   setWorkoutSubTab('proximos');
                   setWorkoutsToShow(5); // Resetar paginação ao trocar de aba
                 }}
               >
                 <Text
-                  className={`text-center font-semibold ${
-                    workoutSubTab === 'proximos' ? 'text-white' : 'text-neutral-400'
-                  }`}
+                  className="text-center font-semibold"
+                  style={{
+                    color: workoutSubTab === 'proximos' ? theme.colors.text : theme.colors.textTertiary
+                  }}
                 >
                   Próximos
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className={`flex-1 py-2 border-b-2 ${
-                  workoutSubTab === 'historico'
-                    ? 'border-primary-500'
-                    : 'border-transparent'
-                }`}
+                className="flex-1 py-2 border-b-2"
+                style={{
+                  borderBottomColor: workoutSubTab === 'historico' ? theme.colors.primary : 'transparent',
+                }}
                 onPress={() => {
                   setWorkoutSubTab('historico');
                   setWorkoutsToShow(5); // Resetar paginação ao trocar de aba
                 }}
               >
                 <Text
-                  className={`text-center font-semibold ${
-                    workoutSubTab === 'historico' ? 'text-white' : 'text-neutral-400'
-                  }`}
+                  className="text-center font-semibold"
+                  style={{
+                    color: workoutSubTab === 'historico' ? theme.colors.text : theme.colors.textTertiary
+                  }}
                 >
                   Histórico
                 </Text>
@@ -578,8 +607,8 @@ export default function AthleteProfileScreen() {
             </View>
 
             {athleteWorkouts.length === 0 ? (
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-6">
-                <Text className="text-neutral-400 text-center">
+              <View className="rounded-xl p-6 border" style={themeStyles.card}>
+                <Text className="text-center" style={themeStyles.textSecondary}>
                   Nenhum treino atribuído ainda
                 </Text>
               </View>
@@ -607,8 +636,8 @@ export default function AthleteProfileScreen() {
                     return (
                       <>
                         {workoutsToDisplay.length === 0 ? (
-                          <View className="bg-dark-900 border border-dark-700 rounded-xl p-6">
-                            <Text className="text-neutral-400 text-center">
+                          <View className="rounded-xl p-6 border" style={themeStyles.card}>
+                            <Text className="text-center" style={themeStyles.textSecondary}>
                               Nenhum treino concluído ainda
                             </Text>
                           </View>
@@ -616,7 +645,11 @@ export default function AthleteProfileScreen() {
                           workoutsToDisplay.map((workout: any) => (
                             <View
                               key={workout.id}
-                              className="bg-dark-900 border border-green-500/30 rounded-xl p-4 mb-3"
+                              className="border rounded-xl p-4 mb-3"
+                              style={{
+                                ...themeStyles.card,
+                                borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
+                              }}
                             >
                               <View className="flex-row justify-between items-start">
                                 <TouchableOpacity
@@ -629,14 +662,14 @@ export default function AthleteProfileScreen() {
                                   }}
                                 >
                                   <View className="flex-1">
-                                    <Text className="text-white font-semibold text-lg mb-1">
+                                    <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                                       {workout.name}
                                     </Text>
-                                    <Text className="text-neutral-400 text-sm mb-1">
+                                    <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                                       {workout.date} • {workout.dayOfWeek}
                                     </Text>
                                     {workout.completedDate && (
-                                      <Text className="text-neutral-500 text-xs">
+                                      <Text className="text-xs" style={themeStyles.textTertiary}>
                                         Concluído em: {new Date(workout.completedDate).toLocaleDateString('pt-BR')}
                                       </Text>
                                     )}
@@ -644,8 +677,13 @@ export default function AthleteProfileScreen() {
                                 </TouchableOpacity>
                                 
                                 <View className="items-end">
-                                  <View className="bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-full mb-2">
-                                    <Text className="text-green-400 text-xs font-semibold">
+                                  <View className="border px-3 py-1 rounded-full mb-2"
+                                    style={{
+                                      backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                                      borderColor: '#10b981' + '50',
+                                    }}
+                                  >
+                                    <Text className="text-xs font-semibold" style={{ color: '#10b981' }}>
                                       {workout.status}
                                     </Text>
                                   </View>
@@ -659,13 +697,17 @@ export default function AthleteProfileScreen() {
                                   
                                   {/* Botão de deletar - menor, abaixo do badge */}
                                   <TouchableOpacity
-                                    className="flex-row items-center bg-red-500/20 border border-red-500/30 rounded-lg py-1.5 px-2.5"
+                                    className="flex-row items-center border rounded-lg py-1.5 px-2.5"
+                                    style={{
+                                      backgroundColor: theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                      borderColor: '#ef4444' + '50',
+                                    }}
                                     onPress={() => {
                                       handleDeleteWorkout([workout.id], false);
                                     }}
                                   >
                                     <FontAwesome name="trash" size={12} color="#ef4444" />
-                                    <Text className="text-red-400 text-xs font-semibold ml-1">
+                                    <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
                                       Deletar
                                     </Text>
                                   </TouchableOpacity>
@@ -677,10 +719,11 @@ export default function AthleteProfileScreen() {
                         
                         {hasMore && (
                           <TouchableOpacity
-                            className="bg-dark-800 border border-dark-700 rounded-xl py-3 px-6 mt-2"
+                            className="border rounded-xl py-3 px-6 mt-2"
+                            style={themeStyles.cardSecondary}
                             onPress={() => setWorkoutsToShow(workoutsToShow + 5)}
                           >
-                            <Text className="text-primary-400 font-semibold text-center">
+                            <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
                               Carregar mais ({sortedCompleted.length - workoutsToShow} restantes)
                             </Text>
                           </TouchableOpacity>
@@ -755,8 +798,8 @@ export default function AthleteProfileScreen() {
                     return (
                       <>
                         {workoutsToDisplay.length === 0 ? (
-                          <View className="bg-dark-900 border border-dark-700 rounded-xl p-6">
-                            <Text className="text-neutral-400 text-center">
+                          <View className="rounded-xl p-6 border" style={themeStyles.card}>
+                            <Text className="text-center" style={themeStyles.textSecondary}>
                               Nenhum treino pendente
                             </Text>
                           </View>
@@ -776,7 +819,8 @@ export default function AthleteProfileScreen() {
                               return (
                                 <View
                                   key={`group-${item.workouts[0]?.recurrenceGroupId || item.name}-${index}`}
-                                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3"
+                                  className="rounded-xl p-4 mb-3 border"
+                                  style={themeStyles.card}
                                 >
                                   <View className="flex-row justify-between items-start">
                                     <TouchableOpacity
@@ -790,35 +834,44 @@ export default function AthleteProfileScreen() {
                                       }}
                                     >
                                       <View className="flex-1">
-                                        <Text className="text-white font-semibold text-lg mb-1">
+                                        <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                                           {item.name}
                                         </Text>
-                                        <Text className="text-primary-400 text-sm mb-1">
+                                        <Text className="text-sm mb-1" style={{ color: theme.colors.primary }}>
                                           {dayOfWeek} • {totalCount} treino{totalCount !== 1 ? 's' : ''}
                                         </Text>
-                                        <Text className="text-neutral-400 text-xs">
+                                        <Text className="text-xs" style={themeStyles.textSecondary}>
                                           {firstDate.toLocaleDateString('pt-BR')} até {lastDate.toLocaleDateString('pt-BR')}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
                                     
                                     <View className="items-end">
-                                      <View className="bg-primary-500/20 border border-primary-500/30 px-3 py-1 rounded-full mb-2">
-                                        <Text className="text-primary-400 text-xs font-semibold">
+                                      <View className="border px-3 py-1 rounded-full mb-2"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                                          borderColor: theme.colors.primary + '50',
+                                        }}
+                                      >
+                                        <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
                                           Pendente
                                         </Text>
                                       </View>
                                       
                                       {/* Botão de deletar - menor, abaixo do badge */}
                                       <TouchableOpacity
-                                        className="flex-row items-center bg-red-500/20 border border-red-500/30 rounded-lg py-1.5 px-2.5"
+                                        className="flex-row items-center border rounded-lg py-1.5 px-2.5"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                          borderColor: '#ef4444' + '50',
+                                        }}
                                         onPress={() => {
                                           const workoutIds = sortedGroupWorkouts.map((w: any) => w.id);
                                           handleDeleteWorkout(workoutIds, true);
                                         }}
                                       >
                                         <FontAwesome name="trash" size={12} color="#ef4444" />
-                                        <Text className="text-red-400 text-xs font-semibold ml-1">
+                                        <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
                                           Deletar
                                         </Text>
                                       </TouchableOpacity>
@@ -831,7 +884,8 @@ export default function AthleteProfileScreen() {
                               return (
                                 <View
                                   key={item.workout.id}
-                                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3"
+                                  className="rounded-xl p-4 mb-3 border"
+                                  style={themeStyles.card}
                                 >
                                   <View className="flex-row justify-between items-start">
                                     <TouchableOpacity
@@ -844,31 +898,40 @@ export default function AthleteProfileScreen() {
                                       }}
                                     >
                                       <View className="flex-1">
-                                        <Text className="text-white font-semibold text-lg mb-1">
+                                        <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                                           {item.workout.name}
                                         </Text>
-                                        <Text className="text-neutral-400 text-sm mb-1">
+                                        <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                                           {item.workout.date} • {item.workout.dayOfWeek}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
                                     
                                     <View className="items-end">
-                                      <View className="bg-primary-500/20 border border-primary-500/30 px-3 py-1 rounded-full mb-2">
-                                        <Text className="text-primary-400 text-xs font-semibold">
+                                      <View className="border px-3 py-1 rounded-full mb-2"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                                          borderColor: theme.colors.primary + '50',
+                                        }}
+                                      >
+                                        <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
                                           {item.workout.status}
                                         </Text>
                                       </View>
                                       
                                       {/* Botão de deletar - menor, abaixo do badge */}
                                       <TouchableOpacity
-                                        className="flex-row items-center bg-red-500/20 border border-red-500/30 rounded-lg py-1.5 px-2.5"
+                                        className="flex-row items-center border rounded-lg py-1.5 px-2.5"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                          borderColor: '#ef4444' + '50',
+                                        }}
                                         onPress={() => {
                                           handleDeleteWorkout([item.workout.id], false);
                                         }}
                                       >
                                         <FontAwesome name="trash" size={12} color="#ef4444" />
-                                        <Text className="text-red-400 text-xs font-semibold ml-1">
+                                        <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
                                           Deletar
                                         </Text>
                                       </TouchableOpacity>
@@ -882,10 +945,11 @@ export default function AthleteProfileScreen() {
                         
                         {hasMore && (
                           <TouchableOpacity
-                            className="bg-dark-800 border border-dark-700 rounded-xl py-3 px-6 mt-2"
+                            className="border rounded-xl py-3 px-6 mt-2"
+                            style={themeStyles.cardSecondary}
                             onPress={() => setWorkoutsToShow(workoutsToShow + 5)}
                           >
-                            <Text className="text-primary-400 font-semibold text-center">
+                            <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
                               Carregar mais ({allWorkoutsToShow.length - workoutsToShow} restantes)
                             </Text>
                           </TouchableOpacity>
@@ -902,11 +966,11 @@ export default function AthleteProfileScreen() {
 
         {activeTab === 'fotos' && (
           <View className="mb-6">
-            <Text className="text-xl font-bold text-white mb-4">
+            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               Fotos
             </Text>
-            <View className="bg-dark-900 border border-dark-700 rounded-xl p-6">
-              <Text className="text-neutral-400 text-center">
+            <View className="rounded-xl p-6 border" style={themeStyles.card}>
+              <Text className="text-center" style={themeStyles.textSecondary}>
                 Nenhuma foto disponível
               </Text>
             </View>
@@ -915,13 +979,12 @@ export default function AthleteProfileScreen() {
 
         {/* Botão Atribuir Treino */}
         <TouchableOpacity
-          className="bg-primary-500 rounded-xl py-4 px-6 mt-6"
+          className="rounded-xl py-4 px-6 mt-6 border"
           style={{
-            shadowColor: '#fb923c',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
+            backgroundColor: theme.mode === 'dark' 
+              ? 'rgba(249, 115, 22, 0.4)' 
+              : 'rgba(251, 146, 60, 0.2)',
+            borderColor: theme.colors.primary + '50',
           }}
           onPress={() => {
             router.push({
@@ -930,7 +993,7 @@ export default function AthleteProfileScreen() {
             });
           }}
         >
-          <Text className="text-black font-bold text-center text-lg">
+          <Text className="font-bold text-center text-lg" style={{ color: theme.colors.primary }}>
             ➕ Atribuir Treino
           </Text>
         </TouchableOpacity>

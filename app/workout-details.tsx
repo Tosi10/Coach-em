@@ -8,7 +8,9 @@
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 import { CustomAlert } from '@/components/CustomAlert';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlockData } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -179,6 +181,8 @@ const getMockWorkoutTemplates = () => {
 export default function WorkoutDetailsScreen() {
   const router = useRouter();
   const { workoutId } = useLocalSearchParams();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   
   // Buscar o treino correspondente
   const [assignedWorkout, setAssignedWorkout] = useState<any>(null);
@@ -670,7 +674,7 @@ export default function WorkoutDetailsScreen() {
   // Se não encontrou o treino, volta para a tela anterior
   if (loading) {
     return (
-      <ScrollView className="flex-1 bg-dark-950">
+      <ScrollView className="flex-1" style={themeStyles.bg}>
         <View className="px-6 pt-20 pb-20">
           {/* Skeleton do Header */}
           <View className="mb-6">
@@ -680,7 +684,7 @@ export default function WorkoutDetailsScreen() {
           </View>
           
           {/* Skeleton do Progresso */}
-          <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-6">
+          <View className="rounded-xl p-4 mb-6 border" style={themeStyles.card}>
             <SkeletonLoader width="50%" height={20} borderRadius={8} style={{ marginBottom: 16 }} />
             <SkeletonLoader width="100%" height={8} borderRadius={4} style={{ marginBottom: 8 }} />
             <SkeletonLoader width="40%" height={16} borderRadius={8} />
@@ -705,15 +709,16 @@ export default function WorkoutDetailsScreen() {
 
   if (!assignedWorkout) {
     return (
-      <View className="flex-1 items-center justify-center bg-dark-950 px-6">
-        <Text className='text-xl font-bold text-white mb-4'>
+      <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
+        <Text className='text-xl font-bold mb-4' style={themeStyles.text}>
           Treino não encontrado
         </Text>
         <TouchableOpacity 
-         className="bg-primary-500 rounded-lg py-3 px-6"
+         className="rounded-lg py-3 px-6"
+         style={{ backgroundColor: theme.colors.primary }}
          onPress={() => router.back()}
          >
-          <Text className="text-white font-semibold">
+          <Text className="font-semibold" style={{ color: '#ffffff' }}>
             Voltar
           </Text>
          </TouchableOpacity>
@@ -816,7 +821,7 @@ export default function WorkoutDetailsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-dark-950">
+    <ScrollView className="flex-1" style={themeStyles.bg}>
       <View className="px-6 pt-20 pb-20">
         {/* Header com botão voltar melhorado */}
         <TouchableOpacity
@@ -824,23 +829,23 @@ export default function WorkoutDetailsScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+          <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+            <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
-          <Text className="text-primary-400 font-semibold text-lg">
+          <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
             Voltar
           </Text>
         </TouchableOpacity>
 
                 {/* Informações do treino */}
                 <View className="mb-6">
-          <Text className="text-3xl font-bold text-white mb-2">
+          <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
             {assignedWorkout.name}
           </Text>
-          <Text className="text-neutral-400 mb-1">
+          <Text className="mb-1" style={themeStyles.textSecondary}>
             Treinador: {assignedWorkout.coach}
           </Text>
-          <Text className="text-neutral-400 mb-4">
+          <Text className="mb-4" style={themeStyles.textSecondary}>
             Data: {assignedWorkout.date} ({assignedWorkout.dayOfWeek})
           </Text>
 
@@ -862,9 +867,9 @@ export default function WorkoutDetailsScreen() {
               : 'text-primary-400';
             
             return (
-              <View className="mb-4 bg-dark-900 border border-dark-700 rounded-xl p-4">
+              <View className="mb-4 rounded-xl p-4 border" style={themeStyles.card}>
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-white font-semibold text-base flex-1">
+                  <Text className="font-semibold text-base flex-1" style={themeStyles.text}>
                     Progresso do Treino
                   </Text>
                   
@@ -875,12 +880,13 @@ export default function WorkoutDetailsScreen() {
                       style={{
                         borderWidth: 6,
                         borderColor: progressColor,
-                        backgroundColor: '#1f2937',
+                        backgroundColor: theme.colors.backgroundTertiary,
                       }}
                     >
                       <Text 
-                        className={`font-bold text-xl ${textColor}`}
+                        className="font-bold text-xl"
                         style={{ 
+                          color: progressColor,
                           textAlign: 'center',
                           includeFontPadding: false,
                         }}
@@ -892,7 +898,7 @@ export default function WorkoutDetailsScreen() {
                 </View>
                 
                 {/* Barra visual de progresso */}
-                <View className="h-2 bg-dark-800 rounded-full overflow-hidden mb-2">
+                <View className="h-2 rounded-full overflow-hidden mb-2" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
                   <View 
                     className="h-full rounded-full"
                     style={{ 
@@ -902,7 +908,7 @@ export default function WorkoutDetailsScreen() {
                   />
                 </View>
                 
-                <Text className="text-neutral-400 text-xs text-center">
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   {completedExercises.size} de {totalExercises} exercícios concluídos
                 </Text>
               </View>
@@ -928,7 +934,7 @@ export default function WorkoutDetailsScreen() {
                 {/* Lista de blocos e exercícios */}
           {workoutTemplate && (
           <View className="mb-6">
-            <Text className="text-2xl font-bold text-white mb-4">
+            <Text className="text-2xl font-bold mb-4" style={themeStyles.text}>
               Detalhes do Treino
             </Text>
             
@@ -941,7 +947,7 @@ export default function WorkoutDetailsScreen() {
               
               return (
                 <View key={blockIndex} className="mb-6">
-                  <Text className="text-xl font-semibold text-white mb-3">
+                  <Text className="text-xl font-semibold mb-3" style={themeStyles.text}>
                     {blockNames[block.blockType] || block.blockType}
                   </Text>
                   
@@ -955,16 +961,16 @@ export default function WorkoutDetailsScreen() {
                       key={exerciseIndex}
                       onPress={() => openExercise(blockIndex, exerciseIndex)}
                       activeOpacity={0.7}
-                      className={`bg-dark-900 rounded-xl p-4 mb-3 border ${
-                        isCompleted ? 'border-green-500/50' : 'border-dark-700'
-                      }`}
-                      style={{
-                        shadowColor: isCompleted ? '#10b981' : '#fb923c',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: isCompleted ? 0.2 : 0.1,
-                        shadowRadius: 4,
-                        elevation: 4,
-                      }}
+                      className="rounded-xl p-4 mb-3 border"
+                  style={{
+                    ...themeStyles.card,
+                    borderColor: isCompleted ? 'rgba(16, 185, 129, 0.5)' : theme.colors.border,
+                    shadowColor: isCompleted ? '#10b981' : '#fb923c',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isCompleted ? 0.2 : 0.1,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
                     >
                       {/* Checkbox para marcar exercício como concluído */}
                       {assignedWorkout.status === 'Pendente' && (
@@ -973,18 +979,18 @@ export default function WorkoutDetailsScreen() {
                           className="absolute top-3 right-3 z-10"
                           activeOpacity={0.7}
                         >
-                          <View className={`w-7 h-7 rounded-full border-2 items-center justify-center ${
-                            isCompleted
-                              ? 'bg-green-500 border-green-400'
-                              : 'border-primary-400 bg-dark-800'
-                          }`}
-                          style={isCompleted ? {
-                            shadowColor: '#10b981',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4,
-                            elevation: 4,
-                          } : {}}
+                          <View className="w-7 h-7 rounded-full border-2 items-center justify-center"
+                            style={{
+                              backgroundColor: isCompleted ? '#10b981' : theme.colors.backgroundTertiary,
+                              borderColor: isCompleted ? '#10b981' : theme.colors.primary,
+                              ...(isCompleted ? {
+                                shadowColor: '#10b981',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 4,
+                                elevation: 4,
+                              } : {}),
+                            }}
                           >
                             {isCompleted && (
                               <FontAwesome name="check" size={14} color="#fff" />
@@ -993,43 +999,46 @@ export default function WorkoutDetailsScreen() {
                         </TouchableOpacity>
                       )}
                       
-                      <Text className={`text-lg font-semibold mb-2 pr-10 ${
-                        isCompleted ? 'text-green-400 line-through' : 'text-white'
-                      }`}>
+                      <Text className="text-lg font-semibold mb-2 pr-10"
+                        style={{
+                          color: isCompleted ? '#10b981' : theme.colors.text,
+                          textDecorationLine: isCompleted ? 'line-through' : 'none',
+                        }}
+                      >
                         {exercise.exercise?.name || `Exercício ${exerciseIndex + 1}`}
                       </Text>
                       
                       {exercise.exercise?.description && (
-                        <Text className="text-neutral-400 text-sm mb-2">
+                        <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
                           {exercise.exercise.description}
                         </Text>
                       )}
                       
                       <View className="flex-row gap-4 flex-wrap">
                         {exercise.sets && (
-                          <Text className="text-neutral-400">
+                          <Text style={themeStyles.textSecondary}>
                             Séries: {exercise.sets}
                           </Text>
                         )}
                         {exercise.reps && (
-                          <Text className="text-neutral-400">
+                          <Text style={themeStyles.textSecondary}>
                             Repetições: {exercise.reps}
                           </Text>
                         )}
                         {exercise.duration && (
-                          <Text className="text-neutral-400">
+                          <Text style={themeStyles.textSecondary}>
                             Duração: {Math.floor(exercise.duration / 60)}min
                           </Text>
                         )}
                         {exercise.restTime && (
-                          <Text className="text-neutral-400">
+                          <Text style={themeStyles.textSecondary}>
                             Descanso: {exercise.restTime}s
                           </Text>
                         )}
                       </View>
                       
                       {exercise.notes && (
-                        <Text className="text-neutral-500 text-sm mt-2 italic">
+                        <Text className="text-sm mt-2 italic" style={themeStyles.textTertiary}>
                           💡 {exercise.notes}
                         </Text>
                       )}
@@ -1072,7 +1081,7 @@ export default function WorkoutDetailsScreen() {
               onRequestClose={() => setShowExerciseModal(false)}
             >
               <View className="flex-1 bg-black/80 justify-center items-center p-6">
-                <View className="bg-dark-900 rounded-3xl p-6 w-full max-w-md border border-dark-700">
+                <View className="rounded-3xl p-6 w-full max-w-md border" style={themeStyles.card}>
                   {/* Header do Modal */}
                   <View className="flex-row items-center justify-between mb-4">
                     <TouchableOpacity
@@ -1087,9 +1096,9 @@ export default function WorkoutDetailsScreen() {
                       }}
                       className="p-2"
                     >
-                      <FontAwesome name="times" size={20} color="#fff" />
+                      <FontAwesome name="times" size={20} color={theme.colors.text} />
                     </TouchableOpacity>
-                    <Text className="text-white font-semibold text-lg">
+                    <Text className="font-semibold text-lg" style={themeStyles.text}>
                       Exercício {exerciseNumber} de {totalExercises}
                     </Text>
                     <View className="w-8" />
@@ -1097,49 +1106,49 @@ export default function WorkoutDetailsScreen() {
                   
                   {/* Detalhes do Exercício */}
                   <ScrollView className="max-h-96">
-                    <Text className="text-2xl font-bold text-white mb-2">
+                    <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
                       {exercise.exercise?.name || `Exercício ${exerciseNumber}`}
                     </Text>
                     
                     {exercise.exercise?.description && (
-                      <Text className="text-neutral-400 text-sm mb-4">
+                      <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
                         {exercise.exercise.description}
                       </Text>
                     )}
                     
-                    <View className="bg-dark-800 rounded-xl p-4 mb-4">
+                    <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
                       <View className="flex-row gap-4 flex-wrap mb-2">
                         {exercise.sets && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-neutral-400 text-xs mb-1">Séries</Text>
-                            <Text className="text-white font-semibold text-lg">{exercise.sets}</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
+                            <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.sets}</Text>
                           </View>
                         )}
                         {exercise.reps && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-neutral-400 text-xs mb-1">Repetições</Text>
-                            <Text className="text-white font-semibold text-lg">{exercise.reps}</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
+                            <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.reps}</Text>
                           </View>
                         )}
                         {exercise.duration && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-neutral-400 text-xs mb-1">Duração</Text>
-                            <Text className="text-white font-semibold text-lg">
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração</Text>
+                            <Text className="font-semibold text-lg" style={themeStyles.text}>
                               {Math.floor(exercise.duration / 60)}min
                             </Text>
                           </View>
                         )}
                         {exercise.restTime && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-neutral-400 text-xs mb-1">Descanso</Text>
-                            <Text className="text-white font-semibold text-lg">{exercise.restTime}s</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso</Text>
+                            <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.restTime}s</Text>
                           </View>
                         )}
                       </View>
                       
                       {exercise.notes && (
-                        <View className="mt-3 pt-3 border-t border-dark-700">
-                          <Text className="text-neutral-400 text-sm">
+                        <View className="mt-3 pt-3" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
+                          <Text className="text-sm" style={themeStyles.textSecondary}>
                             💡 {exercise.notes}
                           </Text>
                         </View>
@@ -1148,8 +1157,8 @@ export default function WorkoutDetailsScreen() {
                     
                     {/* Timer de Descanso (para exercícios com restTime) */}
                     {exercise.restTime && (
-                      <View className="bg-dark-800 rounded-xl p-4 mb-4">
-                        <Text className="text-white font-semibold mb-3">⏱️ Timer de Descanso</Text>
+                      <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>⏱️ Timer de Descanso</Text>
                         {isResting ? (
                           <View className="items-center">
                             <Text className="text-4xl font-bold text-primary-400 mb-4">
@@ -1177,20 +1186,21 @@ export default function WorkoutDetailsScreen() {
                     
                     {/* Timer de Duração (para exercícios de alongamento/desaquecimento) */}
                     {exercise.duration && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'COOL_DOWN' && (
-                      <View className="bg-dark-800 rounded-xl p-4 mb-4">
-                        <Text className="text-white font-semibold mb-3">🧘 Timer de Alongamento</Text>
+                      <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>🧘 Timer de Alongamento</Text>
                         {isRunningDuration ? (
                           <View className="items-center">
-                            <Text className="text-4xl font-bold text-green-400 mb-2">
+                            <Text className="text-4xl font-bold mb-2" style={{ color: '#10b981' }}>
                               {formatTime(durationTime)}
                             </Text>
-                            <Text className="text-neutral-400 text-sm mb-4">
+                            <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
                               de {formatTime(durationTotal)}
                             </Text>
-                            <View className="w-full bg-dark-700 rounded-full h-2 mb-4">
+                            <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
                               <View 
-                                className="bg-green-500 h-2 rounded-full"
+                                className="h-2 rounded-full"
                                 style={{ 
+                                  backgroundColor: '#10b981',
                                   width: `${(durationTime / durationTotal) * 100}%` 
                                 }}
                               />
@@ -1217,14 +1227,14 @@ export default function WorkoutDetailsScreen() {
                     
                     {/* Registro de Peso/Carga (para exercícios com séries e repetições) */}
                     {exercise.sets && exercise.reps && assignedWorkout.status === 'Pendente' && (
-                      <View className="bg-dark-800 rounded-xl p-4 mb-4">
-                        <Text className="text-white font-semibold mb-3">💪 Registrar Peso/Carga</Text>
+                      <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>💪 Registrar Peso/Carga</Text>
                         
                         {/* Mostrar último peso registrado */}
                         {savedWeights[exerciseUniqueId] && (
-                          <View className="mb-3 p-3 bg-dark-700 rounded-lg">
-                            <Text className="text-neutral-400 text-xs mb-1">Último peso registrado</Text>
-                            <Text className="text-white font-bold text-xl">
+                          <View className="mb-3 p-3 rounded-lg" style={themeStyles.cardSecondary}>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Último peso registrado</Text>
+                            <Text className="font-bold text-xl" style={themeStyles.text}>
                               {savedWeights[exerciseUniqueId]} kg
                             </Text>
                           </View>
@@ -1236,12 +1246,16 @@ export default function WorkoutDetailsScreen() {
                             value={exerciseWeight}
                             onChangeText={setExerciseWeight}
                             placeholder="Peso em kg"
-                            placeholderTextColor="#6b7280"
+                            placeholderTextColor={theme.colors.textTertiary}
                             keyboardType="numeric"
-                            className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white"
-                            style={{ color: '#fff' }}
+                            className="flex-1 border rounded-lg px-4 py-3"
+                            style={{ 
+                              backgroundColor: theme.colors.backgroundTertiary,
+                              borderColor: theme.colors.border,
+                              color: theme.colors.text,
+                            }}
                           />
-                          <Text className="text-neutral-400">kg</Text>
+                          <Text style={themeStyles.textSecondary}>kg</Text>
                         </View>
                         
                         <TouchableOpacity
@@ -1299,15 +1313,16 @@ export default function WorkoutDetailsScreen() {
                     <TouchableOpacity
                       onPress={goToPreviousExercise}
                       disabled={!hasPrevious}
-                      className={`flex-1 rounded-lg py-3 px-4 items-center ${
-                        hasPrevious
-                          ? 'bg-dark-800 border border-dark-700'
-                          : 'bg-dark-900 border border-dark-800 opacity-50'
-                      }`}
+                      className="flex-1 rounded-lg py-3 px-4 items-center border"
+                      style={{
+                        backgroundColor: hasPrevious ? theme.colors.backgroundTertiary : theme.colors.card,
+                        borderColor: theme.colors.border,
+                        opacity: hasPrevious ? 1 : 0.5,
+                      }}
                     >
-                      <Text className={`font-semibold ${
-                        hasPrevious ? 'text-white' : 'text-neutral-500'
-                      }`}>
+                      <Text className="font-semibold" style={{
+                        color: hasPrevious ? theme.colors.text : theme.colors.textTertiary
+                      }}>
                         ← Anterior
                       </Text>
                     </TouchableOpacity>
@@ -1315,15 +1330,16 @@ export default function WorkoutDetailsScreen() {
                     <TouchableOpacity
                       onPress={goToNextExercise}
                       disabled={!hasNext}
-                      className={`flex-1 rounded-lg py-3 px-4 items-center ${
-                        hasNext
-                          ? 'bg-dark-800 border border-dark-700'
-                          : 'bg-dark-900 border border-dark-800 opacity-50'
-                      }`}
+                      className="flex-1 rounded-lg py-3 px-4 items-center border"
+                      style={{
+                        backgroundColor: hasNext ? theme.colors.backgroundTertiary : theme.colors.card,
+                        borderColor: theme.colors.border,
+                        opacity: hasNext ? 1 : 0.5,
+                      }}
                     >
-                      <Text className={`font-semibold ${
-                        hasNext ? 'text-white' : 'text-neutral-500'
-                      }`}>
+                      <Text className="font-semibold" style={{
+                        color: hasNext ? theme.colors.text : theme.colors.textTertiary
+                      }}>
                         Próximo →
                       </Text>
                     </TouchableOpacity>
@@ -1342,9 +1358,10 @@ export default function WorkoutDetailsScreen() {
             }}
           >
             <TouchableOpacity
-              className="bg-primary-500 rounded-lg py-4 px-6"
+              className="rounded-lg py-4 px-6"
               style={{
-                shadowColor: '#fb923c',
+                backgroundColor: theme.colors.primary,
+                shadowColor: theme.colors.primary,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 8,
@@ -1352,7 +1369,7 @@ export default function WorkoutDetailsScreen() {
               }}
               onPress={handleMarkAsCompleted}
             >
-              <Text className="text-white font-semibold text-center text-lg">
+              <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
                 Marcar como Concluído
               </Text>
             </TouchableOpacity>
@@ -1367,11 +1384,11 @@ export default function WorkoutDetailsScreen() {
           onRequestClose={() => setShowFeedbackModal(false)}
         >
           <View className="flex-1 bg-black/50 justify-center items-center p-6">
-            <View className="bg-dark-900 rounded-3xl p-6 w-full max-w-md">
-              <Text className="text-2xl font-bold text-white mb-2 text-center">
+            <View className="rounded-3xl p-6 w-full max-w-md border" style={themeStyles.card}>
+              <Text className="text-2xl font-bold mb-2 text-center" style={themeStyles.text}>
                 Como foi o treino?
               </Text>
-              <Text className="text-neutral-400 text-center mb-6">
+              <Text className="text-center mb-6" style={themeStyles.textSecondary}>
                 Selecione como você se sentiu após completar este treino
               </Text>
 
@@ -1380,24 +1397,28 @@ export default function WorkoutDetailsScreen() {
                 {feedbackEmojis.map((feedback) => (
                   <TouchableOpacity
                     key={feedback.level}
-                    className={`items-center justify-center w-20 h-20 rounded-2xl border-2 ${
-                      selectedFeedback === feedback.level
-                        ? 'bg-primary-500/20 border-primary-500'
-                        : 'bg-dark-800 border-dark-700'
-                    }`}
-                    style={selectedFeedback === feedback.level ? {
-                      shadowColor: feedback.color,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 6,
-                    } : {}}
+                    className="items-center justify-center w-20 h-20 rounded-2xl border-2"
+                    style={{
+                      backgroundColor: selectedFeedback === feedback.level
+                        ? (theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)')
+                        : theme.colors.backgroundTertiary,
+                      borderColor: selectedFeedback === feedback.level
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                      ...(selectedFeedback === feedback.level ? {
+                        shadowColor: feedback.color,
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 6,
+                      } : {}),
+                    }}
                     onPress={() => setSelectedFeedback(feedback.level)}
                   >
                     <Text className="text-4xl mb-1">{feedback.emoji}</Text>
-                    <Text className={`text-xs font-semibold ${
-                      selectedFeedback === feedback.level ? 'text-white' : 'text-neutral-400'
-                    }`}>
+                    <Text className="text-xs font-semibold" style={{
+                      color: selectedFeedback === feedback.level ? theme.colors.text : theme.colors.textTertiary
+                    }}>
                       {feedback.label}
                     </Text>
                   </TouchableOpacity>

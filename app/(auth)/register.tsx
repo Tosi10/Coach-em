@@ -10,9 +10,13 @@ import { UserType } from '@/src/types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const { signUp, loading, error } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -44,51 +48,61 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <ScrollView className="flex-1" style={themeStyles.bg}>
       <View className="flex-1 items-center justify-center px-6 py-12">
         <View className="w-full max-w-md">
           {/* Title */}
-          <Text className="text-4xl font-bold text-neutral-900 mb-2 text-center">
+          <Text className="text-4xl font-bold mb-2 text-center" style={themeStyles.text}>
             Criar Conta
           </Text>
-          <Text className="text-neutral-600 mb-8 text-center">
+          <Text className="mb-8 text-center" style={themeStyles.textSecondary}>
             Junte-se ao Coach'em
           </Text>
 
           {/* User Type Selection */}
           <View className="flex-row gap-2 mb-6">
             <TouchableOpacity
-              className={`flex-1 py-3 px-4 rounded-lg border-2 ${
-                userType === UserType.COACH
-                  ? 'border-primary-600 bg-primary-50'
-                  : 'border-neutral-200 bg-neutral-50'
-              }`}
+              className="flex-1 py-3 px-4 rounded-lg border-2"
+              style={{
+                borderColor: userType === UserType.COACH
+                  ? theme.colors.primary
+                  : theme.colors.border,
+                backgroundColor: userType === UserType.COACH
+                  ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                  : theme.colors.card,
+              }}
               onPress={() => setUserType(UserType.COACH)}
             >
               <Text
-                className={`text-center font-semibold ${
-                  userType === UserType.COACH
-                    ? 'text-primary-600'
-                    : 'text-neutral-600'
-                }`}
+                className="text-center font-semibold"
+                style={{
+                  color: userType === UserType.COACH
+                    ? theme.colors.primary
+                    : theme.colors.textSecondary
+                }}
               >
                 Treinador
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className={`flex-1 py-3 px-4 rounded-lg border-2 ${
-                userType === UserType.ATHLETE
-                  ? 'border-primary-600 bg-primary-50'
-                  : 'border-neutral-200 bg-neutral-50'
-              }`}
+              className="flex-1 py-3 px-4 rounded-lg border-2"
+              style={{
+                borderColor: userType === UserType.ATHLETE
+                  ? theme.colors.primary
+                  : theme.colors.border,
+                backgroundColor: userType === UserType.ATHLETE
+                  ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                  : theme.colors.card,
+              }}
               onPress={() => setUserType(UserType.ATHLETE)}
             >
               <Text
-                className={`text-center font-semibold ${
-                  userType === UserType.ATHLETE
-                    ? 'text-primary-600'
-                    : 'text-neutral-600'
-                }`}
+                className="text-center font-semibold"
+                style={{
+                  color: userType === UserType.ATHLETE
+                    ? theme.colors.primary
+                    : theme.colors.textSecondary
+                }}
               >
                 Atleta
               </Text>
@@ -97,18 +111,28 @@ export default function RegisterScreen() {
 
           {/* Display Name */}
           <TextInput
-            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+            className="w-full border rounded-lg px-4 py-3 mb-4"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            }}
             placeholder="Nome completo"
-            placeholderTextColor="#a3a3a3"
+            placeholderTextColor={theme.colors.textTertiary}
             value={displayName}
             onChangeText={setDisplayName}
           />
 
           {/* Email */}
           <TextInput
-            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+            className="w-full border rounded-lg px-4 py-3 mb-4"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            }}
             placeholder="Email"
-            placeholderTextColor="#a3a3a3"
+            placeholderTextColor={theme.colors.textTertiary}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -118,9 +142,14 @@ export default function RegisterScreen() {
 
           {/* Password */}
           <TextInput
-            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+            className="w-full border rounded-lg px-4 py-3 mb-4"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            }}
             placeholder="Senha"
-            placeholderTextColor="#a3a3a3"
+            placeholderTextColor={theme.colors.textTertiary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -131,16 +160,26 @@ export default function RegisterScreen() {
           {userType === UserType.COACH && (
             <>
               <TextInput
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+                className="w-full border rounded-lg px-4 py-3 mb-4"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                }}
                 placeholder="Especialização (ex: Futebol, Atletismo)"
-                placeholderTextColor="#a3a3a3"
+                placeholderTextColor={theme.colors.textTertiary}
                 value={specialization}
                 onChangeText={setSpecialization}
               />
               <TextInput
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+                className="w-full border rounded-lg px-4 py-3 mb-4"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                }}
                 placeholder="Biografia (opcional)"
-                placeholderTextColor="#a3a3a3"
+                placeholderTextColor={theme.colors.textTertiary}
                 value={bio}
                 onChangeText={setBio}
                 multiline
@@ -151,14 +190,15 @@ export default function RegisterScreen() {
 
           {/* Register Button */}
           <TouchableOpacity
-            className="w-full bg-primary-600 rounded-lg py-4 mb-4"
+            className="w-full rounded-lg py-4 mb-4"
+            style={{ backgroundColor: theme.colors.primary }}
             onPress={handleRegister}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-white text-center font-semibold text-base">
+              <Text className="text-center font-semibold text-base" style={{ color: '#ffffff' }}>
                 Criar Conta
               </Text>
             )}
@@ -169,14 +209,14 @@ export default function RegisterScreen() {
             onPress={() => router.back()}
             disabled={loading}
           >
-            <Text className="text-primary-600 text-center text-sm">
+            <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
               Já tem uma conta? Faça login
             </Text>
           </TouchableOpacity>
 
           {/* Error Message */}
           {error && (
-            <Text className="text-red-500 text-sm mt-4 text-center">
+            <Text className="text-sm mt-4 text-center" style={{ color: '#ef4444' }}>
               {error}
             </Text>
           )}

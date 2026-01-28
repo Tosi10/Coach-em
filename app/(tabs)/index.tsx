@@ -6,8 +6,11 @@
  */
 
 import { EmptyState } from '@/components/EmptyState';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useToastContext } from '@/components/ToastProvider';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -29,6 +32,8 @@ export default function HomeScreen() {
 
   const router = useRouter();
   const { showToast } = useToastContext();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -1237,17 +1242,18 @@ useEffect(() => {
   
   return (
     <ScrollView 
-      className="flex-1 bg-dark-950 px-6 pt-12"
+      className="flex-1 px-6 pt-12"
+      style={{ backgroundColor: theme.colors.background }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#fb923c"
-          colors={['#fb923c']}
+          tintColor={theme.colors.primary}
+          colors={[theme.colors.primary]}
         />
       }
     >
-    <View className="flex-1 bg-dark-950 px-2 pt-12 pb-20">
+    <View className="flex-1 px-2 pt-12 pb-20" style={{ backgroundColor: theme.colors.background }}>
       {/* 
         TEMA ESCURO ESTILO ZEUS:
         - bg-dark-950 = Fundo preto quase absoluto (#0a0a0a)
@@ -1255,11 +1261,14 @@ useEffect(() => {
         - primary-400/500 = Laranja vibrante como accent
       */}
       
-      <Text className="text-4xl font-bold text-white mb-3 text-center">
-        Coach<Text className="text-primary-400">'em</Text>
-      </Text>
+      <View className="flex-row items-center justify-between mb-3">
+        <Text className="text-4xl font-bold" style={{ color: theme.colors.text }}>
+          Coach<Text className="text-primary-400">'em</Text>
+        </Text>
+        <ThemeToggle />
+      </View>
       {userType === UserType.COACH && (
-        <Text className="text-neutral-400 text-center mb-6 px-4 text-base leading-6">
+        <Text className="text-center mb-6 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary }}>
           Bem vindo Rodrigo ao seu app de gestão esportiva.
         </Text>
       )}
@@ -1270,13 +1279,14 @@ useEffect(() => {
 
           {/* Panorama Semanal - Cards de Estatísticas */}
           <View className="mb-6">
-            <Text className="text-xl font-bold text-white mb-4">
+            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               Panorama Semanal
             </Text>
             <View className="flex-row gap-3">
               {/* Card: Ativos Hoje */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#fb923c',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1287,17 +1297,18 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="users" size={20} color="#fb923c" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getWeeklyStats().athletesToday}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Ativos Hoje
                 </Text>
               </View>
 
               {/* Card: Treinos Concluídos */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#10b981',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1308,17 +1319,18 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="check-circle" size={20} color="#10b981" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getWeeklyStats().completedToday}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Treinos Concluídos
                 </Text>
               </View>
 
               {/* Card: Pendentes */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#f59e0b',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1329,56 +1341,78 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="clock-o" size={20} color="#f59e0b" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getWeeklyStats().pendingWorkouts}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Pendentes
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Botões principais - Design Escuro Estilo Zeus */}
+          {/* Botões principais - Design Colorido Transparente (estilo AgendaApp) */}
           <View className="flex-row gap-5 mb-8">
-            {/* Botão Biblioteca de Exercícios */}
+            {/* Botão Biblioteca de Exercícios - Laranja */}
             <TouchableOpacity 
-              className="bg-primary-500 border-2 border-primary-400 rounded-3xl flex-1 items-center justify-center overflow-hidden py-6"
+              className="border-2 rounded-3xl flex-1 items-center justify-center py-6"
               style={{ 
-                shadowColor: '#fb923c',
-                shadowOffset: { width: 0, height: 12 },
-                shadowOpacity: 0.6,
-                shadowRadius: 20,
-                elevation: 16,
+                backgroundColor: theme.mode === 'dark' 
+                  ? 'rgba(251, 146, 60, 0.25)' // Laranja transparente no modo escuro
+                  : '#fb923c30', // Laranja transparente no modo claro (30 = ~19% opacidade)
+                borderColor: theme.colors.primary + '60',
+                shadowColor: 'transparent',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
+                overflow: 'hidden',
               }}
               onPress={() => router.push('/exercises-library')}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <View className="mb-4">
-                <FontAwesome name="book" size={40} color="#0a0a0a" />
-              </View>
-              <Text className="text-black font-bold text-center text-base tracking-tight">
+              <FontAwesome 
+                name="book" 
+                size={40} 
+                color={theme.colors.primary} 
+                style={{ marginBottom: 16 }}
+              />
+              <Text 
+                className="font-bold text-center text-base tracking-tight"
+                style={{ color: theme.colors.primary }}
+              >
                 Biblioteca de Exercícios
               </Text>
             </TouchableOpacity>
 
-            {/* Botão Meus Treinos */}
+            {/* Botão Meus Treinos - Laranja */}
             <TouchableOpacity 
-              className="bg-primary-500 border-2 border-primary-400 rounded-3xl flex-1 items-center justify-center overflow-hidden py-6"
+              className="border-2 rounded-3xl flex-1 items-center justify-center py-6"
               style={{ 
-                shadowColor: '#fb923c',
-                shadowOffset: { width: 0, height: 12 },
-                shadowOpacity: 0.6,
-                shadowRadius: 20,
-                elevation: 16,
+                backgroundColor: theme.mode === 'dark' 
+                  ? 'rgba(251, 146, 60, 0.25)' // Laranja transparente no modo escuro
+                  : '#fb923c30', // Laranja transparente no modo claro (30 = ~19% opacidade)
+                borderColor: theme.colors.primary + '60',
+                shadowColor: 'transparent',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
+                overflow: 'hidden',
               }}
               onPress={() => router.push('/workouts-library')}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <View className="mb-4">
-                <FontAwesome name="trophy" size={40} color="#0a0a0a" />
-              </View>
-              <Text className="text-black font-bold text-center text-base tracking-tight">
+              <FontAwesome 
+                name="trophy" 
+                size={40} 
+                color={theme.colors.primary} 
+                style={{ marginBottom: 16 }}
+              />
+              <Text 
+                className="font-bold text-center text-base tracking-tight"
+                style={{ color: theme.colors.primary }}
+              >
                 Meus Treinos
               </Text>
             </TouchableOpacity>
@@ -1387,11 +1421,11 @@ useEffect(() => {
           {/* Gráfico de Treinos Concluídos por Semana */}
           {getCoachWeeklyStats().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold text-white mb-3">
+              <Text className="text-xl font-bold mb-3" style={themeStyles.text}>
                 📊 Treinos Concluídos por Semana
               </Text>
               
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-3 mb-3">
+              <View className="rounded-xl p-3 mb-3 border" style={themeStyles.card}>
                 <BarChart
                   data={getCoachWeeklyStats().map((week) => ({
                     value: week.count,
@@ -1406,11 +1440,11 @@ useEffect(() => {
                   spacing={12}
                   hideRules
                   xAxisThickness={1}
-                  xAxisColor="#404040"
+                  xAxisColor={theme.colors.borderSecondary}
                   yAxisThickness={1}
-                  yAxisColor="#404040"
-                  yAxisTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
-                  xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 8 }}
+                  yAxisColor={theme.colors.borderSecondary}
+                  yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
                   noOfSections={4}
                   maxValue={Math.max(...getCoachWeeklyStats().map(w => w.count)) + 2}
                   isAnimated
@@ -1422,29 +1456,29 @@ useEffect(() => {
 
               {/* Análise de Tendência */}
               {getCoachWeeklyTrend() && (
-                <View className="bg-dark-900 border border-dark-700 rounded-xl p-3">
+                <View className="rounded-xl p-3 border" style={themeStyles.card}>
                   <View className="flex-row justify-between items-center">
                     <View className="flex-1">
-                      <Text className="text-neutral-400 text-[10px] mb-0.5">Primeira semana</Text>
-                      <Text className="text-white font-bold text-lg">
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Primeira semana</Text>
+                      <Text className="font-bold text-lg" style={themeStyles.text}>
                         {getCoachWeeklyTrend()?.firstCount} treinos
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-center">
-                      <Text className="text-neutral-400 text-[10px] mb-0.5">Última semana</Text>
-                      <Text className="text-white font-bold text-lg">
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Última semana</Text>
+                      <Text className="font-bold text-lg" style={themeStyles.text}>
                         {getCoachWeeklyTrend()?.lastCount} treinos
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-end">
-                      <Text className="text-neutral-400 text-[10px] mb-0.5">Tendência</Text>
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Tendência</Text>
                       <View className="flex-row items-center gap-1.5">
                         {getCoachWeeklyTrend()?.trend === 'increasing' && (
                           <>
                             <FontAwesome name="arrow-up" size={14} color="#10b981" />
-                            <Text className="text-green-400 font-bold text-base">
+                            <Text className="font-bold text-base" style={{ color: '#10b981' }}>
                               Aumentando
                             </Text>
                           </>
@@ -1452,25 +1486,25 @@ useEffect(() => {
                         {getCoachWeeklyTrend()?.trend === 'decreasing' && (
                           <>
                             <FontAwesome name="arrow-down" size={14} color="#ef4444" />
-                            <Text className="text-red-400 font-bold text-base">
+                            <Text className="font-bold text-base" style={{ color: '#ef4444' }}>
                               Diminuindo
                             </Text>
                           </>
                         )}
                         {getCoachWeeklyTrend()?.trend === 'stable' && (
                           <>
-                            <FontAwesome name="minus" size={14} color="#a3a3a3" />
-                            <Text className="text-neutral-400 font-bold text-base">
+                            <FontAwesome name="minus" size={14} color={theme.colors.textTertiary} />
+                            <Text className="font-bold text-base" style={themeStyles.textTertiary}>
                               Estável
                             </Text>
                           </>
                         )}
                       </View>
-                      <Text className={`text-[10px] mt-0.5 ${
-                        getCoachWeeklyTrend()?.trend === 'increasing' ? 'text-green-400' :
-                        getCoachWeeklyTrend()?.trend === 'decreasing' ? 'text-red-400' :
-                        'text-neutral-400'
-                      }`}>
+                      <Text className="text-[10px] mt-0.5" style={{
+                        color: getCoachWeeklyTrend()?.trend === 'increasing' ? '#10b981' :
+                               getCoachWeeklyTrend()?.trend === 'decreasing' ? '#ef4444' :
+                               theme.colors.textTertiary
+                      }}>
                         {(() => {
                           const trend = getCoachWeeklyTrend();
                           if (trend?.difference !== undefined && trend.difference !== 0) {
@@ -1497,12 +1531,12 @@ useEffect(() => {
           {/* Taxa de Aderência dos Atletas */}
           {getAllAthletesAdherence().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold text-white mb-2">
+              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
                 📈 Taxa de Aderência dos Atletas
               </Text>
               
               {/* Gráfico de Barras */}
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-3 mb-2">
+              <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
                 <BarChart
                   data={getAllAthletesAdherence().map((athlete) => ({
                     value: athlete.rate,
@@ -1523,11 +1557,11 @@ useEffect(() => {
                   spacing={10}
                   hideRules
                   xAxisThickness={1}
-                  xAxisColor="#404040"
+                  xAxisColor={theme.colors.borderSecondary}
                   yAxisThickness={1}
-                  yAxisColor="#404040"
-                  yAxisTextStyle={{ color: '#a3a3a3', fontSize: 8 }}
-                  xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 7 }}
+                  yAxisColor={theme.colors.borderSecondary}
+                  yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 7 }}
                   noOfSections={4}
                   maxValue={100}
                   isAnimated
@@ -1538,7 +1572,7 @@ useEffect(() => {
               </View>
 
               {/* Lista de Atletas com Aderência - Clicável */}
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-2">
+              <View className="rounded-xl p-2 border" style={themeStyles.card}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View className="flex-row gap-2">
                     {getAllAthletesAdherence().map((athlete) => (
@@ -1551,25 +1585,31 @@ useEffect(() => {
                           });
                         }}
                         activeOpacity={0.7}
-                        className={`min-w-[130px] rounded-lg p-2.5 border ${
-                          athlete.rate >= 70
-                            ? 'bg-green-500/10 border-green-500/30'
+                        className="min-w-[130px] rounded-lg p-2.5 border"
+                        style={{
+                          backgroundColor: athlete.rate >= 70
+                            ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)')
                             : athlete.rate >= 50
-                            ? 'bg-yellow-500/10 border-yellow-500/30'
-                            : 'bg-red-500/10 border-red-500/30'
-                        }`}
+                            ? (theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)')
+                            : (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)'),
+                          borderColor: athlete.rate >= 70
+                            ? 'rgba(16, 185, 129, 0.3)'
+                            : athlete.rate >= 50
+                            ? 'rgba(245, 158, 11, 0.3)'
+                            : 'rgba(239, 68, 68, 0.3)',
+                        }}
                       >
-                        <Text className="text-white font-semibold text-xs mb-0.5" numberOfLines={1}>
+                        <Text className="font-semibold text-xs mb-0.5" style={themeStyles.text} numberOfLines={1}>
                           {athlete.athleteName}
                         </Text>
                         <View className="flex-row items-center gap-1.5 mb-0.5">
-                          <Text className={`font-bold text-base ${
-                            athlete.rate >= 70
-                              ? 'text-green-400'
+                          <Text className="font-bold text-base" style={{
+                            color: athlete.rate >= 70
+                              ? '#10b981'
                               : athlete.rate >= 50
-                              ? 'text-yellow-400'
-                              : 'text-red-400'
-                          }`}>
+                              ? '#f59e0b'
+                              : '#ef4444'
+                          }}>
                             {athlete.rate}%
                           </Text>
                           {athlete.rate < 70 && (
@@ -1580,7 +1620,7 @@ useEffect(() => {
                             />
                           )}
                         </View>
-                        <Text className="text-neutral-400 text-[9px]">
+                        <Text className="text-[9px]" style={themeStyles.textSecondary}>
                           {athlete.completed}/{athlete.assigned} treinos
                         </Text>
                       </TouchableOpacity>
@@ -1594,20 +1634,28 @@ useEffect(() => {
           {/* Treinos Mais Difíceis (Baseado no Feedback) */}
           {getMostDifficultWorkouts().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold text-white mb-2">
+              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
                 💪 Treinos Mais Difíceis
               </Text>
               
               {/* Lista dos 5 Treinos Mais Difíceis */}
-              <View className="bg-dark-900 border border-dark-700 rounded-xl p-2 mb-2">
+              <View className="rounded-xl p-2 mb-2 border" style={themeStyles.card}>
                 {getMostDifficultWorkouts().map((workout, index) => (
                   <View
                     key={`${workout.workoutName}_${index}`}
-                    className={`flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 ${
-                      index === 0 ? 'bg-red-500/10 border border-red-500/20' :
-                      index === 1 ? 'bg-orange-500/10 border border-orange-500/20' :
-                      'bg-dark-800'
-                    }`}
+                    className="flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 border"
+                    style={{
+                      backgroundColor: index === 0 
+                        ? (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)')
+                        : index === 1
+                        ? (theme.mode === 'dark' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.05)')
+                        : theme.colors.backgroundTertiary,
+                      borderColor: index === 0 
+                        ? 'rgba(239, 68, 68, 0.2)'
+                        : index === 1
+                        ? 'rgba(249, 115, 22, 0.2)'
+                        : theme.colors.border,
+                    }}
                   >
                     <View className="flex-1 mr-2">
                       <View className="flex-row items-center gap-2 mb-0.5">
@@ -1617,24 +1665,24 @@ useEffect(() => {
                         {index === 1 && (
                           <FontAwesome name="star" size={14} color="#f97316" />
                         )}
-                        <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+                        <Text className="font-semibold text-sm" style={themeStyles.text} numberOfLines={1}>
                           {workout.workoutName}
                         </Text>
                       </View>
-                      <Text className="text-neutral-400 text-[10px]">
+                      <Text className="text-[10px]" style={themeStyles.textSecondary}>
                         {workout.count} avaliação{workout.count !== 1 ? 'ões' : ''}
                       </Text>
                     </View>
                     <View className="items-end">
-                      <Text className={`font-bold text-base ${
-                        workout.averageDifficulty >= 4.5 ? 'text-red-400' :
-                        workout.averageDifficulty >= 4 ? 'text-orange-400' :
-                        workout.averageDifficulty >= 3.5 ? 'text-yellow-400' :
-                        'text-neutral-400'
-                      }`}>
+                      <Text className="font-bold text-base" style={{
+                        color: workout.averageDifficulty >= 4.5 ? '#ef4444' :
+                               workout.averageDifficulty >= 4 ? '#f97316' :
+                               workout.averageDifficulty >= 3.5 ? '#f59e0b' :
+                               theme.colors.textTertiary
+                      }}>
                         {workout.averageDifficulty.toFixed(1)}
                       </Text>
-                      <Text className="text-neutral-500 text-[9px]">
+                      <Text className="text-[9px]" style={themeStyles.textTertiary}>
                         {workout.averageDifficulty >= 4.5 ? 'Muito Difícil' :
                          workout.averageDifficulty >= 4 ? 'Difícil' :
                          workout.averageDifficulty >= 3.5 ? 'Normal-Difícil' :
@@ -1647,8 +1695,8 @@ useEffect(() => {
 
               {/* Gráfico de Distribuição de Dificuldade */}
               {getDifficultyDistribution().length > 0 && (
-                <View className="bg-dark-900 border border-dark-700 rounded-xl p-2">
-                  <Text className="text-neutral-400 text-xs mb-2 text-center">
+                <View className="rounded-xl p-2 border" style={themeStyles.card}>
+                  <Text className="text-xs mb-2 text-center" style={themeStyles.textSecondary}>
                     Distribuição de Dificuldade
                   </Text>
                   <View className="flex-row gap-1.5 items-end justify-center">
@@ -1662,10 +1710,10 @@ useEffect(() => {
                             minHeight: 8,
                           }}
                         />
-                        <Text className="text-neutral-400 text-[8px] mt-1 text-center" numberOfLines={1}>
+                        <Text className="text-[8px] mt-1 text-center" style={themeStyles.textSecondary} numberOfLines={1}>
                           {item.label}
                         </Text>
-                        <Text className="text-white text-[10px] font-semibold mt-0.5">
+                        <Text className="text-[10px] font-semibold mt-0.5" style={themeStyles.text}>
                           {item.value}
                         </Text>
                       </View>
@@ -1679,7 +1727,7 @@ useEffect(() => {
           {/* Atividade Recente - Atletas que completaram treinos hoje */}
           {getAthletesWhoTrainedToday().length > 0 && (
             <View className="mb-8">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 Atividade Recente
               </Text>
               {getAthletesWhoTrainedToday()
@@ -1687,8 +1735,9 @@ useEffect(() => {
                 .map((activity: any) => (
                 <TouchableOpacity
                   key={activity.id}
-                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3 flex-row items-center"
+                  className="rounded-xl p-4 mb-3 flex-row items-center border"
                   style={{
+                    ...themeStyles.card,
                     shadowColor: '#10b981',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.15,
@@ -1703,15 +1752,20 @@ useEffect(() => {
                   }}
                 >
                   {/* Avatar placeholder */}
-                  <View className="w-12 h-12 rounded-full bg-primary-500/20 border border-primary-500/30 items-center justify-center mr-3">
-                    <Text className="text-primary-400 font-bold text-lg">
+                  <View className="w-12 h-12 rounded-full border items-center justify-center mr-3"
+                    style={{
+                      backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                      borderColor: theme.colors.primary + '50',
+                    }}
+                  >
+                    <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
                       {activity.athleteName.charAt(0)}
                     </Text>
                   </View>
                   
                   <View className="flex-1 mr-3">
                     <View className="flex-row items-center mb-1">
-                      <Text className="text-white font-semibold flex-1">
+                      <Text className="font-semibold flex-1" style={themeStyles.text}>
                         {activity.athleteName} finalizou o '{activity.workoutName}'
                       </Text>
                       {activity.feedbackEmoji && (
@@ -1720,13 +1774,18 @@ useEffect(() => {
                         </Text>
                       )}
                     </View>
-                    <Text className="text-neutral-400 text-xs">
+                    <Text className="text-xs" style={themeStyles.textSecondary}>
                       {getTimeAgo(activity.completedAt)}
                     </Text>
                   </View>
                   
-                  <View className="bg-green-500/20 border border-green-500/30 px-3 py-1 rounded">
-                    <Text className="text-green-400 font-semibold text-xs">
+                  <View className="border px-3 py-1 rounded"
+                    style={{
+                      backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                      borderColor: '#10b981' + '50',
+                    }}
+                  >
+                    <Text className="font-semibold text-xs" style={{ color: '#10b981' }}>
                       CONCLUÍDO
                     </Text>
                   </View>
@@ -1738,14 +1797,15 @@ useEffect(() => {
           {/* Atenção Necessária - Atletas que não treinam há tempo */}
           {getAthletesNeedingAttention().length > 0 && (
             <View className="mb-8">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 Atenção Necessária
               </Text>
               {getAthletesNeedingAttention().slice(0, 3).map((athlete: any) => (
                 <TouchableOpacity
                   key={athlete.id}
-                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3 flex-row items-center"
+                  className="rounded-xl p-4 mb-3 flex-row items-center border"
                   style={{
+                    ...themeStyles.card,
                     shadowColor: '#ef4444',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.15,
@@ -1760,17 +1820,22 @@ useEffect(() => {
                   }}
                 >
                   {/* Avatar placeholder */}
-                  <View className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 items-center justify-center mr-3">
-                    <Text className="text-red-400 font-bold text-lg">
+                  <View className="w-12 h-12 rounded-full border items-center justify-center mr-3"
+                    style={{
+                      backgroundColor: theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                      borderColor: '#ef4444' + '50',
+                    }}
+                  >
+                    <Text className="font-bold text-lg" style={{ color: '#ef4444' }}>
                       {athlete.name.charAt(0)}
                     </Text>
                   </View>
                   
                   <View className="flex-1">
-                    <Text className="text-white font-semibold mb-1">
+                    <Text className="font-semibold mb-1" style={themeStyles.text}>
                       {athlete.name}
                     </Text>
-                    <Text className="text-neutral-400 text-sm">
+                    <Text className="text-sm" style={themeStyles.textSecondary}>
                       Não treina há {athlete.daysSinceLastWorkout} {athlete.daysSinceLastWorkout === 1 ? 'dia' : 'dias'}
                     </Text>
                   </View>
@@ -1786,10 +1851,10 @@ useEffect(() => {
           {/* Saudação Personalizada */}
           {currentAthleteId && (
             <View className="mb-6">
-              <Text className="text-2xl font-bold text-white mb-2">
+              <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
                 Olá, {mockAthletes.find(a => a.id === currentAthleteId)?.name || 'Atleta'}!
               </Text>
-              <Text className="text-neutral-400 text-base">
+              <Text className="text-base" style={themeStyles.textSecondary}>
                 Acompanhe seus treinos e seu progresso
               </Text>
             </View>
@@ -1797,13 +1862,14 @@ useEffect(() => {
 
           {/* Cards de Estatísticas */}
           <View className="mb-6">
-            <Text className="text-xl font-bold text-white mb-4">
+            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               Seu Progresso
             </Text>
             <View className="flex-row gap-3">
               {/* Card: Treinos Esta Semana */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#fb923c',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1814,17 +1880,18 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="calendar" size={18} color="#fb923c" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getAthleteStats().thisWeekPending + getAthleteStats().thisWeekCompleted}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Esta Semana
                 </Text>
               </View>
 
               {/* Card: Concluídos */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#10b981',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1835,17 +1902,18 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="check-circle" size={18} color="#10b981" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getAthleteStats().totalCompleted}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Concluídos
                 </Text>
               </View>
 
               {/* Card: Sequência */}
-              <View className="flex-1 bg-dark-900 border border-dark-700 rounded-xl p-4"
+              <View className="flex-1 rounded-xl p-4 border"
                 style={{
+                  ...themeStyles.card,
                   shadowColor: '#f59e0b',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
@@ -1856,13 +1924,13 @@ useEffect(() => {
                 <View className="flex-row items-center mb-2">
                   <FontAwesome name="fire" size={18} color="#f59e0b" />
                 </View>
-                <Text className="text-2xl font-bold text-white mb-1">
+                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
                   {getAthleteStats().streak}
                 </Text>
-                <Text className="text-neutral-400 text-xs">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
                   Sequência
                 </Text>
-                <Text className="text-neutral-500 text-[10px] mt-1">
+                <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                   Dias consecutivos
                 </Text>
               </View>
@@ -1872,15 +1940,17 @@ useEffect(() => {
           {/* Treino de Hoje - Destaque (movido para aparecer antes da frequência) */}
           {getTodayWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 🎯 Treino de Hoje
               </Text>
               
               {getTodayWorkouts().map((workout) => (
                 <TouchableOpacity 
                   key={workout.id}
-                  className="bg-primary-500/10 border-2 border-primary-500/30 rounded-xl p-5 mb-3"
+                  className="border-2 rounded-xl p-5 mb-3"
                   style={{
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.1)' : 'rgba(251, 146, 60, 0.05)',
+                    borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.2)',
                     shadowColor: '#fb923c',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
@@ -1896,24 +1966,31 @@ useEffect(() => {
                 >
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">
-                      <Text className="text-xl font-bold text-white mb-2">
+                      <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
                         {workout.name}
                       </Text>
-                      <Text className="text-neutral-300 text-sm mb-1">
+                      <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                         Treinador: {workout.coach}
                       </Text>
-                      <Text className="text-neutral-400 text-sm">
+                      <Text className="text-sm" style={themeStyles.textTertiary}>
                         {workout.dayOfWeek}
                       </Text>
                     </View>
-                    <View className="bg-primary-500/30 border border-primary-400 px-4 py-2 rounded-full">
-                      <Text className="text-sm font-bold text-primary-200">
+                    <View 
+                      className="border px-4 py-2 rounded-full"
+                      style={{
+                        backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.15)',
+                        borderColor: theme.colors.primary,
+                      }}
+                    >
+                      <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
                         {workout.status}
                       </Text>
                     </View>
                   </View>
                   <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-3 px-6 mt-2"
+                    className="rounded-lg py-3 px-6 mt-2"
+                    style={{ backgroundColor: theme.colors.primary }}
                     onPress={() => {
                       router.push({
                         pathname: '/workout-details',
@@ -1921,7 +1998,7 @@ useEffect(() => {
                       });
                     }}
                   >
-                    <Text className="text-black font-bold text-center text-base">
+                    <Text className="font-bold text-center text-base" style={{ color: '#fff' }}>
                       ▶ Iniciar Treino
                     </Text>
                   </TouchableOpacity>
@@ -1933,13 +2010,13 @@ useEffect(() => {
           {/* Gráfico de Frequência de Treinos */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 📊 Frequência de Treinos
               </Text>
               
               {getWeeklyFrequency().length > 0 ? (
                 <>
-                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-4">
+                  <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                     <BarChart
                       data={getWeeklyFrequency().map((week, index) => ({
                         value: week.count,
@@ -1954,11 +2031,11 @@ useEffect(() => {
                       spacing={15}
                       hideRules
                       xAxisThickness={1}
-                      xAxisColor="#404040"
+                      xAxisColor={theme.colors.borderSecondary}
                       yAxisThickness={1}
-                      yAxisColor="#404040"
-                      yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                      yAxisColor={theme.colors.borderSecondary}
+                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                       noOfSections={4}
                       maxValue={Math.max(...getWeeklyFrequency().map(w => w.count)) + 2}
                       isAnimated
@@ -1969,29 +2046,29 @@ useEffect(() => {
                   </View>
 
                   {/* Estatísticas */}
-                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4">
+                  <View className="rounded-xl p-4 border" style={themeStyles.card}>
                     <View className="flex-row justify-between items-center mb-3">
                       <View className="flex-1">
-                        <Text className="text-neutral-400 text-xs mb-1">Média Semanal</Text>
-                        <Text className="text-white font-bold text-xl">
+                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
+                        <Text className="font-bold text-xl" style={themeStyles.text}>
                           {getAveragePerWeek()} treinos
                         </Text>
                       </View>
                       
                       {getWeekComparison() && (
                         <View className="flex-1 items-end">
-                          <Text className="text-neutral-400 text-xs mb-1">Esta Semana</Text>
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
                           <View className="flex-row items-center gap-2">
-                            <Text className="text-white font-bold text-xl">
+                            <Text className="font-bold text-xl" style={themeStyles.text}>
                               {getWeekComparison()?.current}
                             </Text>
-                            <Text className={`text-sm font-semibold ${
-                              (getWeekComparison()?.difference || 0) > 0
-                                ? 'text-green-400'
+                            <Text className="text-sm font-semibold" style={{
+                              color: (getWeekComparison()?.difference || 0) > 0
+                                ? '#10b981'
                                 : (getWeekComparison()?.difference || 0) < 0
-                                ? 'text-red-400'
-                                : 'text-neutral-400'
-                            }`}>
+                                ? '#ef4444'
+                                : theme.colors.textTertiary
+                            }}>
                               {(getWeekComparison()?.difference || 0) > 0 ? '+' : ''}
                               {getWeekComparison()?.difference} 
                               {getWeekComparison()?.difference !== 0 && (
@@ -2001,7 +2078,7 @@ useEffect(() => {
                               )}
                             </Text>
                           </View>
-                          <Text className="text-neutral-500 text-[10px] mt-1">
+                          <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                             vs semana anterior
                           </Text>
                         </View>
@@ -2009,13 +2086,13 @@ useEffect(() => {
                     </View>
                     
                     {/* Sequência destacada */}
-                    <View className="mt-3 pt-3 border-t border-dark-700">
+                    <View className="mt-3 pt-3" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
                       <View className="flex-row items-center justify-between">
                         <View className="flex-row items-center gap-2">
                           <FontAwesome name="fire" size={16} color="#f59e0b" />
-                          <Text className="text-neutral-400 text-sm">Sequência Atual</Text>
+                          <Text className="text-sm" style={themeStyles.textSecondary}>Sequência Atual</Text>
                         </View>
-                        <Text className="text-white font-bold text-lg">
+                        <Text className="font-bold text-lg" style={themeStyles.text}>
                           {getAthleteStats().streak} dias consecutivos
                         </Text>
                       </View>
@@ -2034,30 +2111,34 @@ useEffect(() => {
           {/* Gráfico de Evolução de Peso/Carga */}
           {availableExercises.length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 📈 Evolução de Peso/Carga
               </Text>
               
               {/* Seletor de Exercício */}
               <View className="mb-4">
-                <Text className="text-neutral-400 text-sm mb-2">Selecione o exercício:</Text>
+                <Text className="text-sm mb-2" style={themeStyles.textSecondary}>Selecione o exercício:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                   <View className="flex-row gap-2">
                     {availableExercises.map((exercise) => (
                       <TouchableOpacity
                         key={exercise.id}
                         onPress={() => setSelectedExercise(exercise.id)}
-                        className={`px-4 py-2 rounded-lg border ${
-                          selectedExercise === exercise.id
-                            ? 'bg-primary-500/20 border-primary-500'
-                            : 'bg-dark-800 border-dark-700'
-                        }`}
+                        className="px-4 py-2 rounded-lg border"
+                        style={{
+                          backgroundColor: selectedExercise === exercise.id
+                            ? (theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)')
+                            : theme.colors.backgroundTertiary,
+                          borderColor: selectedExercise === exercise.id
+                            ? theme.colors.primary
+                            : theme.colors.border,
+                        }}
                       >
-                        <Text className={`font-semibold ${
-                          selectedExercise === exercise.id
-                            ? 'text-primary-400'
-                            : 'text-neutral-400'
-                        }`}>
+                        <Text className="font-semibold" style={{
+                          color: selectedExercise === exercise.id
+                            ? theme.colors.primary
+                            : theme.colors.textTertiary
+                        }}>
                           {exercise.name}
                         </Text>
                       </TouchableOpacity>
@@ -2068,8 +2149,8 @@ useEffect(() => {
               
               {/* Gráfico */}
               {weightHistory.length > 0 ? (
-                <View className="bg-dark-900 border border-dark-700 rounded-xl p-4">
-                  <Text className="text-white font-semibold mb-2 text-center">
+                <View className="rounded-xl p-4 border" style={themeStyles.card}>
+                  <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
                     {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
                   </Text>
                   
@@ -2092,10 +2173,10 @@ useEffect(() => {
                     initialSpacing={0}
                     noOfSections={4}
                     maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
-                    yAxisColor="#404040"
-                    xAxisColor="#404040"
-                    yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
-                    xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                    yAxisColor={theme.colors.borderSecondary}
+                    xAxisColor={theme.colors.borderSecondary}
+                    yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                    xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                     hideDataPoints={false}
                     dataPointsColor="#fb923c"
                     dataPointsRadius={6}
@@ -2105,7 +2186,7 @@ useEffect(() => {
                     textShiftX={-5}
                     textFontSize={10}
                     hideRules={false}
-                    rulesColor="#262626"
+                    rulesColor={theme.colors.border}
                     rulesType="solid"
                     yAxisTextNumberOfLines={1}
                     showVerticalLines={false}
@@ -2144,29 +2225,29 @@ useEffect(() => {
                   
                   {/* Estatísticas */}
                   {weightHistory.length > 1 && (
-                    <View className="mt-4 pt-4 border-t border-dark-700">
+                    <View className="mt-4 pt-4" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
                       <View className="flex-row justify-between">
                         <View>
-                          <Text className="text-neutral-400 text-xs">Primeiro registro</Text>
-                          <Text className="text-white font-semibold">
+                          <Text className="text-xs" style={themeStyles.textSecondary}>Primeiro registro</Text>
+                          <Text className="font-semibold" style={themeStyles.text}>
                             {weightHistory[0]?.weight} kg
                           </Text>
                         </View>
                         <View>
-                          <Text className="text-neutral-400 text-xs">Último registro</Text>
-                          <Text className="text-white font-semibold">
+                          <Text className="text-xs" style={themeStyles.textSecondary}>Último registro</Text>
+                          <Text className="font-semibold" style={themeStyles.text}>
                             {weightHistory[weightHistory.length - 1]?.weight} kg
                           </Text>
                         </View>
                         <View>
-                          <Text className="text-neutral-400 text-xs">Evolução</Text>
-                          <Text className={`font-semibold ${
-                            weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
-                              ? 'text-green-400'
+                          <Text className="text-xs" style={themeStyles.textSecondary}>Evolução</Text>
+                          <Text className="font-semibold" style={{
+                            color: weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
+                              ? '#10b981'
                               : weightHistory[weightHistory.length - 1]?.weight < weightHistory[0]?.weight
-                              ? 'text-red-400'
-                              : 'text-neutral-400'
-                          }`}>
+                              ? '#ef4444'
+                              : theme.colors.textTertiary
+                          }}>
                             {weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight ? '+' : ''}
                             {(weightHistory[weightHistory.length - 1]?.weight - weightHistory[0]?.weight).toFixed(1)} kg
                           </Text>
@@ -2187,13 +2268,13 @@ useEffect(() => {
           {/* Gráfico de Média de Dificuldade dos Treinos */}
           {getCompletedWorkouts().some((w: any) => w.feedback) && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 📊 Média de Dificuldade dos Treinos
               </Text>
               
               {getDifficultyTrend().length > 0 ? (
                 <>
-                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-4">
+                  <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                     <LineChart
                       data={getDifficultyTrend().map((week) => ({
                         value: week.average,
@@ -2213,10 +2294,10 @@ useEffect(() => {
                       initialSpacing={0}
                       noOfSections={4}
                       maxValue={5}
-                      yAxisColor="#404040"
-                      xAxisColor="#404040"
-                      yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                      yAxisColor={theme.colors.borderSecondary}
+                      xAxisColor={theme.colors.borderSecondary}
+                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                       hideDataPoints={false}
                       dataPointsColor="#f59e0b"
                       dataPointsRadius={6}
@@ -2226,7 +2307,7 @@ useEffect(() => {
                       textShiftX={-5}
                       textFontSize={10}
                       hideRules={false}
-                      rulesColor="#262626"
+                      rulesColor={theme.colors.border}
                       rulesType="solid"
                       yAxisTextNumberOfLines={1}
                       showVerticalLines={false}
@@ -2264,14 +2345,14 @@ useEffect(() => {
 
                   {/* Análise de Tendência */}
                   {getDifficultyTrendAnalysis() && (
-                    <View className="bg-dark-900 border border-dark-700 rounded-xl p-4">
+                    <View className="rounded-xl p-4 border" style={themeStyles.card}>
                       <View className="flex-row justify-between items-center mb-3">
                         <View className="flex-1">
-                          <Text className="text-neutral-400 text-xs mb-1">Primeira semana</Text>
-                          <Text className="text-white font-bold text-xl">
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Primeira semana</Text>
+                          <Text className="font-bold text-xl" style={themeStyles.text}>
                             {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1)}
                           </Text>
-                          <Text className="text-neutral-500 text-[10px] mt-1">
+                          <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                             {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
                              getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '2.0' ? 'Fácil' :
                              getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '3.0' ? 'Normal' :
@@ -2282,11 +2363,11 @@ useEffect(() => {
                         </View>
                         
                         <View className="flex-1 items-center">
-                          <Text className="text-neutral-400 text-xs mb-1">Última semana</Text>
-                          <Text className="text-white font-bold text-xl">
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Última semana</Text>
+                          <Text className="font-bold text-xl" style={themeStyles.text}>
                             {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1)}
                           </Text>
-                          <Text className="text-neutral-500 text-[10px] mt-1">
+                          <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                             {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
                              getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '2.0' ? 'Fácil' :
                              getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '3.0' ? 'Normal' :
@@ -2297,12 +2378,12 @@ useEffect(() => {
                         </View>
                         
                         <View className="flex-1 items-end">
-                          <Text className="text-neutral-400 text-xs mb-1">Tendência</Text>
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Tendência</Text>
                           <View className="flex-row items-center gap-2">
                             {getDifficultyTrendAnalysis()?.trend === 'improving' && (
                               <>
                                 <FontAwesome name="arrow-down" size={16} color="#10b981" />
-                                <Text className="text-green-400 font-bold text-xl">
+                                <Text className="font-bold text-xl" style={{ color: '#10b981' }}>
                                   Melhorando
                                 </Text>
                               </>
@@ -2310,25 +2391,25 @@ useEffect(() => {
                             {getDifficultyTrendAnalysis()?.trend === 'declining' && (
                               <>
                                 <FontAwesome name="arrow-up" size={16} color="#ef4444" />
-                                <Text className="text-red-400 font-bold text-xl">
+                                <Text className="font-bold text-xl" style={{ color: '#ef4444' }}>
                                   Mais Difícil
                                 </Text>
                               </>
                             )}
                             {getDifficultyTrendAnalysis()?.trend === 'stable' && (
                               <>
-                                <FontAwesome name="minus" size={16} color="#a3a3a3" />
-                                <Text className="text-neutral-400 font-bold text-xl">
+                                <FontAwesome name="minus" size={16} color={theme.colors.textTertiary} />
+                                <Text className="font-bold text-xl" style={themeStyles.textTertiary}>
                                   Estável
                                 </Text>
                               </>
                             )}
                           </View>
-                          <Text className={`text-xs mt-1 ${
-                            getDifficultyTrendAnalysis()?.trend === 'improving' ? 'text-green-400' :
-                            getDifficultyTrendAnalysis()?.trend === 'declining' ? 'text-red-400' :
-                            'text-neutral-400'
-                          }`}>
+                          <Text className="text-xs mt-1" style={{
+                            color: getDifficultyTrendAnalysis()?.trend === 'improving' ? '#10b981' :
+                                   getDifficultyTrendAnalysis()?.trend === 'declining' ? '#ef4444' :
+                                   theme.colors.textTertiary
+                          }}>
                             {(() => {
                               const analysis = getDifficultyTrendAnalysis();
                               if (analysis?.difference !== undefined && analysis.difference !== 0) {
@@ -2362,15 +2443,17 @@ useEffect(() => {
           {/* Seção de Conquistas e Recordes */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 🏆 Conquistas e Recordes
               </Text>
               
               <View className="flex-row gap-3 flex-wrap">
                 {/* Card: Maior Sequência */}
                 {getMaxStreak().maxStreak > 0 && (
-                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-yellow-500/30 rounded-xl p-4"
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
                     style={{
+                      ...themeStyles.card,
+                      borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)',
                       shadowColor: '#f59e0b',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2380,21 +2463,21 @@ useEffect(() => {
                   >
                     <View className="flex-row items-center mb-2">
                       <FontAwesome name="fire" size={20} color="#f59e0b" />
-                      <Text className="text-neutral-400 text-xs ml-2">Maior Sequência</Text>
+                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Maior Sequência</Text>
                     </View>
-                    <Text className="text-3xl font-bold text-yellow-400 mb-1">
+                    <Text className="text-3xl font-bold mb-1" style={{ color: '#f59e0b' }}>
                       {getMaxStreak().maxStreak}
                     </Text>
-                    <Text className="text-neutral-400 text-xs">
+                    <Text className="text-xs" style={themeStyles.textSecondary}>
                       dias consecutivos
                     </Text>
                     {getMaxStreak().currentStreak > 0 && getMaxStreak().currentStreak < getMaxStreak().maxStreak && (
-                      <Text className="text-neutral-500 text-[10px] mt-1">
+                      <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                         Atual: {getMaxStreak().currentStreak} dias
                       </Text>
                     )}
                     {getMaxStreak().currentStreak === getMaxStreak().maxStreak && getMaxStreak().currentStreak > 0 && (
-                      <Text className="text-green-400 text-[10px] mt-1 font-semibold">
+                      <Text className="text-[10px] mt-1 font-semibold" style={{ color: '#10b981' }}>
                         🎯 Novo recorde!
                       </Text>
                     )}
@@ -2403,8 +2486,10 @@ useEffect(() => {
 
                 {/* Card: Melhor Semana */}
                 {getBestWeek() && (
-                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-primary-500/30 rounded-xl p-4"
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
                     style={{
+                      ...themeStyles.card,
+                      borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.2)',
                       shadowColor: '#fb923c',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2414,15 +2499,15 @@ useEffect(() => {
                   >
                     <View className="flex-row items-center mb-2">
                       <FontAwesome name="calendar-check-o" size={20} color="#fb923c" />
-                      <Text className="text-neutral-400 text-xs ml-2">Melhor Semana</Text>
+                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Semana</Text>
                     </View>
-                    <Text className="text-3xl font-bold text-primary-400 mb-1">
+                    <Text className="text-3xl font-bold mb-1" style={{ color: theme.colors.primary }}>
                       {getBestWeek()?.count}
                     </Text>
-                    <Text className="text-neutral-400 text-xs">
+                    <Text className="text-xs" style={themeStyles.textSecondary}>
                       treinos
                     </Text>
-                    <Text className="text-neutral-500 text-[10px] mt-1">
+                    <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                       {getBestWeek()?.label}
                     </Text>
                   </View>
@@ -2430,8 +2515,10 @@ useEffect(() => {
 
                 {/* Card: Melhor Mês */}
                 {getBestMonth() && (
-                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-green-500/30 rounded-xl p-4"
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
                     style={{
+                      ...themeStyles.card,
+                      borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
                       shadowColor: '#10b981',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2441,15 +2528,15 @@ useEffect(() => {
                   >
                     <View className="flex-row items-center mb-2">
                       <FontAwesome name="trophy" size={20} color="#10b981" />
-                      <Text className="text-neutral-400 text-xs ml-2">Melhor Mês</Text>
+                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Mês</Text>
                     </View>
-                    <Text className="text-3xl font-bold text-green-400 mb-1">
+                    <Text className="text-3xl font-bold mb-1" style={{ color: '#10b981' }}>
                       {getBestMonth()?.count}
                     </Text>
-                    <Text className="text-neutral-400 text-xs">
+                    <Text className="text-xs" style={themeStyles.textSecondary}>
                       treinos
                     </Text>
-                    <Text className="text-neutral-500 text-[10px] mt-1">
+                    <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
                       {getBestMonth()?.label}
                     </Text>
                   </View>
@@ -2461,15 +2548,16 @@ useEffect(() => {
           {/* Próximos Treinos */}
           {getUpcomingWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 📅 Próximos Treinos
               </Text>
               
               {getUpcomingWorkouts().map((workout) => (
                 <TouchableOpacity
                   key={workout.id}
-                  className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-3"
+                  className="rounded-xl p-4 mb-3 border"
                   style={{
+                    ...themeStyles.card,
                     shadowColor: '#fb923c',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.15,
@@ -2485,18 +2573,23 @@ useEffect(() => {
                 >
                   <View className="flex-row justify-between items-start">
                     <View className="flex-1">
-                      <Text className="text-lg font-semibold text-white mb-1">
+                      <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
                         {workout.name}
                       </Text>
-                      <Text className="text-neutral-400 text-sm mb-1">
+                      <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                         Treinador: {workout.coach}
                       </Text>
-                      <Text className="text-neutral-400 text-sm">
+                      <Text className="text-sm" style={themeStyles.textSecondary}>
                         {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
                       </Text>
                     </View>
-                    <View className="bg-primary-500/20 border border-primary-500/30 px-3 py-1 rounded-full">
-                      <Text className="text-xs font-semibold text-primary-400">
+                    <View className="border px-3 py-1 rounded-full"
+                      style={{
+                        backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                        borderColor: theme.colors.primary + '50',
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
                         {workout.status}
                       </Text>
                     </View>
@@ -2509,7 +2602,7 @@ useEffect(() => {
           {/* Treinos Concluídos (últimos 5) */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full">
-              <Text className="text-xl font-bold text-white mb-4">
+              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 ✅ Concluídos Recentes
               </Text>
               
@@ -2523,8 +2616,10 @@ useEffect(() => {
                 .map((workout: any) => (
                 <TouchableOpacity
                   key={workout.id}
-                  className="bg-dark-800 border border-green-500/20 rounded-xl p-4 mb-3"
+                  className="border rounded-xl p-4 mb-3"
                   style={{
+                    backgroundColor: theme.colors.backgroundTertiary,
+                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
                     shadowColor: '#10b981',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.15,
@@ -2540,13 +2635,13 @@ useEffect(() => {
                 >
                   <View className="flex-row justify-between items-start">
                     <View className="flex-1">
-                      <Text className="text-lg font-semibold text-white mb-1">
+                      <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
                         {workout.name}
                       </Text>
-                      <Text className="text-neutral-400 text-sm mb-1">
+                      <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                         Treinador: {workout.coach}
                       </Text>
-                      <Text className="text-neutral-500 text-xs">
+                      <Text className="text-xs" style={themeStyles.textTertiary}>
                         {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
                         {workout.completedDate && (
                           <Text> • Concluído em {new Date(workout.completedDate).toLocaleDateString('pt-BR')}</Text>
@@ -2554,8 +2649,13 @@ useEffect(() => {
                       </Text>
                     </View>
                     <View className="items-end">
-                      <View className="bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-full mb-2">
-                        <Text className="text-xs font-semibold text-green-400">
+                      <View className="border px-3 py-1 rounded-full mb-2"
+                        style={{
+                          backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                          borderColor: '#10b981' + '50',
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: '#10b981' }}>
                           {workout.status}
                         </Text>
                       </View>

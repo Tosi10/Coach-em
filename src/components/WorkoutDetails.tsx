@@ -7,7 +7,9 @@
  * Usado tanto para treinador (ver template) quanto para atleta (ver treino atribuído).
  */
 
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlock, WorkoutBlockData } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import { Text, View } from 'react-native';
 
 /**
@@ -38,11 +40,14 @@ function getBlockName(blockType: WorkoutBlock): string {
  * Componente WorkoutDetails
  */
 export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
+
   return (
     <View className="w-full">
       {/* Título do treino (opcional) */}
       {workoutName && (
-        <Text className="text-2xl font-bold text-white mb-6">
+        <Text className="text-2xl font-bold mb-6" style={themeStyles.text}>
           {workoutName}
         </Text>
       )}
@@ -51,21 +56,32 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
       {blocks.map((block, blockIndex) => (
         <View key={blockIndex} className="mb-6">
           {/* Cabeçalho do bloco */}
-          <View className="bg-primary-500/20 border border-primary-500/30 rounded-t-xl px-4 py-3">
-            <Text className="text-lg font-bold text-primary-400">
+          <View 
+            className="rounded-t-xl px-4 py-3 border"
+            style={{
+              backgroundColor: theme.mode === 'dark' 
+                ? 'rgba(251, 146, 60, 0.2)' 
+                : 'rgba(251, 146, 60, 0.1)',
+              borderColor: theme.colors.primary + '50',
+            }}
+          >
+            <Text className="text-lg font-bold" style={{ color: theme.colors.primary }}>
               {getBlockName(block.blockType)}
             </Text>
             {block.notes && (
-              <Text className="text-sm text-primary-300 mt-1">
+              <Text className="text-sm mt-1" style={themeStyles.textSecondary}>
                 {block.notes}
               </Text>
             )}
           </View>
 
           {/* Lista de exercícios do bloco */}
-          <View className="bg-dark-900 rounded-b-xl p-4 border border-dark-700 border-t-0">
+          <View 
+            className="rounded-b-xl p-4 border border-t-0"
+            style={themeStyles.card}
+          >
             {block.exercises.length === 0 ? (
-              <Text className="text-neutral-500 text-sm italic">
+              <Text className="text-sm italic" style={themeStyles.textSecondary}>
                 Nenhum exercício neste bloco
               </Text>
             ) : (
@@ -74,9 +90,10 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
                 .map((exercise, exerciseIndex) => (
                   <View
                     key={exerciseIndex}
-                    className="bg-dark-800 rounded-xl p-4 mb-3 border border-dark-600"
+                    className="rounded-xl p-4 mb-3 border"
                     style={{
-                      shadowColor: '#fb923c',
+                      ...themeStyles.card,
+                      shadowColor: theme.colors.primary,
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.1,
                       shadowRadius: 4,
@@ -84,29 +101,29 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
                     }}
                   >
                     {/* Nome do exercício */}
-                    <Text className="text-base font-semibold text-white mb-2">
+                    <Text className="text-base font-semibold mb-2" style={themeStyles.text}>
                       {exercise.exercise?.name || `Exercício ${exercise.order}`}
                     </Text>
 
                     {/* Detalhes do exercício */}
                     <View className="flex-row flex-wrap gap-3">
                       {exercise.sets && (
-                        <Text className="text-sm text-neutral-400">
+                        <Text className="text-sm" style={themeStyles.textSecondary}>
                           Séries: {exercise.sets}
                         </Text>
                       )}
                       {exercise.reps && (
-                        <Text className="text-sm text-neutral-400">
+                        <Text className="text-sm" style={themeStyles.textSecondary}>
                           Reps: {exercise.reps}
                         </Text>
                       )}
                       {exercise.duration && (
-                        <Text className="text-sm text-neutral-400">
+                        <Text className="text-sm" style={themeStyles.textSecondary}>
                           Duração: {exercise.duration}s
                         </Text>
                       )}
                       {exercise.restTime && (
-                        <Text className="text-sm text-neutral-400">
+                        <Text className="text-sm" style={themeStyles.textSecondary}>
                           Descanso: {exercise.restTime}s
                         </Text>
                       )}
@@ -114,7 +131,7 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
 
                     {/* Observações do exercício */}
                     {exercise.notes && (
-                      <Text className="text-xs text-neutral-500 mt-2 italic">
+                      <Text className="text-xs mt-2 italic" style={themeStyles.textTertiary}>
                         {exercise.notes}
                       </Text>
                     )}

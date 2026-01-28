@@ -9,9 +9,13 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const { signIn, loading, error } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -33,21 +37,26 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 items-center justify-center bg-white px-6">
+    <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
       <View className="w-full max-w-md">
         {/* Logo/Title */}
-        <Text className="text-4xl font-bold text-neutral-900 mb-2 text-center">
+        <Text className="text-4xl font-bold mb-2 text-center" style={themeStyles.text}>
           Coach'em
         </Text>
-        <Text className="text-neutral-600 mb-8 text-center">
+        <Text className="mb-8 text-center" style={themeStyles.textSecondary}>
           Gestão de Performance Esportiva
         </Text>
 
         {/* Email Input */}
         <TextInput
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-4 text-neutral-900"
+          className="w-full border rounded-lg px-4 py-3 mb-4"
+          style={{
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          }}
           placeholder="Email"
-          placeholderTextColor="#a3a3a3"
+          placeholderTextColor={theme.colors.textTertiary}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -57,9 +66,14 @@ export default function LoginScreen() {
 
         {/* Password Input */}
         <TextInput
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 mb-6 text-neutral-900"
+          className="w-full border rounded-lg px-4 py-3 mb-6"
+          style={{
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          }}
           placeholder="Senha"
-          placeholderTextColor="#a3a3a3"
+          placeholderTextColor={theme.colors.textTertiary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -68,14 +82,15 @@ export default function LoginScreen() {
 
         {/* Login Button */}
         <TouchableOpacity
-          className="w-full bg-primary-600 rounded-lg py-4 mb-4"
+          className="w-full rounded-lg py-4 mb-4"
+          style={{ backgroundColor: theme.colors.primary }}
           onPress={handleLogin}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text className="text-white text-center font-semibold text-base">
+            <Text className="text-center font-semibold text-base" style={{ color: '#ffffff' }}>
               Entrar
             </Text>
           )}
@@ -86,14 +101,14 @@ export default function LoginScreen() {
           onPress={() => router.push('/(auth)/register')}
           disabled={loading}
         >
-          <Text className="text-primary-600 text-center text-sm">
+          <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
             Não tem uma conta? Registre-se
           </Text>
         </TouchableOpacity>
 
         {/* Error Message */}
         {error && (
-          <Text className="text-red-500 text-sm mt-4 text-center">
+          <Text className="text-sm mt-4 text-center" style={{ color: '#ef4444' }}>
             {error}
           </Text>
         )}

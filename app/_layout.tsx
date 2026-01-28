@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,7 +10,7 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { ToastProvider } from '@/components/ToastProvider';
-import { useColorScheme } from '@/components/useColorScheme';
+import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -49,20 +49,20 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
-  // Custom dark theme matching Zeus app style
-  const customDarkTheme = {
+function RootLayoutNavContent() {
+  const { theme } = useTheme();
+  
+  // Custom theme para React Navigation baseado no tema atual
+  const navigationTheme = {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      primary: '#fb923c', // Orange accent
-      background: '#0a0a0a', // Almost black
-      card: '#171717', // Dark gray for cards
-      text: '#fff', // White text
-      border: '#262626', // Dark border
-      notification: '#fb923c', // Orange for notifications
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.card,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      notification: theme.colors.primary,
     },
   };
 
@@ -77,19 +77,19 @@ function RootLayoutNav() {
     animationDuration: 300,
     gestureEnabled: true,
     gestureDirection: 'horizontal' as const,
-    // Manter fundo escuro durante transições
+    // Manter fundo durante transições baseado no tema
     contentStyle: {
-      backgroundColor: '#0a0a0a', // Almost black - mesmo do tema
+      backgroundColor: theme.colors.background,
     },
     cardStyle: {
-      backgroundColor: '#0a0a0a', // Garantir que o card também seja escuro
+      backgroundColor: theme.colors.background,
     },
   };
 
   return (
-    <ThemeProvider value={customDarkTheme}>
+    <NavigationThemeProvider value={navigationTheme}>
       <ToastProvider>
-        <StatusBar style="light" backgroundColor="#0a0a0a" />
+        <StatusBar style={theme.mode === 'dark' ? 'light' : 'dark'} backgroundColor={theme.colors.background} />
         <Stack screenOptions={screenOptions}>
         <Stack.Screen name="select-user-type" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -214,6 +214,14 @@ function RootLayoutNav() {
         />
         </Stack>
       </ToastProvider>
+    </NavigationThemeProvider>
+  );
+}
+
+function RootLayoutNav() {
+  return (
+    <ThemeProvider>
+      <RootLayoutNavContent />
     </ThemeProvider>
   );
 }

@@ -1,11 +1,10 @@
-import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
+import React from 'react';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useTheme } from '@/src/contexts/ThemeContext';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -17,23 +16,24 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { theme } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#fb923c', // Orange for active tab
-        tabBarInactiveTintColor: '#737373', // Gray for inactive tabs
+        tabBarActiveTintColor: theme.colors.primary, // Orange for active tab
+        tabBarInactiveTintColor: theme.colors.textTertiary, // Gray for inactive tabs
         tabBarStyle: {
-          backgroundColor: '#171717', // Dark gray background
-          borderTopColor: '#262626', // Dark border
+          backgroundColor: theme.colors.card, // Card background
+          borderTopColor: theme.colors.border, // Border color
           borderTopWidth: 1,
         },
         headerStyle: {
-          backgroundColor: '#0a0a0a', // Almost black header
+          backgroundColor: theme.colors.background, // Background color
         },
-        headerTintColor: '#fff', // White text/icon in header
+        headerTintColor: theme.colors.text, // Text/icon color
         headerTitleStyle: {
-          color: '#fff', // White title
+          color: theme.colors.text, // Title color
           fontWeight: 'bold',
         },
         // Disable the static render of the header on web

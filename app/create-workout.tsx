@@ -12,12 +12,14 @@
  * 5. Botão de salvar
  */
 
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Exercícios mockados (mesmos da biblioteca de exercícios)
 // TODO: Depois vamos buscar da biblioteca real
@@ -40,6 +42,8 @@ const mockExercises: Exercise[] = [
 
 export default function CreateWorkoutScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const themeStyles = getThemeStyles(theme.colors);
 
     // Estado para o formulário básico
     const [workoutName, setWorkoutName] = useState('');
@@ -352,14 +356,20 @@ export default function CreateWorkoutScreen() {
             <View className="mb-6">
                 {/* Cabeçalho do bloco */}
                 <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-xl font-bold text-white">
+                    <Text className="text-xl font-bold" style={themeStyles.text}>
                         {getBlockName(blockType)}
                     </Text>
                     <TouchableOpacity
-                        className="bg-primary-500 rounded-lg px-4 py-2"
+                        className="rounded-lg px-4 py-2 border"
+                        style={{ 
+                            backgroundColor: theme.mode === 'dark' 
+                                ? 'rgba(249, 115, 22, 0.4)' 
+                                : 'rgba(251, 146, 60, 0.2)',
+                            borderColor: theme.colors.primary + '50',
+                        }}
                         onPress={() => setSelectingForBlock(blockType)}
                     >
-                        <Text className="text-white font-semibold text-sm">
+                        <Text className="font-semibold text-sm" style={{ color: theme.colors.primary }}>
                             + Adicionar Exercício
                         </Text>
                     </TouchableOpacity>
@@ -367,8 +377,8 @@ export default function CreateWorkoutScreen() {
 
                 {/* Lista de exercícios do bloco */}
                 {exercises.length === 0 ? (
-                    <View className="bg-dark-900 rounded-xl p-4 border border-dark-700">
-                        <Text className="text-neutral-400 text-center">
+                    <View className="rounded-xl p-4 border" style={themeStyles.card}>
+                        <Text className="text-center" style={themeStyles.textSecondary}>
                             Nenhum exercício adicionado ainda
                         </Text>
                     </View>
@@ -380,15 +390,16 @@ export default function CreateWorkoutScreen() {
                         return (
                             <View
                                 key={`${blockType}-${index}`}
-                                className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+                                className="rounded-xl p-4 mb-3 border"
+                                style={themeStyles.card}
                             >
                                 {/* Nome do exercício e botão remover */}
                                 <View className="flex-row justify-between items-start mb-3">
                                     <View className="flex-1">
-                                        <Text className="text-lg font-semibold text-white">
+                                        <Text className="text-lg font-semibold" style={themeStyles.text}>
                                             {exercise.name}
                                         </Text>
-                                        <Text className="text-sm text-neutral-400 mt-1">
+                                        <Text className="text-sm mt-1" style={themeStyles.textSecondary}>
                                             {exercise.description}
                                         </Text>
                                     </View>
@@ -396,7 +407,7 @@ export default function CreateWorkoutScreen() {
                                         onPress={() => removeExerciseFromBlock(index, blockType)}
                                         className="ml-2"
                                     >
-                                        <Text className="text-red-600 font-semibold">✕</Text>
+                                        <Text className="font-semibold" style={{ color: '#ef4444' }}>✕</Text>
                                     </TouchableOpacity>
                                 </View>
 
@@ -404,11 +415,16 @@ export default function CreateWorkoutScreen() {
                                 <View className="flex-row gap-3 mb-2">
                                     {/* Séries */}
                                     <View className="flex-1">
-                                        <Text className="text-xs text-neutral-400 mb-1">Séries</Text>
+                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
                                         <TextInput
-                                            className="bg-dark-900 border border-dark-700 rounded px-3 py-2 text-white"
+                                            className="border rounded px-3 py-2"
+                                            style={{
+                                              backgroundColor: theme.colors.card,
+                                              borderColor: theme.colors.border,
+                                              color: theme.colors.text,
+                                            }}
                                             placeholder="Ex: 3"
-                                            placeholderTextColor="#737373"
+                                            placeholderTextColor={theme.colors.textTertiary}
                                             keyboardType="numeric"
                                             value={workoutExercise.sets?.toString() || ''}
                                             onChangeText={(text) => {
@@ -420,10 +436,16 @@ export default function CreateWorkoutScreen() {
 
                                     {/* Repetições */}
                                     <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Repetições</Text>
+                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
                                         <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
+                                            className="border rounded px-3 py-2"
+                                            style={{
+                                              backgroundColor: theme.colors.card,
+                                              borderColor: theme.colors.border,
+                                              color: theme.colors.text,
+                                            }}
                                             placeholder="Ex: 12"
+                                            placeholderTextColor={theme.colors.textTertiary}
                                             keyboardType="numeric"
                                             value={workoutExercise.reps?.toString() || ''}
                                             onChangeText={(text) => {
@@ -437,10 +459,16 @@ export default function CreateWorkoutScreen() {
                                 <View className="flex-row gap-3">
                                     {/* Duração (segundos) */}
                                     <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Duração (s)</Text>
+                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração (s)</Text>
                                         <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
+                                            className="border rounded px-3 py-2"
+                                            style={{
+                                              backgroundColor: theme.colors.card,
+                                              borderColor: theme.colors.border,
+                                              color: theme.colors.text,
+                                            }}
                                             placeholder="Ex: 60"
+                                            placeholderTextColor={theme.colors.textTertiary}
                                             keyboardType="numeric"
                                             value={workoutExercise.duration?.toString() || ''}
                                             onChangeText={(text) => {
@@ -452,10 +480,16 @@ export default function CreateWorkoutScreen() {
 
                                     {/* Descanso (segundos) */}
                                     <View className="flex-1">
-                                        <Text className="text-xs text-neutral-600 mb-1">Descanso (s)</Text>
+                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (s)</Text>
                                         <TextInput
-                                            className="bg-white border border-neutral-200 rounded px-3 py-2 text-neutral-900"
+                                            className="border rounded px-3 py-2"
+                                            style={{
+                                              backgroundColor: theme.colors.card,
+                                              borderColor: theme.colors.border,
+                                              color: theme.colors.text,
+                                            }}
                                             placeholder="Ex: 45"
+                                            placeholderTextColor={theme.colors.textTertiary}
                                             keyboardType="numeric"
                                             value={workoutExercise.restTime?.toString() || ''}
                                             onChangeText={(text) => {
@@ -474,7 +508,7 @@ export default function CreateWorkoutScreen() {
     };
 
     return (
-        <ScrollView className="flex-1 bg-dark-950">
+        <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
@@ -482,42 +516,52 @@ export default function CreateWorkoutScreen() {
                     onPress={() => router.back()}
                     activeOpacity={0.7}
                 >
-                    <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-                        <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                    <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                        <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
-                    <Text className="text-primary-400 font-semibold text-lg">
+                    <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
                         Voltar
                     </Text>
                 </TouchableOpacity>
 
                 {/* Título */}
-                <Text className="text-3xl font-bold text-white mb-2">
+                <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
                     Criar Novo Treino
                 </Text>
-                <Text className="text-neutral-400 mb-6">
+                <Text className="mb-6" style={themeStyles.textSecondary}>
                     Crie um treino completo com os 3 blocos obrigatórios
                 </Text>
 
                 {/* Formulário básico */}
                 <View className="mb-6">
-                    <Text className="text-sm font-semibold text-neutral-700 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Nome do Treino *
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white mb-4"
+                        className="border rounded-lg px-4 py-3 mb-4"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Ex: Treino de Força - Pernas"
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         value={workoutName}
                         onChangeText={setWorkoutName}
                     />
 
-                    <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Descrição (opcional)
                     </Text>
                     <TextInput
-                        className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+                        className="border rounded-lg px-4 py-3"
+                        style={{
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                        }}
                         placeholder="Descreva o objetivo do treino..."
-                        placeholderTextColor="#737373"
+                        placeholderTextColor={theme.colors.textTertiary}
                         value={workoutDescription}
                         onChangeText={setWorkoutDescription}
                         multiline
@@ -536,86 +580,94 @@ export default function CreateWorkoutScreen() {
                     }}
                 >
                     <View className="flex-1 bg-black/50 justify-center items-center p-6">
-                        <View className="bg-dark-900 rounded-3xl p-6 w-full max-h-[80%] min-h-[70%]">
+                        <View className="rounded-3xl p-6 w-full max-h-[80%] min-h-[70%] border" style={themeStyles.card}>
                             {/* Título */}
-                            <Text className="text-xl font-bold text-white mb-4">
+                            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                                 Selecionar Exercício para {selectingForBlock ? getBlockName(selectingForBlock) : ''}
                             </Text>
 
                             {/* BUSCA POR TEXTO */}
                             <TextInput
-                                className="bg-dark-800 border border-dark-700 rounded-lg px-4 py-2 text-white mb-3"
+                                className="border rounded-lg px-4 py-2 mb-3"
+                                style={{
+                                  backgroundColor: theme.colors.backgroundTertiary,
+                                  borderColor: theme.colors.border,
+                                  color: theme.colors.text,
+                                }}
                                 placeholder="Buscar exercício..."
-                                placeholderTextColor="#737373"
+                                placeholderTextColor={theme.colors.textTertiary}
                                 value={searchExerciseText}
                                 onChangeText={setSearchExerciseText}
                             />
 
                             {/* FILTRO POR TIPO DE EXERCÍCIO */}
                             <View className="mb-3">
-                                <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                                     Tipo de Exercício
                                 </Text>
                                 <View className="flex-row gap-2">
                                     <TouchableOpacity
-                                        className={`px-4 py-2 rounded-lg ${
-                                            selectedExerciseType === 'warmup'
-                                                ? 'bg-primary-500'
-                                                : 'bg-dark-800'
-                                        }`}
+                                        className="px-4 py-2 rounded-lg"
+                                        style={{
+                                          backgroundColor: selectedExerciseType === 'warmup'
+                                            ? theme.colors.primary
+                                            : theme.colors.backgroundTertiary,
+                                        }}
                                         onPress={() => {
                                             setSelectedExerciseType(
                                                 selectedExerciseType === 'warmup' ? null : 'warmup'
                                             );
                                         }}
                                     >
-                                        <Text className={`text-sm font-semibold ${
-                                            selectedExerciseType === 'warmup'
-                                                ? 'text-white'
-                                                : 'text-neutral-300'
-                                        }`}>
+                                        <Text className="text-sm font-semibold" style={{
+                                          color: selectedExerciseType === 'warmup'
+                                            ? '#ffffff'
+                                            : theme.colors.text
+                                        }}>
                                             🔥 Aquecimento
                                         </Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        className={`px-4 py-2 rounded-lg ${
-                                            selectedExerciseType === 'work'
-                                                ? 'bg-primary-500'
-                                                : 'bg-dark-800'
-                                        }`}
+                                        className="px-4 py-2 rounded-lg"
+                                        style={{
+                                          backgroundColor: selectedExerciseType === 'work'
+                                            ? theme.colors.primary
+                                            : theme.colors.backgroundTertiary,
+                                        }}
                                         onPress={() => {
                                             setSelectedExerciseType(
                                                 selectedExerciseType === 'work' ? null : 'work'
                                             );
                                         }}
                                     >
-                                        <Text className={`text-sm font-semibold ${
-                                            selectedExerciseType === 'work'
-                                                ? 'text-white'
-                                                : 'text-neutral-300'
-                                        }`}>
+                                        <Text className="text-sm font-semibold" style={{
+                                          color: selectedExerciseType === 'work'
+                                            ? '#ffffff'
+                                            : theme.colors.text
+                                        }}>
                                             💪 Treino
                                         </Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        className={`px-4 py-2 rounded-lg ${
-                                            selectedExerciseType === 'cooldown'
-                                                ? 'bg-primary-500'
-                                                : 'bg-dark-800'
-                                        }`}
+                                        className="px-4 py-2 rounded-lg"
+                                        style={{
+                                          backgroundColor: selectedExerciseType === 'cooldown'
+                                            ? theme.colors.primary
+                                            : theme.colors.backgroundTertiary,
+                                        }}
                                         onPress={() => {
                                             setSelectedExerciseType(
                                                 selectedExerciseType === 'cooldown' ? null : 'cooldown'
                                             );
                                         }}
                                     >
-                                        <Text className={`text-sm font-semibold ${
-                                            selectedExerciseType === 'cooldown'
-                                                ? 'text-white'
-                                                : 'text-neutral-300'
-                                        }`}>
+                                        <Text className="text-sm font-semibold" style={{
+                                          color: selectedExerciseType === 'cooldown'
+                                            ? '#ffffff'
+                                            : theme.colors.text
+                                        }}>
                                             🧘 Finalização
                                         </Text>
                                     </TouchableOpacity>
@@ -624,7 +676,7 @@ export default function CreateWorkoutScreen() {
 
                             {/* FILTRO POR GRUPO MUSCULAR */}
                             <View className="mb-3">
-                                <Text className="text-sm font-semibold text-neutral-300 mb-2">
+                                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                                     Grupo Muscular
                                 </Text>
                                 <ScrollView 
@@ -635,18 +687,19 @@ export default function CreateWorkoutScreen() {
                                     <View className="flex-row gap-2">
                                         {/* Botão "Todos" */}
                                         <TouchableOpacity
-                                            className={`px-4 py-2 rounded-lg ${
-                                                selectedMuscleGroup === null
-                                                    ? 'bg-primary-500'
-                                                    : 'bg-dark-800'
-                                            }`}
+                                            className="px-4 py-2 rounded-lg"
+                                            style={{
+                                              backgroundColor: selectedMuscleGroup === null
+                                                ? theme.colors.primary
+                                                : theme.colors.backgroundTertiary,
+                                            }}
                                             onPress={() => setSelectedMuscleGroup(null)}
                                         >
-                                            <Text className={`text-sm font-semibold ${
-                                                selectedMuscleGroup === null
-                                                    ? 'text-white'
-                                                    : 'text-neutral-900'
-                                            }`}>
+                                            <Text className="text-sm font-semibold" style={{
+                                              color: selectedMuscleGroup === null
+                                                ? '#ffffff'
+                                                : theme.colors.text
+                                            }}>
                                                 Todos
                                             </Text>
                                         </TouchableOpacity>
@@ -655,22 +708,23 @@ export default function CreateWorkoutScreen() {
                                         {getAllMuscleGroups().map((group) => (
                                             <TouchableOpacity
                                                 key={group}
-                                                className={`px-4 py-2 rounded-lg ${
-                                                    selectedMuscleGroup === group
-                                                        ? 'bg-primary-600'
-                                                        : 'bg-neutral-200'
-                                                }`}
+                                                className="px-4 py-2 rounded-lg"
+                                                style={{
+                                                  backgroundColor: selectedMuscleGroup === group
+                                                    ? theme.colors.primary
+                                                    : theme.colors.backgroundTertiary,
+                                                }}
                                                 onPress={() => {
                                                     setSelectedMuscleGroup(
                                                         selectedMuscleGroup === group ? null : group
                                                     );
                                                 }}
                                             >
-                                                <Text className={`text-sm font-semibold ${
-                                                    selectedMuscleGroup === group
-                                                        ? 'text-white'
-                                                        : 'text-neutral-900'
-                                                }`}>
+                                                <Text className="text-sm font-semibold" style={{
+                                                  color: selectedMuscleGroup === group
+                                                    ? '#ffffff'
+                                                    : theme.colors.text
+                                                }}>
                                                     {group.charAt(0).toUpperCase() + group.slice(1)}
                                                 </Text>
                                             </TouchableOpacity>
@@ -686,14 +740,15 @@ export default function CreateWorkoutScreen() {
                                 keyboardShouldPersistTaps="handled"
                             >
                                 {getFilteredExercises().length === 0 ? (
-                                    <Text className="text-neutral-500 text-center py-8">
+                                    <Text className="text-center py-8" style={themeStyles.textSecondary}>
                                         Nenhum exercício encontrado
                                     </Text>
                                 ) : (
                                     getFilteredExercises().map((exercise) => (
                                         <TouchableOpacity
                                             key={exercise.id}
-                                            className="bg-dark-900 rounded-xl p-4 mb-2 border border-dark-700"
+                                            className="rounded-xl p-4 mb-2 border"
+                                            style={themeStyles.card}
                                             onPress={() => {
                                                 if (selectingForBlock) {
                                                     addExerciseToBlock(exercise.id, selectingForBlock);
@@ -701,10 +756,10 @@ export default function CreateWorkoutScreen() {
                                                 }
                                             }}
                                         >
-                                            <Text className="text-lg font-semibold text-white">
+                                            <Text className="text-lg font-semibold" style={themeStyles.text}>
                                                 {exercise.name}
                                             </Text>
-                                            <Text className="text-sm text-neutral-400 mt-1">
+                                            <Text className="text-sm mt-1" style={themeStyles.textSecondary}>
                                                 {exercise.description}
                                             </Text>
                                             {/* Mostrar grupos musculares */}
@@ -712,9 +767,15 @@ export default function CreateWorkoutScreen() {
                                                 {exercise.muscleGroups?.map((group, idx) => (
                                                     <View
                                                         key={idx}
-                                                        className="bg-primary-500/20 border border-primary-500/30 px-2 py-1 rounded"
+                                                        className="px-2 py-1 rounded border"
+                                                        style={{
+                                                          backgroundColor: theme.mode === 'dark' 
+                                                            ? theme.colors.primary + '30'
+                                                            : theme.colors.primary + '20',
+                                                          borderColor: theme.colors.primary + '60',
+                                                        }}
                                                     >
-                                                        <Text className="text-xs text-primary-400">
+                                                        <Text className="text-xs" style={{ color: theme.colors.primary }}>
                                                             {group}
                                                         </Text>
                                                     </View>
@@ -727,13 +788,14 @@ export default function CreateWorkoutScreen() {
 
                             {/* Botão Cancelar */}
                             <TouchableOpacity
-                                className="mt-4 bg-dark-800 border border-dark-700 rounded-lg py-3"
+                                className="mt-4 rounded-lg py-3 border"
+                                style={themeStyles.cardSecondary}
                                 onPress={() => {
                                     setSelectingForBlock(null);
                                     resetFilters();
                                 }}
                             >
-                                <Text className="text-center text-neutral-300 font-semibold">
+                                <Text className="text-center font-semibold" style={themeStyles.text}>
                                     Cancelar
                                 </Text>
                             </TouchableOpacity>
@@ -748,17 +810,16 @@ export default function CreateWorkoutScreen() {
 
                 {/* Botão de salvar */}
                 <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
+                    className="rounded-lg py-4 px-6 mt-6 border"
                     style={{
-                      shadowColor: '#fb923c',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 6,
+                      backgroundColor: theme.mode === 'dark' 
+                        ? 'rgba(249, 115, 22, 0.4)' 
+                        : 'rgba(251, 146, 60, 0.2)',
+                      borderColor: theme.colors.primary + '50',
                     }}
                     onPress={handleSaveWorkout}
                 >
-                    <Text className="text-white font-semibold text-center text-lg">
+                    <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
                         💾 Salvar Treino
                     </Text>
                 </TouchableOpacity>

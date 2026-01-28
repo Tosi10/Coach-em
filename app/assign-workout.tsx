@@ -1,9 +1,11 @@
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 // Dados mockados de atletas (temporário - depois virá do Firebase)
@@ -199,6 +201,8 @@ const mockAthletes = [
   
   export default function AssignWorkoutScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const themeStyles = getThemeStyles(theme.colors);
     const { athleteId } = useLocalSearchParams<{ athleteId: string }>();
   
     // Estado para armazenar qual treino foi selecionado
@@ -425,15 +429,16 @@ const mockAthletes = [
     // Se o atleta não foi encontrado, mostra mensagem de erro
     if (!athlete) {
         return (
-            <View className="flex-1 bg-dark-950 justify-center items-center px-6">
-                <Text className="text-xl font-bold text-white mb-4">
+            <View className="flex-1 justify-center items-center px-6" style={themeStyles.bg}>
+                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                     Atleta não encontrado
                 </Text>
                 <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-3 px-6"
+                    className="rounded-lg py-3 px-6"
+                    style={{ backgroundColor: theme.colors.primary }}
                     onPress={() => router.back()}
                 >
-                    <Text className="text-white font-semibold">
+                    <Text className="font-semibold" style={{ color: '#ffffff' }}>
                         Voltar
                     </Text>
                 </TouchableOpacity>
@@ -442,7 +447,7 @@ const mockAthletes = [
     }
 
     return (
-            <ScrollView className="flex-1 bg-dark-950">
+            <ScrollView className="flex-1" style={themeStyles.bg}>
                 <View className="px-6 pt-20 pb-20">
                     {/* Header com botão voltar melhorado */}
                     <TouchableOpacity 
@@ -450,49 +455,53 @@ const mockAthletes = [
                         onPress={() => router.back()}
                         activeOpacity={0.7}
                     >
-                        <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-                            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+                        <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                            <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                         </View>
-                        <Text className="text-primary-400 font-semibold text-lg">
+                        <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
                             Voltar
                         </Text>
                     </TouchableOpacity>
 
-                    <Text className="text-3xl font-bold text-white mb-2">
+                    <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
                         Atribuir Treino
                     </Text>
-                    <Text className="text-neutral-400 mb-6">
+                    <Text className="mb-6" style={themeStyles.textSecondary}>
                         Escolha um treino e a data para {athlete.name}
                     </Text>
 
-                    <View className="bg-dark-900 rounded-lg p-4 mb-6 border border-dark-700">
-                        <Text className="text-lg font-semibold text-white mb-1">
+                    <View className="rounded-lg p-4 mb-6 border" style={themeStyles.card}>
+                        <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
                             {athlete.name}
                         </Text>
-                        <Text className="text-neutral-400">
+                        <Text style={themeStyles.textSecondary}>
                             {athlete.status}
                         </Text>
                     </View>
 
                     <View className="mb-6">
-                        <Text className="text-xl font-bold text-white mb-4">
+                        <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                             Selecionar Treino *
                         </Text>
 
                         {/* Botão para abrir modal de seleção */}
                         <TouchableOpacity
-                            className={`bg-dark-900 rounded-xl p-4 mb-3 border-2 ${
-                                selectedWorkoutId
-                                    ? 'border-primary-500 bg-primary-500/20'
-                                    : 'border-dark-700'
-                            }`}
-                            style={selectedWorkoutId ? {
-                                shadowColor: '#fb923c',
+                            className="rounded-xl p-4 mb-3 border-2"
+                            style={{
+                              backgroundColor: selectedWorkoutId
+                                ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                                : theme.colors.card,
+                              borderColor: selectedWorkoutId
+                                ? theme.colors.primary
+                                : theme.colors.border,
+                              ...(selectedWorkoutId ? {
+                                shadowColor: theme.colors.primary,
                                 shadowOffset: { width: 0, height: 2 },
                                 shadowOpacity: 0.3,
                                 shadowRadius: 4,
                                 elevation: 4,
-                            } : {}}
+                              } : {}),
+                            }}
                             onPress={() => setShowWorkoutModal(true)}
                         >
                             {selectedWorkoutId ? (
@@ -503,13 +512,13 @@ const mockAthletes = [
                                     ) || 0;
                                     return (
                                         <>
-                                            <Text className="text-lg font-semibold text-white mb-1">
+                                            <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
                                                 {selectedWorkout?.name}
                                             </Text>
-                                            <Text className="text-neutral-400 text-sm mb-2">
+                                            <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
                                                 {selectedWorkout?.description}
                                             </Text>
-                                            <Text className="text-primary-400 text-sm font-medium">
+                                            <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
                                                 📋 {totalExercises} exercícios • Criado em {selectedWorkout?.createdAt}
                                             </Text>
                                         </>
@@ -517,10 +526,10 @@ const mockAthletes = [
                                 })()
                             ) : (
                                 <View className="flex-row items-center justify-between">
-                                    <Text className="text-neutral-400 text-base">
+                                    <Text className="text-base" style={themeStyles.textSecondary}>
                                         Toque para selecionar um treino
                                     </Text>
-                                    <FontAwesome name="chevron-right" size={16} color="#737373" />
+                                    <FontAwesome name="chevron-right" size={16} color={theme.colors.textTertiary} />
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -533,17 +542,18 @@ const mockAthletes = [
                             onRequestClose={() => setShowWorkoutModal(false)}
                         >
                             <View className="flex-1 bg-black/50 justify-center items-center p-6">
-                                <View className="bg-dark-900 rounded-3xl p-6 w-full max-h-[80%] min-h-[70%]">
+                                <View className="rounded-3xl p-6 w-full max-h-[80%] min-h-[70%] border" style={themeStyles.card}>
                                     {/* Header do Modal */}
                                     <View className="flex-row justify-between items-center mb-4">
-                                        <Text className="text-xl font-bold text-white">
+                                        <Text className="text-xl font-bold" style={themeStyles.text}>
                                             Selecionar Treino
                                         </Text>
                                         <TouchableOpacity
                                             onPress={() => setShowWorkoutModal(false)}
-                                            className="bg-dark-800 rounded-full w-8 h-8 items-center justify-center"
+                                            className="rounded-full w-8 h-8 items-center justify-center"
+                                            style={themeStyles.cardSecondary}
                                         >
-                                            <Text className="text-white text-lg">✕</Text>
+                                            <Text className="text-lg" style={themeStyles.text}>✕</Text>
                                         </TouchableOpacity>
                                     </View>
 
@@ -554,8 +564,8 @@ const mockAthletes = [
                                         showsVerticalScrollIndicator={true}
                                     >
                                         {allWorkouts.length === 0 ? (
-                                            <View className="bg-dark-800 rounded-xl p-6 mb-2">
-                                                <Text className="text-neutral-400 text-center">
+                                            <View className="rounded-xl p-6 mb-2" style={themeStyles.cardSecondary}>
+                                                <Text className="text-center" style={themeStyles.textSecondary}>
                                                     Nenhum treino disponível
                                                 </Text>
                                             </View>
@@ -569,18 +579,22 @@ const mockAthletes = [
                                                 return (
                                                     <TouchableOpacity
                                                         key={workout.id}
-                                                        className={`bg-dark-800 rounded-xl p-4 mb-3 border-2 ${
-                                                            isSelected
-                                                                ? 'border-primary-500 bg-primary-500/20'
-                                                                : 'border-dark-700'
-                                                        }`}
-                                                        style={isSelected ? {
-                                                            shadowColor: '#fb923c',
+                                                        className="rounded-xl p-4 mb-3 border-2"
+                                                        style={{
+                                                          backgroundColor: isSelected
+                                                            ? (theme.mode === 'dark' ? theme.colors.primary + '30' : theme.colors.primary + '20')
+                                                            : theme.colors.card,
+                                                          borderColor: isSelected
+                                                            ? theme.colors.primary
+                                                            : theme.colors.border,
+                                                          ...(isSelected ? {
+                                                            shadowColor: theme.colors.primary,
                                                             shadowOffset: { width: 0, height: 2 },
                                                             shadowOpacity: 0.3,
                                                             shadowRadius: 4,
                                                             elevation: 4,
-                                                        } : {}}
+                                                          } : {}),
+                                                        }}
                                                         onPress={() => {
                                                             setSelectedWorkoutId(workout.id);
                                                             setShowWorkoutModal(false);
@@ -588,19 +602,19 @@ const mockAthletes = [
                                                     >
                                                         <View className="flex-row items-start justify-between">
                                                             <View className="flex-1">
-                                                                <Text className="text-lg font-semibold text-white mb-1">
+                                                                <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
                                                                     {workout.name}
                                                                 </Text>
-                                                                <Text className="text-neutral-400 text-sm mb-2">
+                                                                <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
                                                                     {workout.description}
                                                                 </Text>
-                                                                <Text className="text-primary-400 text-sm font-medium">
+                                                                <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
                                                                     📋 {totalExercises} exercícios • Criado em {workout.createdAt}
                                                                 </Text>
                                                             </View>
                                                             {isSelected && (
-                                                                <View className="ml-2 bg-primary-500 rounded-full w-6 h-6 items-center justify-center">
-                                                                    <FontAwesome name="check" size={12} color="#000" />
+                                                                <View className="ml-2 rounded-full w-6 h-6 items-center justify-center" style={{ backgroundColor: theme.colors.primary }}>
+                                                                    <FontAwesome name="check" size={12} color={theme.mode === 'dark' ? '#000' : '#fff'} />
                                                                 </View>
                                                             )}
                                                         </View>
@@ -615,33 +629,39 @@ const mockAthletes = [
                     </View>
 
                     <View className="mb-6">
-                        <Text className="text-xl font-bold text-white mb-4">
+                        <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                             Data do Treino *
                         </Text>
 
                         {/* Toggle entre data única e recorrente */}
-                        <View className="flex-row mb-4 bg-dark-800 rounded-lg p-1">
+                        <View className="flex-row mb-4 rounded-lg p-1" style={themeStyles.cardSecondary}>
                             <TouchableOpacity
-                                className={`flex-1 py-2 rounded-lg ${
-                                    !isRecurring ? 'bg-primary-500' : 'bg-transparent'
-                                }`}
+                                className="flex-1 py-2 rounded-lg"
+                                style={{
+                                  backgroundColor: !isRecurring ? theme.colors.primary : 'transparent',
+                                }}
                                 onPress={() => setIsRecurring(false)}
                             >
-                                <Text className={`text-center font-semibold ${
-                                    !isRecurring ? 'text-black' : 'text-neutral-400'
-                                }`}>
+                                <Text className="text-center font-semibold" style={{
+                                  color: !isRecurring 
+                                    ? (theme.mode === 'dark' ? '#000' : '#fff')
+                                    : theme.colors.textSecondary
+                                }}>
                                     Data Única
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                className={`flex-1 py-2 rounded-lg ${
-                                    isRecurring ? 'bg-primary-500' : 'bg-transparent'
-                                }`}
+                                className="flex-1 py-2 rounded-lg"
+                                style={{
+                                  backgroundColor: isRecurring ? theme.colors.primary : 'transparent',
+                                }}
                                 onPress={() => setIsRecurring(true)}
                             >
-                                <Text className={`text-center font-semibold ${
-                                    isRecurring ? 'text-black' : 'text-neutral-400'
-                                }`}>
+                                <Text className="text-center font-semibold" style={{
+                                  color: isRecurring 
+                                    ? (theme.mode === 'dark' ? '#000' : '#fff')
+                                    : theme.colors.textSecondary
+                                }}>
                                     Recorrente
                                 </Text>
                             </TouchableOpacity>
@@ -651,14 +671,15 @@ const mockAthletes = [
                             // Data única
                             <View>
                                 <TouchableOpacity
-                                    className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 mb-2"
+                                    className="border rounded-lg px-4 py-3 mb-2"
+                                    style={themeStyles.card}
                                     onPress={() => setShowCalendar(true)}
                                 >
-                                    <Text className="text-white">
+                                    <Text style={themeStyles.text}>
                                         {selectedDate ? new Date(selectedDate).toLocaleDateString('pt-BR') : 'Selecione uma data'}
                                     </Text>
                                 </TouchableOpacity>
-                                <Text className="text-neutral-500 text-xs">
+                                <Text className="text-xs" style={themeStyles.textTertiary}>
                                     Toque para abrir o calendário
                                 </Text>
                             </View>
@@ -666,34 +687,41 @@ const mockAthletes = [
                             // Recorrente
                             <View>
                                 {/* Data inicial */}
-                                <Text className="text-white font-semibold mb-2">Data Inicial:</Text>
+                                <Text className="font-semibold mb-2" style={themeStyles.text}>Data Inicial:</Text>
                                 <TouchableOpacity
-                                    className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 mb-4"
+                                    className="border rounded-lg px-4 py-3 mb-4"
+                                    style={themeStyles.card}
                                     onPress={() => {
                                         setShowCalendar(true);
                                     }}
                                 >
-                                    <Text className="text-white">
+                                    <Text style={themeStyles.text}>
                                         {startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Selecione a data inicial'}
                                     </Text>
                                 </TouchableOpacity>
 
                                 {/* Dia da semana */}
-                                <Text className="text-white font-semibold mb-2">Dia da Semana:</Text>
+                                <Text className="font-semibold mb-2" style={themeStyles.text}>Dia da Semana:</Text>
                                 <View className="flex-row flex-wrap gap-2 mb-4">
                                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
                                         <TouchableOpacity
                                             key={index}
-                                            className={`py-2 px-4 rounded-lg border-2 ${
-                                                selectedDayOfWeek === index
-                                                    ? 'bg-primary-500 border-primary-400'
-                                                    : 'bg-dark-900 border-dark-700'
-                                            }`}
+                                            className="py-2 px-4 rounded-lg border-2"
+                                            style={{
+                                              backgroundColor: selectedDayOfWeek === index
+                                                ? theme.colors.primary
+                                                : theme.colors.card,
+                                              borderColor: selectedDayOfWeek === index
+                                                ? theme.colors.primary
+                                                : theme.colors.border,
+                                            }}
                                             onPress={() => setSelectedDayOfWeek(index)}
                                         >
-                                            <Text className={`font-semibold ${
-                                                selectedDayOfWeek === index ? 'text-black' : 'text-white'
-                                            }`}>
+                                            <Text className="font-semibold" style={{
+                                              color: selectedDayOfWeek === index 
+                                                ? (theme.mode === 'dark' ? '#000' : '#fff')
+                                                : theme.colors.text
+                                            }}>
                                                 {day}
                                             </Text>
                                         </TouchableOpacity>
@@ -701,34 +729,36 @@ const mockAthletes = [
                                 </View>
 
                                 {/* Quantidade de treinos */}
-                                <Text className="text-white font-semibold mb-2">Quantidade de treinos:</Text>
+                                <Text className="font-semibold mb-2" style={themeStyles.text}>Quantidade de treinos:</Text>
                                 <View className="flex-row items-center gap-4 mb-4">
                                     <TouchableOpacity
-                                        className="bg-dark-900 border border-dark-700 rounded-lg w-12 h-12 items-center justify-center"
+                                        className="border rounded-lg w-12 h-12 items-center justify-center"
+                                        style={themeStyles.card}
                                         onPress={() => setRecurrenceCount(Math.max(1, recurrenceCount - 1))}
                                     >
-                                        <Text className="text-white text-xl font-bold">-</Text>
+                                        <Text className="text-xl font-bold" style={themeStyles.text}>-</Text>
                                     </TouchableOpacity>
-                                    <Text className="text-white text-xl font-semibold min-w-[60px] text-center">
+                                    <Text className="text-xl font-semibold min-w-[60px] text-center" style={themeStyles.text}>
                                         {recurrenceCount}
                                     </Text>
                                     <TouchableOpacity
-                                        className="bg-dark-900 border border-dark-700 rounded-lg w-12 h-12 items-center justify-center"
+                                        className="border rounded-lg w-12 h-12 items-center justify-center"
+                                        style={themeStyles.card}
                                         onPress={() => setRecurrenceCount(recurrenceCount + 1)}
                                     >
-                                        <Text className="text-white text-xl font-bold">+</Text>
+                                        <Text className="text-xl font-bold" style={themeStyles.text}>+</Text>
                                     </TouchableOpacity>
                                 </View>
 
                                 {/* Preview das datas */}
                                 {startDate && selectedDayOfWeek !== null && (
-                                    <View className="bg-dark-800 rounded-lg p-3 mb-2">
-                                        <Text className="text-neutral-400 text-xs mb-1">
+                                    <View className="rounded-lg p-3 mb-2" style={themeStyles.cardSecondary}>
+                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>
                                             Serão criados exatamente {recurrenceCount} treino{recurrenceCount !== 1 ? 's' : ''} toda{' '}
                                             {['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][selectedDayOfWeek]}
                                         </Text>
                                         {recurrenceCount > 1 && (
-                                            <Text className="text-neutral-500 text-xs mt-1">
+                                            <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
                                                 Período aproximado: {recurrenceCount} semana{recurrenceCount !== 1 ? 's' : ''}
                                             </Text>
                                         )}
@@ -745,16 +775,17 @@ const mockAthletes = [
                             onRequestClose={() => setShowCalendar(false)}
                         >
                             <View className="flex-1 bg-black/50 justify-end">
-                                <View className="bg-dark-900 rounded-t-3xl p-6">
+                                <View className="rounded-t-3xl p-6 border-t" style={themeStyles.card}>
                                     <View className="flex-row justify-between items-center mb-4">
-                                        <Text className="text-white text-xl font-bold">
+                                        <Text className="text-xl font-bold" style={themeStyles.text}>
                                             Selecionar Data
                                         </Text>
                                         <TouchableOpacity
                                             onPress={() => setShowCalendar(false)}
-                                            className="bg-dark-800 rounded-full w-8 h-8 items-center justify-center"
+                                            className="rounded-full w-8 h-8 items-center justify-center"
+                                            style={themeStyles.cardSecondary}
                                         >
-                                            <Text className="text-white text-lg">✕</Text>
+                                            <Text className="text-lg" style={themeStyles.text}>✕</Text>
                                         </TouchableOpacity>
                                     </View>
                                     <Calendar
@@ -779,19 +810,19 @@ const mockAthletes = [
                                         }}
                                         minDate={new Date().toISOString().split('T')[0]}
                                         theme={{
-                                            backgroundColor: '#171717',
-                                            calendarBackground: '#171717',
-                                            textSectionTitleColor: '#a3a3a3',
-                                            selectedDayBackgroundColor: '#fb923c',
-                                            selectedDayTextColor: '#000',
-                                            todayTextColor: '#fb923c',
-                                            dayTextColor: '#fff',
-                                            textDisabledColor: '#404040',
-                                            dotColor: '#fb923c',
-                                            selectedDotColor: '#000',
-                                            arrowColor: '#fb923c',
-                                            monthTextColor: '#fff',
-                                            indicatorColor: '#fb923c',
+                                            backgroundColor: theme.colors.background,
+                                            calendarBackground: theme.colors.background,
+                                            textSectionTitleColor: theme.colors.textTertiary,
+                                            selectedDayBackgroundColor: theme.colors.primary,
+                                            selectedDayTextColor: theme.mode === 'dark' ? '#000' : '#fff',
+                                            todayTextColor: theme.colors.primary,
+                                            dayTextColor: theme.colors.text,
+                                            textDisabledColor: theme.colors.textTertiary,
+                                            dotColor: theme.colors.primary,
+                                            selectedDotColor: theme.mode === 'dark' ? '#000' : '#fff',
+                                            arrowColor: theme.colors.primary,
+                                            monthTextColor: theme.colors.text,
+                                            indicatorColor: theme.colors.primary,
                                             textDayFontWeight: '600',
                                             textMonthFontWeight: 'bold',
                                             textDayHeaderFontWeight: '600',
@@ -807,17 +838,16 @@ const mockAthletes = [
 
                     {/* Botão de Atribuir */}
                     <TouchableOpacity
-                        className="bg-primary-500 rounded-lg py-4 px-6 mt-6"
+                        className="rounded-lg py-4 px-6 mt-6 border"
                         style={{
-                          shadowColor: '#fb923c',
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 8,
-                          elevation: 6,
+                          backgroundColor: theme.mode === 'dark' 
+                            ? 'rgba(249, 115, 22, 0.4)' 
+                            : 'rgba(251, 146, 60, 0.2)',
+                          borderColor: theme.colors.primary + '50',
                         }}
                         onPress={handleAssignWorkout}
                     >
-                        <Text className="text-white font-semibold text-center text-lg">
+                        <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
                             ✅ Atribuir Treino
                         </Text>
                     </TouchableOpacity>

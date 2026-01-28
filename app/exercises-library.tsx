@@ -5,13 +5,14 @@
  * Por enquanto com dados mockados, depois virá do Firebase.
  */
 
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Exercise } from '@/src/types';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Dados mockados de exercícios (temporário - depois virá do Firebase)
 const mockExercises = [
@@ -109,6 +110,8 @@ const mockExercises = [
 
 export default function ExercisesLibraryScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const [searchText, setSearchText] = useState('');
   const [allExercises, setAllExercises] = useState(mockExercises);
 
@@ -281,7 +284,7 @@ export default function ExercisesLibraryScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-dark-950">
+    <ScrollView className="flex-1" style={themeStyles.bg}>
       <View className="px-6 pt-20 pb-20">
         {/* Header com botão voltar melhorado */}
         <TouchableOpacity
@@ -289,35 +292,34 @@ export default function ExercisesLibraryScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
+          <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+            <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
-          <Text className="text-primary-400 font-semibold text-lg">
+          <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
             Voltar
           </Text>
         </TouchableOpacity>
 
         {/* Título */}
-        <Text className="text-3xl font-bold text-white mb-2">
+        <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
           Biblioteca de Exercícios
         </Text>
-        <Text className="text-neutral-400 mb-6">
+        <Text className="mb-6" style={themeStyles.textSecondary}>
           Gerencie seu repertório de exercícios
         </Text>
 
         {/* Botão Criar Exercício */}
         <TouchableOpacity
-          className="bg-primary-500 rounded-lg py-3 px-6 mb-6"
+          className="rounded-lg py-3 px-6 mb-6 border"
           style={{
-            shadowColor: '#fb923c',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
+            backgroundColor: theme.mode === 'dark' 
+              ? 'rgba(249, 115, 22, 0.4)' 
+              : 'rgba(251, 146, 60, 0.2)',
+            borderColor: theme.colors.primary + '50',
           }}
           onPress={() => router.push('/create-exercise')}
         >
-          <Text className="text-white font-semibold text-center text-lg">
+          <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
             ➕ Criar Exercício
           </Text>
         </TouchableOpacity>
@@ -325,9 +327,14 @@ export default function ExercisesLibraryScreen() {
         {/* Campo de busca */}
         <View className="mb-4">
           <TextInput
-            className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-3 text-white"
+            className="border rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            }}
             placeholder="Buscar exercício..."
-            placeholderTextColor="#737373"
+            placeholderTextColor={theme.colors.textTertiary}
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -335,7 +342,7 @@ export default function ExercisesLibraryScreen() {
 
         {/* FILTRO POR GRUPO MUSCULAR */}
         <View className="mb-4">
-          <Text className="text-sm font-semibold text-neutral-300 mb-2">
+          <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
             Grupo Muscular
           </Text>
           <ScrollView
@@ -346,18 +353,19 @@ export default function ExercisesLibraryScreen() {
             <View className="flex-row gap-2">
               {/* Botão "Todos" */}
               <TouchableOpacity
-                className={`px-4 py-2 rounded-lg ${
-                  selectedMuscleGroup === null
-                    ? 'bg-primary-500'
-                    : 'bg-dark-800'
-                }`}
+                className="px-4 py-2 rounded-lg"
+                style={{
+                  backgroundColor: selectedMuscleGroup === null
+                    ? theme.colors.primary
+                    : theme.colors.backgroundTertiary,
+                }}
                 onPress={() => setSelectedMuscleGroup(null)}
               >
-                <Text className={`text-sm font-semibold ${
-                  selectedMuscleGroup === null
-                    ? 'text-white'
-                    : 'text-neutral-300'
-                }`}>
+                <Text className="text-sm font-semibold" style={{
+                  color: selectedMuscleGroup === null
+                    ? '#ffffff'
+                    : theme.colors.text
+                }}>
                   Todos
                 </Text>
               </TouchableOpacity>
@@ -366,22 +374,23 @@ export default function ExercisesLibraryScreen() {
               {getAllMuscleGroups().map((group) => (
                 <TouchableOpacity
                   key={group}
-                  className={`px-4 py-2 rounded-lg ${
-                    selectedMuscleGroup === group
-                      ? 'bg-primary-500'
-                      : 'bg-dark-800'
-                  }`}
+                  className="px-4 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: selectedMuscleGroup === group
+                      ? theme.colors.primary
+                      : theme.colors.backgroundTertiary,
+                  }}
                   onPress={() => {
                     setSelectedMuscleGroup(
                       selectedMuscleGroup === group ? null : group
                     );
                   }}
                 >
-                  <Text className={`text-sm font-semibold ${
-                    selectedMuscleGroup === group
-                      ? 'text-white'
-                      : 'text-neutral-300'
-                  }`}>
+                  <Text className="text-sm font-semibold" style={{
+                    color: selectedMuscleGroup === group
+                      ? '#ffffff'
+                      : theme.colors.text
+                  }}>
                     {group.charAt(0).toUpperCase() + group.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -391,7 +400,7 @@ export default function ExercisesLibraryScreen() {
         </View>
 
         {/* Contador de resultados */}
-        <Text className="text-neutral-400 mb-4">
+        <Text className="mb-4" style={themeStyles.textSecondary}>
           {filteredExercises.length} exercício{filteredExercises.length !== 1 ? 's' : ''} encontrado{filteredExercises.length !== 1 ? 's' : ''}
         </Text>
 
@@ -399,9 +408,10 @@ export default function ExercisesLibraryScreen() {
         {filteredExercises.map((exercise) => (
           <View
             key={exercise.id}
-            className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+            className="rounded-xl p-4 mb-3 border"
             style={{
-              shadowColor: '#fb923c',
+              ...themeStyles.card,
+              shadowColor: theme.colors.primary,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.1,
               shadowRadius: 4,
@@ -410,7 +420,7 @@ export default function ExercisesLibraryScreen() {
           >
             {/* Cabeçalho do card com nome, botões de ação e dificuldade */}
             <View className="flex-row justify-between items-start mb-2">
-              <Text className="text-lg font-semibold text-white flex-1">
+              <Text className="text-lg font-semibold flex-1" style={themeStyles.text}>
                 {exercise.name || 'Exercício sem nome'}
               </Text>
               
@@ -451,7 +461,7 @@ export default function ExercisesLibraryScreen() {
               </View>
             </View>
 
-            <Text className="text-neutral-400 text-sm mb-3">
+            <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
               {exercise.description || 'Sem descrição'}
             </Text>
 
@@ -460,26 +470,30 @@ export default function ExercisesLibraryScreen() {
                 exercise.muscleGroups.map((group, index) => (
                   <View
                     key={index}
-                    className="bg-primary-500/20 border border-primary-500/30 px-2 py-1 rounded"
+                    className="border px-2 py-1 rounded"
+                    style={{
+                      backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                      borderColor: theme.colors.primary + '50',
+                    }}
                   >
-                    <Text className="text-xs text-primary-400">
+                    <Text className="text-xs" style={{ color: theme.colors.primary }}>
                       {group}
                     </Text>
                   </View>
                 ))
               ) : (
-                <Text className="text-neutral-500 text-xs">
+                <Text className="text-xs" style={themeStyles.textTertiary}>
                   Nenhum grupo muscular
                 </Text>
               )}
             </View>
 
             <View className="flex-row gap-4 mt-2">
-              <Text className="text-neutral-500 text-xs">
+              <Text className="text-xs" style={themeStyles.textTertiary}>
                 Equipamento: {exercise.equipment && exercise.equipment.length > 0 ? exercise.equipment.join(', ') : 'Nenhum'}
               </Text>
               {exercise.duration !== undefined && exercise.duration !== null && exercise.duration > 0 && (
-                <Text className="text-neutral-500 text-xs">
+                <Text className="text-xs" style={themeStyles.textTertiary}>
                   Duração: {exercise.duration}s
                 </Text>
               )}
@@ -490,7 +504,7 @@ export default function ExercisesLibraryScreen() {
         {/* Mensagem se não encontrar */}
         {filteredExercises.length === 0 && (
           <View className="items-center py-12">
-            <Text className="text-neutral-400 text-center">
+            <Text className="text-center" style={themeStyles.textSecondary}>
               Nenhum exercício encontrado
             </Text>
           </View>

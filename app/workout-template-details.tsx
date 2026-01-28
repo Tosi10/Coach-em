@@ -6,12 +6,14 @@
  */
 
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 // Exercícios mockados (mesmos do workouts-library.tsx)
 const mockExercises: Exercise[] = [
@@ -179,6 +181,8 @@ const mockWorkouts = [
 
 export default function WorkoutTemplateDetailsScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const themeStyles = getThemeStyles(theme.colors);
     const { workoutId } = useLocalSearchParams();
     
     // Garantir que workoutId seja sempre string
@@ -219,8 +223,8 @@ useEffect(() => {
     // Mostrar loading enquanto carrega os treinos
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-dark-950 px-6">
-                <Text className="text-xl font-bold text-white">
+            <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
+                <Text className="text-xl font-bold" style={themeStyles.text}>
                     Carregando...
                 </Text>
             </View>
@@ -233,15 +237,16 @@ useEffect(() => {
     // Se não encontrou o treino, volta para a tela anterior
     if (!workout) {
         return (
-            <View className="flex-1 items-center justify-center bg-dark-950 px-6">
-                <Text className="text-xl font-bold text-white mb-4">
+            <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
+                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                     Treino não encontrado
                 </Text>
                 <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-3 px-6"
+                    className="rounded-lg py-3 px-6"
+                    style={{ backgroundColor: theme.colors.primary }}
                     onPress={() => router.back()}
                 >
-                    <Text className="text-white font-semibold">Voltar</Text>
+                    <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -291,29 +296,48 @@ useEffect(() => {
      };
 
     return (
-        <ScrollView className="flex-1 bg-dark-950">
+        <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
                 {/* Header com botão voltar melhorado */}
-                <View className="flex-row justify-between items-center mb-6">
-                    <TouchableOpacity
-                        className="flex-row items-center"
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                    >
-                        <View className="bg-dark-800 border border-dark-700 rounded-full w-10 h-10 items-center justify-center mr-3">
-                            <FontAwesome name="arrow-left" size={18} color="#fb923c" />
-                        </View>
-                        <Text className="text-primary-400 font-semibold text-lg">
-                            Voltar
+                <TouchableOpacity
+                    className="mb-6 flex-row items-center"
+                    onPress={() => router.back()}
+                    activeOpacity={0.7}
+                >
+                    <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                        <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
+                    </View>
+                    <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
+                        Voltar
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Informações do treino */}
+                <View className="mb-6">
+                    <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
+                        {workout.name}
+                    </Text>
+                    {workout.description && (
+                        <Text className="mb-2" style={themeStyles.textSecondary}>
+                            {workout.description}
                         </Text>
-                    </TouchableOpacity>
+                    )}
+                    <Text className="text-sm mb-4" style={themeStyles.textTertiary}>
+                        Criado em: {workout.createdAt}
+                    </Text>
                     
                     {/* Botões de ação - só aparecem para treinos criados (não mockados) */}
                     {workout.id.startsWith('workout_') && (
-                        <View className="flex-row gap-2">
+                        <View className="flex-row gap-3 mt-2">
                             {/* Botão Editar */}
                             <TouchableOpacity
-                                className="bg-blue-500/80 rounded-lg px-4 py-2"
+                                className="flex-1 rounded-lg py-3 px-4 border"
+                                style={{ 
+                                    backgroundColor: theme.mode === 'dark' 
+                                        ? 'rgba(249, 115, 22, 0.4)' 
+                                        : 'rgba(251, 146, 60, 0.1)',
+                                    borderColor: theme.colors.primary + '50',
+                                }}
                                 onPress={() => {
                                     router.push({
                                         pathname: '/edit-workout',
@@ -321,35 +345,28 @@ useEffect(() => {
                                     });
                                 }}
                             >
-                                <Text className="text-white font-semibold">
+                                <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
                                     ✏️ Editar
                                 </Text>
                             </TouchableOpacity>
                             
                             {/* Botão Deletar */}
                             <TouchableOpacity
-                                className="bg-red-500/80 rounded-lg px-4 py-2"
+                                className="flex-1 rounded-lg py-3 px-4 border"
+                                style={{ 
+                                    backgroundColor: theme.mode === 'dark' 
+                                        ? 'rgba(239, 68, 68, 0.2)' 
+                                        : 'rgba(239, 68, 68, 0.1)',
+                                    borderColor: '#ef4444' + '50',
+                                }}
                                 onPress={handleDeleteWorkout}
                             >
-                                <Text className="text-white font-semibold">
+                                <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
                                     🗑️ Deletar
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     )}
-                </View>
-
-                {/* Informações do treino */}
-                <View className="mb-6">
-                    <Text className="text-3xl font-bold text-white mb-2">
-                        {workout.name}
-                    </Text>
-                    <Text className="text-neutral-400 mb-2">
-                        {workout.description}
-                    </Text>
-                    <Text className="text-neutral-500 text-sm">
-                        Criado em: {workout.createdAt}
-                    </Text>
                 </View>
 
                 {/* Componente WorkoutDetails com os 3 blocos */}

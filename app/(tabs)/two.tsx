@@ -1,5 +1,7 @@
 import { EmptyState } from '@/components/EmptyState';
 import { useToastContext } from '@/components/ToastProvider';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -18,6 +20,8 @@ const mockAthletes = [
 export default function TabTwoScreen() {
   const router = useRouter();
   const { showToast } = useToastContext();
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -35,27 +39,28 @@ export default function TabTwoScreen() {
 
   return (
     <ScrollView 
-      className="flex-1 bg-dark-950"
+      className="flex-1"
+      style={themeStyles.bg}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#fb923c"
-          colors={['#fb923c']}
+          tintColor={theme.colors.primary}
+          colors={[theme.colors.primary]}
         />
       }
     >
       <View className="px-6 pt-12 pb-20">
         {/* Título */}
-        <Text className="text-3xl font-bold text-white mb-2">
+        <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
           Meus Atletas
         </Text>
-        <Text className="text-neutral-400 mb-6">
+        <Text className="mb-6" style={themeStyles.textSecondary}>
           Gerencie seus atletas e atribua treinos personalizados
         </Text>
 
         {/* Contador */}
-        <Text className="text-xl font-bold text-white mb-4">
+        <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
           Total: {mockAthletes.length} atleta{mockAthletes.length !== 1 ? 's' : ''}
         </Text>
 
@@ -74,9 +79,10 @@ export default function TabTwoScreen() {
           mockAthletes.map((athlete) => (
           <TouchableOpacity
             key={athlete.id}
-            className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
+            className="rounded-xl p-4 mb-3 border"
             style={{
-              shadowColor: '#fb923c',
+              ...themeStyles.card,
+              shadowColor: theme.colors.primary,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.15,
               shadowRadius: 4,
@@ -89,10 +95,10 @@ export default function TabTwoScreen() {
               });
             }}
           >
-            <Text className="text-lg font-semibold text-white">
+            <Text className="text-lg font-semibold" style={themeStyles.text}>
               {athlete.name}
             </Text>
-            <Text className="text-neutral-400 mt-1">
+            <Text className="mt-1" style={themeStyles.textSecondary}>
               {athlete.status}
             </Text>
           </TouchableOpacity>
