@@ -5,14 +5,16 @@
  * Vamos explicar TUDO linha por linha!
  */
 
+import { EmptyState } from '@/components/EmptyState';
+import { useToastContext } from '@/components/ToastProvider';
 import { UserType } from '@/src/types';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { LineChart, BarChart } from 'react-native-gifted-charts';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { BarChart, LineChart } from 'react-native-gifted-charts';
 
 
 
@@ -26,14 +28,16 @@ import { LineChart, BarChart } from 'react-native-gifted-charts';
 export default function HomeScreen() {
 
   const router = useRouter();
+  const { showToast } = useToastContext();
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Estados para gráfico de evolução de peso (atleta)
   const [weightHistory, setWeightHistory] = useState<any[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [availableExercises, setAvailableExercises] = useState<Array<{id: string, name: string}>>([]);
-
+  
   const mockAthletes = [
     { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
     { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo'},
@@ -45,7 +49,8 @@ export default function HomeScreen() {
     { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
   ]
   
-  const [workouts, setWorkouts] = useState([
+  // Workouts mockados iniciais - usar useRef para evitar loop infinito
+  const initialWorkoutsRef = useRef([
     {
       id: '1',
       name: 'Treino de Força - Pernas',
@@ -112,7 +117,9 @@ export default function HomeScreen() {
       isToday: false,
       isThisWeek: false,
     },
-  ])
+  ]);
+  
+  const [workouts, setWorkouts] = useState<any[]>(initialWorkoutsRef.current);
 
   useEffect(() => {
     const loadUserType = async () => {
@@ -160,7 +167,7 @@ export default function HomeScreen() {
         allWorkouts = assignedWorkouts;
         console.log('👤 ATLETA - Mostrando apenas treinos atribuídos:', allWorkouts.length);
       } else {
-        allWorkouts = [...workouts, ...assignedWorkouts];
+        allWorkouts = [...initialWorkoutsRef.current, ...assignedWorkouts];
         console.log('👨‍🏫 TREINADOR - Mostrando treinos mockados + atribuídos:', allWorkouts.length);
       }
   
@@ -423,6 +430,437 @@ export default function HomeScreen() {
     };
   };
 
+  // Função para calcular média de dificuldade por semana
+  const getDifficultyTrend = () => {
+    const completedWorkouts = getCompletedWorkouts();
+    
+    if (completedWorkouts.length === 0) {
+      return [];
+    }
+
+    // Criar um mapa para agrupar feedbacks por semana
+    const weeklyMap = new Map<string, number[]>();
+    
+    completedWorkouts.forEach((workout: any) => {
+      // Só processar treinos com feedback
+      if (!workout.feedback || workout.feedback < 1 || workout.feedback > 5) {
+        return;
+      }
+
+      // Usar completedDate se existir, senão usar date
+      const workoutDate = workout.completedDate 
+        ? new Date(workout.completedDate)
+        : new Date(workout.date);
+      
+      // Calcular início da semana (domingo)
+      const weekStart = new Date(workoutDate);
+      const dayOfWeek = weekStart.getDay(); // 0 = domingo
+      weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // Criar chave única para a semana (formato: YYYY-MM-DD)
+      const weekKey = weekStart.toISOString().split('T')[0];
+      
+      // Adicionar feedback ao array da semana
+      if (!weeklyMap.has(weekKey)) {
+        weeklyMap.set(weekKey, []);
+      }
+      weeklyMap.get(weekKey)!.push(workout.feedback);
+    });
+
+    // Calcular média de cada semana e converter para array
+    const weeklyData = Array.from(weeklyMap.entries())
+      .map(([weekStart, feedbacks]) => {
+        const average = feedbacks.reduce((sum, f) => sum + f, 0) / feedbacks.length;
+        return {
+          weekStart: new Date(weekStart),
+          average: parseFloat(average.toFixed(2)),
+          count: feedbacks.length,
+          label: formatWeekLabel(new Date(weekStart)),
+        };
+      })
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+
+    // Pegar apenas as últimas 8 semanas
+    return weeklyData.slice(-8);
+  };
+
+  // Função para identificar tendência de dificuldade
+  const getDifficultyTrendAnalysis = () => {
+    const trendData = getDifficultyTrend();
+    if (trendData.length < 2) return null;
+
+    const firstWeek = trendData[0];
+    const lastWeek = trendData[trendData.length - 1];
+    const difference = lastWeek.average - firstWeek.average;
+
+    // Determinar se está melhorando (diminuindo dificuldade) ou piorando (aumentando)
+    // Menor número = mais fácil = melhorando
+    // Maior número = mais difícil = piorando
+    const isImproving = difference < 0;
+    const trend = Math.abs(difference) < 0.1 ? 'stable' : (isImproving ? 'improving' : 'declining');
+
+    return {
+      firstAverage: firstWeek.average,
+      lastAverage: lastWeek.average,
+      difference: parseFloat(difference.toFixed(2)),
+      trend, // 'improving', 'declining', 'stable'
+      isImproving,
+    };
+  };
+
+  // Função para calcular maior sequência de dias consecutivos (record)
+  const getMaxStreak = () => {
+    const completedWorkouts = getCompletedWorkouts();
+    
+    if (completedWorkouts.length === 0) {
+      return { maxStreak: 0, currentStreak: 0 };
+    }
+
+    // Ordenar treinos por data de conclusão
+    const sortedWorkouts = [...completedWorkouts]
+      .map((w: any) => {
+        const date = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+        date.setHours(0, 0, 0, 0);
+        return { ...w, date };
+      })
+      .sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
+
+    // Remover duplicatas (mesmo dia)
+    const uniqueDates = new Set<string>();
+    const uniqueWorkouts: any[] = [];
+    sortedWorkouts.forEach((w: any) => {
+      const dateKey = w.date.toISOString().split('T')[0];
+      if (!uniqueDates.has(dateKey)) {
+        uniqueDates.add(dateKey);
+        uniqueWorkouts.push(w);
+      }
+    });
+
+    // Calcular sequências
+    let maxStreak = 0;
+    let currentStreak = 0;
+    let tempStreak = 1;
+
+    for (let i = 0; i < uniqueWorkouts.length; i++) {
+      if (i === 0) {
+        tempStreak = 1;
+        continue;
+      }
+
+      const prevDate = uniqueWorkouts[i - 1].date;
+      const currDate = uniqueWorkouts[i].date;
+      const daysDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === 1) {
+        // Dias consecutivos
+        tempStreak++;
+      } else {
+        // Sequência quebrada
+        maxStreak = Math.max(maxStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+
+    // Verificar última sequência
+    maxStreak = Math.max(maxStreak, tempStreak);
+
+    // Calcular sequência atual (já temos essa função, mas vamos recalcular aqui para garantir)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let streakCount = 0;
+    let checkDate = new Date(today);
+
+    for (let i = uniqueWorkouts.length - 1; i >= 0; i--) {
+      const workoutDate = uniqueWorkouts[i].date;
+      const daysDiff = Math.floor((checkDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === streakCount) {
+        streakCount++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return {
+      maxStreak,
+      currentStreak: streakCount,
+    };
+  };
+
+  // Função para encontrar semana com mais treinos
+  const getBestWeek = () => {
+    const weeklyData = getWeeklyFrequency();
+    
+    if (weeklyData.length === 0) {
+      return null;
+    }
+
+    // Encontrar semana com mais treinos
+    const bestWeek = weeklyData.reduce((best, week) => 
+      week.count > best.count ? week : best
+    );
+
+    return {
+      count: bestWeek.count,
+      label: bestWeek.label,
+      weekStart: bestWeek.weekStart,
+    };
+  };
+
+  // Função para encontrar mês com mais treinos
+  const getBestMonth = (): { count: number; label: string; monthKey: string } | null => {
+    const completedWorkouts = getCompletedWorkouts();
+    
+    if (completedWorkouts.length === 0) {
+      return null;
+    }
+
+    // Criar mapa para agrupar por mês
+    const monthlyMap = new Map<string, number>();
+    
+    completedWorkouts.forEach((workout: any) => {
+      const workoutDate = workout.completedDate 
+        ? new Date(workout.completedDate)
+        : new Date(workout.date);
+      
+      // Criar chave única para o mês (formato: YYYY-MM)
+      const monthKey = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
+    });
+
+    // Encontrar mês com mais treinos
+    let bestMonth: { count: number; label: string; monthKey: string } | null = null;
+    let maxCount = 0;
+
+    monthlyMap.forEach((count, monthKey) => {
+      if (count > maxCount) {
+        maxCount = count;
+        const [year, month] = monthKey.split('-');
+        const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        bestMonth = {
+          count,
+          label: `${monthNames[parseInt(month) - 1]} ${year}`,
+          monthKey,
+        };
+      }
+    });
+
+    return bestMonth;
+  };
+
+  // Função para agrupar treinos concluídos por semana (para o Treinador - todos os atletas)
+  const getCoachWeeklyStats = () => {
+    // Buscar todos os treinos concluídos (de todos os atletas)
+    const allCompletedWorkouts = workouts.filter((w: any) => w.status === 'Concluído');
+    
+    if (allCompletedWorkouts.length === 0) {
+      return [];
+    }
+
+    // Criar um mapa para agrupar por semana
+    const weeklyMap = new Map<string, number>();
+    
+    allCompletedWorkouts.forEach((workout: any) => {
+      // Usar completedDate se existir, senão usar date
+      const workoutDate = workout.completedDate 
+        ? new Date(workout.completedDate)
+        : new Date(workout.date);
+      
+      // Calcular início da semana (domingo)
+      const weekStart = new Date(workoutDate);
+      const dayOfWeek = weekStart.getDay(); // 0 = domingo
+      weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // Criar chave única para a semana (formato: YYYY-MM-DD)
+      const weekKey = weekStart.toISOString().split('T')[0];
+      
+      // Incrementar contador da semana
+      weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
+    });
+
+    // Converter mapa para array e ordenar por data
+    const weeklyData = Array.from(weeklyMap.entries())
+      .map(([weekStart, count]) => ({
+        weekStart: new Date(weekStart),
+        count,
+        label: formatWeekLabel(new Date(weekStart)),
+      }))
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+
+    // Pegar apenas as últimas 8 semanas
+    return weeklyData.slice(-8);
+  };
+
+  // Função para calcular tendência de treinos concluídos (para o Treinador)
+  const getCoachWeeklyTrend = () => {
+    const weeklyData = getCoachWeeklyStats();
+    if (weeklyData.length < 2) return null;
+
+    const firstWeek = weeklyData[0];
+    const lastWeek = weeklyData[weeklyData.length - 1];
+    const difference = lastWeek.count - firstWeek.count;
+
+    const isIncreasing = difference > 0;
+    const trend = Math.abs(difference) < 1 ? 'stable' : (isIncreasing ? 'increasing' : 'decreasing');
+
+    return {
+      firstCount: firstWeek.count,
+      lastCount: lastWeek.count,
+      difference,
+      trend, // 'increasing', 'decreasing', 'stable'
+      isIncreasing,
+    };
+  };
+
+  // Função para calcular taxa de aderência de um atleta
+  const calculateAdherenceRate = (athleteId: string) => {
+    // Buscar todos os treinos atribuídos a este atleta
+    const assignedWorkouts = workouts.filter((w: any) => 
+      (w.athleteId || w.coach) === athleteId
+    );
+    
+    if (assignedWorkouts.length === 0) {
+      return null;
+    }
+
+    // Contar quantos foram concluídos
+    const completedWorkouts = assignedWorkouts.filter((w: any) => 
+      w.status === 'Concluído'
+    );
+
+    // Calcular porcentagem
+    const rate = (completedWorkouts.length / assignedWorkouts.length) * 100;
+    
+    return {
+      athleteId,
+      rate: parseFloat(rate.toFixed(1)),
+      completed: completedWorkouts.length,
+      assigned: assignedWorkouts.length,
+    };
+  };
+
+  // Função para obter taxa de aderência de todos os atletas do treinador
+  const getAllAthletesAdherence = () => {
+    // Pegar apenas os atletas que estão na lista mockAthletes (atletas do treinador)
+    // e que têm pelo menos um treino atribuído
+    const athletesWithWorkouts = mockAthletes.filter((athlete) => {
+      // Verificar se este atleta tem pelo menos um treino atribuído
+      return workouts.some((w: any) => 
+        (w.athleteId || w.coach) === athlete.id
+      );
+    });
+
+    // Calcular aderência para cada atleta do treinador
+    const adherenceData = athletesWithWorkouts
+      .map((athlete) => {
+        const adherence = calculateAdherenceRate(athlete.id);
+        if (!adherence) return null;
+        
+        return {
+          ...adherence,
+          athleteName: athlete.name,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => b.rate - a.rate); // Ordenar por maior aderência primeiro
+
+    return adherenceData;
+  };
+
+  // Função para calcular dificuldade média por treino (baseado no feedback)
+  const getWorkoutDifficulty = (workoutName: string) => {
+    // Buscar todos os treinos concluídos com este nome
+    const workoutsWithName = workouts.filter((w: any) => {
+      const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
+      return w.status === 'Concluído' && 
+        w.name === workoutName &&
+        hasFeedback && 
+        (w as any).feedback >= 1 && 
+        (w as any).feedback <= 5;
+    });
+
+    if (workoutsWithName.length === 0) {
+      return null;
+    }
+
+    // Calcular média de feedback
+    const totalFeedback = workoutsWithName.reduce((sum, w: any) => sum + ((w.feedback || 0) as number), 0);
+    const averageDifficulty = totalFeedback / workoutsWithName.length;
+
+      return {
+        workoutName,
+        averageDifficulty: parseFloat(averageDifficulty.toFixed(2)),
+        count: workoutsWithName.length,
+        feedbacks: workoutsWithName.map((w: any) => (w.feedback as number)),
+      };
+  };
+
+  // Função para obter lista dos treinos mais difíceis
+  const getMostDifficultWorkouts = () => {
+    // Pegar todos os nomes únicos de treinos concluídos com feedback
+    const workoutNames = new Set<string>();
+    workouts.forEach((w: any) => {
+      const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
+      if (w.status === 'Concluído' && hasFeedback && (w as any).feedback >= 1 && (w as any).feedback <= 5) {
+        workoutNames.add(w.name);
+      }
+    });
+
+    // Calcular dificuldade média para cada treino
+    const difficultyData = Array.from(workoutNames)
+      .map((workoutName) => getWorkoutDifficulty(workoutName))
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => b.averageDifficulty - a.averageDifficulty) // Ordenar por mais difícil primeiro
+      .slice(0, 5); // Pegar apenas os 5 mais difíceis
+
+    return difficultyData;
+  };
+
+  // Função para obter distribuição de dificuldade (para gráfico)
+  const getDifficultyDistribution = () => {
+    const completedWorkouts = workouts.filter((w: any) => {
+      const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
+      return w.status === 'Concluído' && 
+        hasFeedback && 
+        (w as any).feedback >= 1 && 
+        (w as any).feedback <= 5;
+    });
+
+    if (completedWorkouts.length === 0) {
+      return [];
+    }
+
+    // Contar quantos treinos em cada nível de dificuldade
+    const distribution = {
+      1: 0, // Muito Fácil
+      2: 0, // Fácil
+      3: 0, // Normal
+      4: 0, // Difícil
+      5: 0, // Muito Difícil
+    };
+
+    completedWorkouts.forEach((w: any) => {
+      const feedback = (w as any).feedback as number;
+      if (feedback >= 1 && feedback <= 5) {
+        distribution[feedback as keyof typeof distribution]++;
+      }
+    });
+
+    // Converter para array para o gráfico
+    return [
+      { label: 'Muito Fácil', value: distribution[1], color: '#10b981' },
+      { label: 'Fácil', value: distribution[2], color: '#22c55e' },
+      { label: 'Normal', value: distribution[3], color: '#f59e0b' },
+      { label: 'Difícil', value: distribution[4], color: '#f97316' },
+      { label: 'Muito Difícil', value: distribution[5], color: '#ef4444' },
+    ].filter(item => item.value > 0); // Remover níveis sem treinos
+  };
+
   // Funções auxiliares para o Dashboard do Treinador
   const getTodayCompletedWorkouts = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -447,20 +885,26 @@ export default function HomeScreen() {
     // Criar lista de atividades individuais (não agrupadas por atleta)
     // Garantir keys únicas mesmo se houver treinos com IDs duplicados
     const seenIds = new Set<string>();
-    const activities = recentCompleted.map((w: any) => {
+    const activities = recentCompleted.map((w: any, index: number) => {
       const athleteId = w.athleteId || w.coach;
       const athlete = mockAthletes.find(a => a.id === athleteId);
       
-      // Criar ID único: usar workout.id + completedAt timestamp para garantir unicidade
-      let uniqueId = w.id;
+      // Criar ID único: usar workout.id + completedAt timestamp + índice para garantir unicidade absoluta
       const completedTimestamp = w.completedDate 
         ? new Date(w.completedDate).getTime() 
         : new Date(w.date).getTime();
       
-      // Se o ID já foi visto, adicionar timestamp para torná-lo único
-      if (seenIds.has(uniqueId)) {
-        uniqueId = `${w.id}_${completedTimestamp}`;
+      // ID base
+      let baseId = `${w.id}_${completedTimestamp}`;
+      
+      // Se já existe, adicionar índice e timestamp adicional
+      let uniqueId = baseId;
+      let counter = 0;
+      while (seenIds.has(uniqueId)) {
+        counter++;
+        uniqueId = `${baseId}_${counter}_${Date.now()}_${index}`;
       }
+      
       seenIds.add(uniqueId);
       
       return {
@@ -666,104 +1110,121 @@ useEffect(() => {
   //clearAllStatuses();
 }, []);
 
+  const loadWorkoutStatuses = useCallback(async () => {
+    // PARTE 1: Carregar tipo de usuário e atleta atual
+    const savedType = await AsyncStorage.getItem('userType');
+    console.log('🔄 loadWorkoutStatuses - Tipo carregado:', savedType);
+    
+    // ✅ ADICIONAR: Atualizar o estado userType se mudou
+    if (savedType) {
+      setUserType(savedType as UserType);
+    }
+    
+    let athleteId = null;
+    
+    if (savedType === UserType.ATHLETE) {
+      athleteId = await AsyncStorage.getItem('currentAthleteId');
+      console.log('👤 loadWorkoutStatuses - AthleteId carregado:', athleteId);
+      if (athleteId) {
+        setCurrentAthleteId(athleteId);
+      }
+    }
+
+    // PARTE 2: Carregar treinos atribuídos
+    const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+    let assignedWorkouts = [];
+    
+    console.log('📦 loadWorkoutStatuses - Treinos no AsyncStorage:', assignedWorkoutsJson ? 'Existem' : 'Não existem');
+
+    if (assignedWorkoutsJson) {
+      assignedWorkouts = JSON.parse(assignedWorkoutsJson);
+      console.log('📋 loadWorkoutStatuses - Total de treinos carregados:', assignedWorkouts.length);
+      console.log('📝 loadWorkoutStatuses - Todos os treinos:', assignedWorkouts);
+      
+      // PARTE 3: Se for atleta, filtrar apenas os treinos dele
+      if (savedType === UserType.ATHLETE && athleteId) {
+        console.log('🔍 loadWorkoutStatuses - Filtrando para atleta ID:', athleteId);
+        assignedWorkouts = assignedWorkouts.filter(
+          (workout: any) => {
+            const match = workout.athleteId === athleteId;
+            console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId}) = ${match}`);
+            return match;
+          }
+        );
+        console.log('✅ loadWorkoutStatuses - Treinos após filtro:', assignedWorkouts.length);
+        console.log('📝 loadWorkoutStatuses - Treinos filtrados:', assignedWorkouts);
+      }
+    }
+
+    // PARTE 4: Se for ATLETA, mostrar APENAS os treinos atribuídos
+    // Se for TREINADOR, mostrar treinos mockados + atribuídos
+    let allWorkouts = [];
+    
+    if (savedType === UserType.ATHLETE) {
+      // Atleta vê apenas seus treinos atribuídos
+      allWorkouts = assignedWorkouts;
+      console.log('👤 loadWorkoutStatuses - ATLETA - Total de treinos:', allWorkouts.length);
+    } else {
+      // Treinador: carregar status dos treinos mockados primeiro (usar ref para evitar loop)
+      const updatedWorkouts = await Promise.all(
+        initialWorkoutsRef.current.map(async (workout: any) => {
+          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
+          if (savedStatus) {
+            return { ...workout, status: savedStatus };
+          }
+          return workout;
+        })
+      );
+      // Combinar treinos mockados com atribuídos
+      // IMPORTANTE: assignedWorkouts já vêm com status e completedDate do AsyncStorage
+      allWorkouts = [...updatedWorkouts, ...assignedWorkouts];
+      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Total de treinos:', allWorkouts.length);
+      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Treinos atribuídos:', assignedWorkouts.length);
+      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Treinos concluídos:', allWorkouts.filter((w: any) => w.status === 'Concluído').length);
+    }
+
+    // PARTE 5: Carregar status dos treinos atribuídos (se houver)
+    const finalWorkouts = await Promise.all(
+      allWorkouts.map(async (workout: any) => {
+        const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
+        if (savedStatus) {
+          // Se tem status salvo, usar ele
+          return { ...workout, status: savedStatus };
+        }
+        // Se o treino já tem status e completedDate (treinos atribuídos), manter
+        if (workout.status && workout.completedDate) {
+          return workout;
+        }
+        return workout;
+      })
+    );
+    
+    console.log('💾 loadWorkoutStatuses - Salvando no estado:', finalWorkouts.length, 'treinos');
+    console.log('📊 loadWorkoutStatuses - Treinos com status:', finalWorkouts.filter((w: any) => w.status === 'Concluído').length);
+    setWorkouts(finalWorkouts);
+  }, []); // Removido workouts das dependências para evitar loop infinito
+
   useFocusEffect(
     useCallback(() => {
-      const loadWorkoutStatuses = async () => {
-        // PARTE 1: Carregar tipo de usuário e atleta atual
-        const savedType = await AsyncStorage.getItem('userType');
-        console.log('🔄 useFocusEffect - Tipo carregado:', savedType);
-        
-        // ✅ ADICIONAR: Atualizar o estado userType se mudou
-        if (savedType) {
-          setUserType(savedType as UserType);
-        }
-        
-        let athleteId = null;
-        
-        if (savedType === UserType.ATHLETE) {
-          athleteId = await AsyncStorage.getItem('currentAthleteId');
-          console.log('👤 useFocusEffect - AthleteId carregado:', athleteId);
-          if (athleteId) {
-            setCurrentAthleteId(athleteId);
-          }
-        }
-
-        // PARTE 2: Carregar treinos atribuídos
-        const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-        let assignedWorkouts = [];
-        
-        console.log('📦 useFocusEffect - Treinos no AsyncStorage:', assignedWorkoutsJson ? 'Existem' : 'Não existem');
-
-        if (assignedWorkoutsJson) {
-          assignedWorkouts = JSON.parse(assignedWorkoutsJson);
-          console.log('📋 useFocusEffect - Total de treinos carregados:', assignedWorkouts.length);
-          console.log('📝 useFocusEffect - Todos os treinos:', assignedWorkouts);
-          
-          // PARTE 3: Se for atleta, filtrar apenas os treinos dele
-          if (savedType === UserType.ATHLETE && athleteId) {
-            console.log('🔍 useFocusEffect - Filtrando para atleta ID:', athleteId);
-            assignedWorkouts = assignedWorkouts.filter(
-              (workout: any) => {
-                const match = workout.athleteId === athleteId;
-                console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId}) = ${match}`);
-                return match;
-              }
-            );
-            console.log('✅ useFocusEffect - Treinos após filtro:', assignedWorkouts.length);
-            console.log('📝 useFocusEffect - Treinos filtrados:', assignedWorkouts);
-          }
-        }
-
-        // PARTE 4: Se for ATLETA, mostrar APENAS os treinos atribuídos
-        // Se for TREINADOR, mostrar treinos mockados + atribuídos
-        let allWorkouts = [];
-        
-        if (savedType === UserType.ATHLETE) {
-          // Atleta vê apenas seus treinos atribuídos
-          allWorkouts = assignedWorkouts;
-          console.log('👤 useFocusEffect - ATLETA - Total de treinos:', allWorkouts.length);
-        } else {
-          // Treinador: carregar status dos treinos mockados primeiro
-          const updatedWorkouts = await Promise.all(
-            workouts.map(async (workout: any) => {
-              const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-              if (savedStatus) {
-                return { ...workout, status: savedStatus };
-              }
-              return workout;
-            })
-          );
-          // Combinar treinos mockados com atribuídos
-          // IMPORTANTE: assignedWorkouts já vêm com status e completedDate do AsyncStorage
-          allWorkouts = [...updatedWorkouts, ...assignedWorkouts];
-          console.log('👨‍🏫 useFocusEffect - TREINADOR - Total de treinos:', allWorkouts.length);
-          console.log('👨‍🏫 useFocusEffect - TREINADOR - Treinos atribuídos:', assignedWorkouts.length);
-          console.log('👨‍🏫 useFocusEffect - TREINADOR - Treinos concluídos:', allWorkouts.filter((w: any) => w.status === 'Concluído').length);
-        }
-
-        // PARTE 5: Carregar status dos treinos atribuídos (se houver)
-        const finalWorkouts = await Promise.all(
-          allWorkouts.map(async (workout: any) => {
-            const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-            if (savedStatus) {
-              // Se tem status salvo, usar ele
-              return { ...workout, status: savedStatus };
-            }
-            // Se o treino já tem status e completedDate (treinos atribuídos), manter
-            if (workout.status && workout.completedDate) {
-              return workout;
-            }
-            return workout;
-          })
-        );
-        
-        console.log('💾 useFocusEffect - Salvando no estado:', finalWorkouts.length, 'treinos');
-        console.log('📊 useFocusEffect - Treinos com status:', finalWorkouts.filter((w: any) => w.status === 'Concluído').length);
-        setWorkouts(finalWorkouts);
-      };
       loadWorkoutStatuses();
-    }, [userType]) // ✅ Executa quando userType muda OU quando a tela recebe foco
+    }, [loadWorkoutStatuses])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadWorkoutStatuses();
+      if (userType === UserType.ATHLETE && currentAthleteId) {
+        await loadWeightHistory();
+      }
+      showToast('Dados atualizados!', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar:', error);
+      showToast('Erro ao atualizar dados', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadWorkoutStatuses, loadWeightHistory, userType, currentAthleteId, showToast]);
 
   const markWorkoutAsCompleted =(workoutId: string) => {
     setWorkouts(workouts.map((workout) => {
@@ -775,7 +1236,17 @@ useEffect(() => {
   };
   
   return (
-    <ScrollView className="flex-1 bg-dark-950 px-6 pt-12">
+    <ScrollView 
+      className="flex-1 bg-dark-950 px-6 pt-12"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#fb923c"
+          colors={['#fb923c']}
+        />
+      }
+    >
     <View className="flex-1 bg-dark-950 px-2 pt-12 pb-20">
       {/* 
         TEMA ESCURO ESTILO ZEUS:
@@ -912,6 +1383,298 @@ useEffect(() => {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Gráfico de Treinos Concluídos por Semana */}
+          {getCoachWeeklyStats().length > 0 && (
+            <View className="w-full mb-4">
+              <Text className="text-xl font-bold text-white mb-3">
+                📊 Treinos Concluídos por Semana
+              </Text>
+              
+              <View className="bg-dark-900 border border-dark-700 rounded-xl p-3 mb-3">
+                <BarChart
+                  data={getCoachWeeklyStats().map((week) => ({
+                    value: week.count,
+                    label: week.label,
+                    frontColor: '#3b82f6',
+                    topLabelText: week.count.toString(),
+                    topLabelTextStyle: { color: '#3b82f6', fontSize: 10, fontWeight: 'bold' },
+                  }))}
+                  width={300}
+                  height={120}
+                  barWidth={30}
+                  spacing={12}
+                  hideRules
+                  xAxisThickness={1}
+                  xAxisColor="#404040"
+                  yAxisThickness={1}
+                  yAxisColor="#404040"
+                  yAxisTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                  xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 8 }}
+                  noOfSections={4}
+                  maxValue={Math.max(...getCoachWeeklyStats().map(w => w.count)) + 2}
+                  isAnimated
+                  animationDuration={800}
+                  showGradient
+                  gradientColor="#60a5fa"
+                />
+              </View>
+
+              {/* Análise de Tendência */}
+              {getCoachWeeklyTrend() && (
+                <View className="bg-dark-900 border border-dark-700 rounded-xl p-3">
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-1">
+                      <Text className="text-neutral-400 text-[10px] mb-0.5">Primeira semana</Text>
+                      <Text className="text-white font-bold text-lg">
+                        {getCoachWeeklyTrend()?.firstCount} treinos
+                      </Text>
+                    </View>
+                    
+                    <View className="flex-1 items-center">
+                      <Text className="text-neutral-400 text-[10px] mb-0.5">Última semana</Text>
+                      <Text className="text-white font-bold text-lg">
+                        {getCoachWeeklyTrend()?.lastCount} treinos
+                      </Text>
+                    </View>
+                    
+                    <View className="flex-1 items-end">
+                      <Text className="text-neutral-400 text-[10px] mb-0.5">Tendência</Text>
+                      <View className="flex-row items-center gap-1.5">
+                        {getCoachWeeklyTrend()?.trend === 'increasing' && (
+                          <>
+                            <FontAwesome name="arrow-up" size={14} color="#10b981" />
+                            <Text className="text-green-400 font-bold text-base">
+                              Aumentando
+                            </Text>
+                          </>
+                        )}
+                        {getCoachWeeklyTrend()?.trend === 'decreasing' && (
+                          <>
+                            <FontAwesome name="arrow-down" size={14} color="#ef4444" />
+                            <Text className="text-red-400 font-bold text-base">
+                              Diminuindo
+                            </Text>
+                          </>
+                        )}
+                        {getCoachWeeklyTrend()?.trend === 'stable' && (
+                          <>
+                            <FontAwesome name="minus" size={14} color="#a3a3a3" />
+                            <Text className="text-neutral-400 font-bold text-base">
+                              Estável
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                      <Text className={`text-[10px] mt-0.5 ${
+                        getCoachWeeklyTrend()?.trend === 'increasing' ? 'text-green-400' :
+                        getCoachWeeklyTrend()?.trend === 'decreasing' ? 'text-red-400' :
+                        'text-neutral-400'
+                      }`}>
+                        {(() => {
+                          const trend = getCoachWeeklyTrend();
+                          if (trend?.difference !== undefined && trend.difference !== 0) {
+                            return (
+                              <>
+                                {trend.difference > 0 ? '+' : ''}
+                                {trend.difference} treinos
+                              </>
+                            );
+                          }
+                          if (trend?.difference === 0) {
+                            return 'Sem mudança';
+                          }
+                          return null;
+                        })()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Taxa de Aderência dos Atletas */}
+          {getAllAthletesAdherence().length > 0 && (
+            <View className="w-full mb-4">
+              <Text className="text-xl font-bold text-white mb-2">
+                📈 Taxa de Aderência dos Atletas
+              </Text>
+              
+              {/* Gráfico de Barras */}
+              <View className="bg-dark-900 border border-dark-700 rounded-xl p-3 mb-2">
+                <BarChart
+                  data={getAllAthletesAdherence().map((athlete) => ({
+                    value: athlete.rate,
+                    label: athlete.athleteName.length > 8 
+                      ? athlete.athleteName.substring(0, 8) + '...' 
+                      : athlete.athleteName,
+                    frontColor: athlete.rate >= 70 ? '#10b981' : athlete.rate >= 50 ? '#f59e0b' : '#ef4444',
+                    topLabelText: `${athlete.rate}%`,
+                    topLabelTextStyle: { 
+                      color: athlete.rate >= 70 ? '#10b981' : athlete.rate >= 50 ? '#f59e0b' : '#ef4444', 
+                      fontSize: 9, 
+                      fontWeight: 'bold' 
+                    },
+                  }))}
+                  width={300}
+                  height={100}
+                  barWidth={28}
+                  spacing={10}
+                  hideRules
+                  xAxisThickness={1}
+                  xAxisColor="#404040"
+                  yAxisThickness={1}
+                  yAxisColor="#404040"
+                  yAxisTextStyle={{ color: '#a3a3a3', fontSize: 8 }}
+                  xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 7 }}
+                  noOfSections={4}
+                  maxValue={100}
+                  isAnimated
+                  animationDuration={800}
+                  showGradient
+                  gradientColor="#60a5fa"
+                />
+              </View>
+
+              {/* Lista de Atletas com Aderência - Clicável */}
+              <View className="bg-dark-900 border border-dark-700 rounded-xl p-2">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className="flex-row gap-2">
+                    {getAllAthletesAdherence().map((athlete) => (
+                      <TouchableOpacity
+                        key={athlete.athleteId}
+                        onPress={() => {
+                          router.push({
+                            pathname: '/athlete-profile',
+                            params: { athleteId: athlete.athleteId },
+                          });
+                        }}
+                        activeOpacity={0.7}
+                        className={`min-w-[130px] rounded-lg p-2.5 border ${
+                          athlete.rate >= 70
+                            ? 'bg-green-500/10 border-green-500/30'
+                            : athlete.rate >= 50
+                            ? 'bg-yellow-500/10 border-yellow-500/30'
+                            : 'bg-red-500/10 border-red-500/30'
+                        }`}
+                      >
+                        <Text className="text-white font-semibold text-xs mb-0.5" numberOfLines={1}>
+                          {athlete.athleteName}
+                        </Text>
+                        <View className="flex-row items-center gap-1.5 mb-0.5">
+                          <Text className={`font-bold text-base ${
+                            athlete.rate >= 70
+                              ? 'text-green-400'
+                              : athlete.rate >= 50
+                              ? 'text-yellow-400'
+                              : 'text-red-400'
+                          }`}>
+                            {athlete.rate}%
+                          </Text>
+                          {athlete.rate < 70 && (
+                            <FontAwesome 
+                              name="exclamation-triangle" 
+                              size={10} 
+                              color={athlete.rate >= 50 ? '#f59e0b' : '#ef4444'} 
+                            />
+                          )}
+                        </View>
+                        <Text className="text-neutral-400 text-[9px]">
+                          {athlete.completed}/{athlete.assigned} treinos
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          )}
+
+          {/* Treinos Mais Difíceis (Baseado no Feedback) */}
+          {getMostDifficultWorkouts().length > 0 && (
+            <View className="w-full mb-4">
+              <Text className="text-xl font-bold text-white mb-2">
+                💪 Treinos Mais Difíceis
+              </Text>
+              
+              {/* Lista dos 5 Treinos Mais Difíceis */}
+              <View className="bg-dark-900 border border-dark-700 rounded-xl p-2 mb-2">
+                {getMostDifficultWorkouts().map((workout, index) => (
+                  <View
+                    key={`${workout.workoutName}_${index}`}
+                    className={`flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 ${
+                      index === 0 ? 'bg-red-500/10 border border-red-500/20' :
+                      index === 1 ? 'bg-orange-500/10 border border-orange-500/20' :
+                      'bg-dark-800'
+                    }`}
+                  >
+                    <View className="flex-1 mr-2">
+                      <View className="flex-row items-center gap-2 mb-0.5">
+                        {index === 0 && (
+                          <FontAwesome name="trophy" size={14} color="#ef4444" />
+                        )}
+                        {index === 1 && (
+                          <FontAwesome name="star" size={14} color="#f97316" />
+                        )}
+                        <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+                          {workout.workoutName}
+                        </Text>
+                      </View>
+                      <Text className="text-neutral-400 text-[10px]">
+                        {workout.count} avaliação{workout.count !== 1 ? 'ões' : ''}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className={`font-bold text-base ${
+                        workout.averageDifficulty >= 4.5 ? 'text-red-400' :
+                        workout.averageDifficulty >= 4 ? 'text-orange-400' :
+                        workout.averageDifficulty >= 3.5 ? 'text-yellow-400' :
+                        'text-neutral-400'
+                      }`}>
+                        {workout.averageDifficulty.toFixed(1)}
+                      </Text>
+                      <Text className="text-neutral-500 text-[9px]">
+                        {workout.averageDifficulty >= 4.5 ? 'Muito Difícil' :
+                         workout.averageDifficulty >= 4 ? 'Difícil' :
+                         workout.averageDifficulty >= 3.5 ? 'Normal-Difícil' :
+                         'Média'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Gráfico de Distribuição de Dificuldade */}
+              {getDifficultyDistribution().length > 0 && (
+                <View className="bg-dark-900 border border-dark-700 rounded-xl p-2">
+                  <Text className="text-neutral-400 text-xs mb-2 text-center">
+                    Distribuição de Dificuldade
+                  </Text>
+                  <View className="flex-row gap-1.5 items-end justify-center">
+                    {getDifficultyDistribution().map((item, index) => (
+                      <View key={item.label} className="items-center flex-1">
+                        <View
+                          className="w-full rounded-t"
+                          style={{
+                            height: (item.value / Math.max(...getDifficultyDistribution().map(d => d.value))) * 60,
+                            backgroundColor: item.color,
+                            minHeight: 8,
+                          }}
+                        />
+                        <Text className="text-neutral-400 text-[8px] mt-1 text-center" numberOfLines={1}>
+                          {item.label}
+                        </Text>
+                        <Text className="text-white text-[10px] font-semibold mt-0.5">
+                          {item.value}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Atividade Recente - Atletas que completaram treinos hoje */}
           {getAthletesWhoTrainedToday().length > 0 && (
@@ -1106,6 +1869,67 @@ useEffect(() => {
             </View>
           </View>
 
+          {/* Treino de Hoje - Destaque (movido para aparecer antes da frequência) */}
+          {getTodayWorkouts().length > 0 && (
+            <View className="w-full mb-6">
+              <Text className="text-xl font-bold text-white mb-4">
+                🎯 Treino de Hoje
+              </Text>
+              
+              {getTodayWorkouts().map((workout) => (
+                <TouchableOpacity 
+                  key={workout.id}
+                  className="bg-primary-500/10 border-2 border-primary-500/30 rounded-xl p-5 mb-3"
+                  style={{
+                    shadowColor: '#fb923c',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                  }}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/workout-details',
+                      params: {workoutId: workout.id}
+                    });
+                  }}
+                >
+                  <View className="flex-row justify-between items-start mb-3">
+                    <View className="flex-1">
+                      <Text className="text-xl font-bold text-white mb-2">
+                        {workout.name}
+                      </Text>
+                      <Text className="text-neutral-300 text-sm mb-1">
+                        Treinador: {workout.coach}
+                      </Text>
+                      <Text className="text-neutral-400 text-sm">
+                        {workout.dayOfWeek}
+                      </Text>
+                    </View>
+                    <View className="bg-primary-500/30 border border-primary-400 px-4 py-2 rounded-full">
+                      <Text className="text-sm font-bold text-primary-200">
+                        {workout.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    className="bg-primary-500 rounded-lg py-3 px-6 mt-2"
+                    onPress={() => {
+                      router.push({
+                        pathname: '/workout-details',
+                        params: {workoutId: workout.id}
+                      });
+                    }}
+                  >
+                    <Text className="text-black font-bold text-center text-base">
+                      ▶ Iniciar Treino
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Gráfico de Frequência de Treinos */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full mb-6">
@@ -1199,11 +2023,10 @@ useEffect(() => {
                   </View>
                 </>
               ) : (
-                <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
-                  <Text className="text-neutral-400 text-center">
-                    Complete treinos para ver sua frequência semanal aqui.
-                  </Text>
-                </View>
+                <EmptyState
+                  icon="bar-chart"
+                  message="Complete treinos para ver sua frequência semanal aqui."
+                />
               )}
             </View>
           )}
@@ -1353,76 +2176,285 @@ useEffect(() => {
                   )}
                 </View>
               ) : (
-                <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
-                  <Text className="text-neutral-400 text-center">
-                    Nenhum registro de peso encontrado para este exercício.
-                  </Text>
-                  <Text className="text-neutral-500 text-sm text-center mt-2">
-                    Registre o peso usado durante os treinos para ver a evolução aqui.
-                  </Text>
-                </View>
+                <EmptyState
+                  icon="line-chart"
+                  message="Nenhum registro de peso encontrado para este exercício. Registre o peso usado durante os treinos para ver a evolução aqui."
+                />
               )}
             </View>
           )}
 
-          {/* Treino de Hoje - Destaque */}
-          {getTodayWorkouts().length > 0 && (
+          {/* Gráfico de Média de Dificuldade dos Treinos */}
+          {getCompletedWorkouts().some((w: any) => w.feedback) && (
             <View className="w-full mb-6">
               <Text className="text-xl font-bold text-white mb-4">
-                🎯 Treino de Hoje
+                📊 Média de Dificuldade dos Treinos
               </Text>
               
-              {getTodayWorkouts().map((workout) => (
-                <TouchableOpacity 
-                  key={workout.id}
-                  className="bg-primary-500/10 border-2 border-primary-500/30 rounded-xl p-5 mb-3"
-                  style={{
-                    shadowColor: '#fb923c',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 6,
-                  }}
-                  onPress={() => {
-                    router.push({
-                      pathname: '/workout-details',
-                      params: {workoutId: workout.id}
-                    });
-                  }}
-                >
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-1">
-                      <Text className="text-xl font-bold text-white mb-2">
-                        {workout.name}
-                      </Text>
-                      <Text className="text-neutral-300 text-sm mb-1">
-                        Treinador: {workout.coach}
-                      </Text>
-                      <Text className="text-neutral-400 text-sm">
-                        {workout.dayOfWeek}
-                      </Text>
-                    </View>
-                    <View className="bg-primary-500/30 border border-primary-400 px-4 py-2 rounded-full">
-                      <Text className="text-sm font-bold text-primary-200">
-                        {workout.status}
-                      </Text>
-                    </View>
+              {getDifficultyTrend().length > 0 ? (
+                <>
+                  <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-4">
+                    <LineChart
+                      data={getDifficultyTrend().map((week) => ({
+                        value: week.average,
+                        label: week.label,
+                      }))}
+                      width={280}
+                      height={140}
+                      color="#f59e0b"
+                      thickness={3}
+                      curved
+                      areaChart
+                      startFillColor="#f59e0b"
+                      endFillColor="#f59e0b"
+                      startOpacity={0.3}
+                      endOpacity={0.05}
+                      spacing={getDifficultyTrend().length > 1 ? Math.max(60, 280 / (getDifficultyTrend().length - 1)) : 60}
+                      initialSpacing={0}
+                      noOfSections={4}
+                      maxValue={5}
+                      yAxisColor="#404040"
+                      xAxisColor="#404040"
+                      yAxisTextStyle={{ color: '#a3a3a3', fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: '#a3a3a3', fontSize: 9 }}
+                      hideDataPoints={false}
+                      dataPointsColor="#f59e0b"
+                      dataPointsRadius={6}
+                      dataPointsWidth={6}
+                      dataPointsHeight={6}
+                      textShiftY={-2}
+                      textShiftX={-5}
+                      textFontSize={10}
+                      hideRules={false}
+                      rulesColor="#262626"
+                      rulesType="solid"
+                      yAxisTextNumberOfLines={1}
+                      showVerticalLines={false}
+                      xAxisLabelsVerticalShift={10}
+                      xAxisLabelTexts={getDifficultyTrend().map((week) => week.label)}
+                      pointerConfig={{
+                        pointer1Color: '#f59e0b',
+                        pointerStripUptoDataPoint: true,
+                        pointerStripColor: '#f59e0b',
+                        pointerStripWidth: 2,
+                        activatePointersOnLongPress: true,
+                        hidePointer1: false,
+                        autoAdjustPointerLabelPosition: true,
+                        pointerLabelComponent: (items: any) => {
+                          return (
+                            <View
+                              style={{
+                                height: 40,
+                                width: 60,
+                                backgroundColor: '#f59e0b',
+                                borderRadius: 8,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
+                                {items[0].value.toFixed(1)}
+                              </Text>
+                            </View>
+                          );
+                        },
+                      }}
+                    />
                   </View>
-                  <TouchableOpacity
-                    className="bg-primary-500 rounded-lg py-3 px-6 mt-2"
-                    onPress={() => {
-                      router.push({
-                        pathname: '/workout-details',
-                        params: {workoutId: workout.id}
-                      });
+
+                  {/* Análise de Tendência */}
+                  {getDifficultyTrendAnalysis() && (
+                    <View className="bg-dark-900 border border-dark-700 rounded-xl p-4">
+                      <View className="flex-row justify-between items-center mb-3">
+                        <View className="flex-1">
+                          <Text className="text-neutral-400 text-xs mb-1">Primeira semana</Text>
+                          <Text className="text-white font-bold text-xl">
+                            {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1)}
+                          </Text>
+                          <Text className="text-neutral-500 text-[10px] mt-1">
+                            {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
+                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '2.0' ? 'Fácil' :
+                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '3.0' ? 'Normal' :
+                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '4.0' ? 'Difícil' :
+                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '5.0' ? 'Muito Difícil' :
+                             'Média'}
+                          </Text>
+                        </View>
+                        
+                        <View className="flex-1 items-center">
+                          <Text className="text-neutral-400 text-xs mb-1">Última semana</Text>
+                          <Text className="text-white font-bold text-xl">
+                            {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1)}
+                          </Text>
+                          <Text className="text-neutral-500 text-[10px] mt-1">
+                            {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
+                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '2.0' ? 'Fácil' :
+                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '3.0' ? 'Normal' :
+                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '4.0' ? 'Difícil' :
+                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '5.0' ? 'Muito Difícil' :
+                             'Média'}
+                          </Text>
+                        </View>
+                        
+                        <View className="flex-1 items-end">
+                          <Text className="text-neutral-400 text-xs mb-1">Tendência</Text>
+                          <View className="flex-row items-center gap-2">
+                            {getDifficultyTrendAnalysis()?.trend === 'improving' && (
+                              <>
+                                <FontAwesome name="arrow-down" size={16} color="#10b981" />
+                                <Text className="text-green-400 font-bold text-xl">
+                                  Melhorando
+                                </Text>
+                              </>
+                            )}
+                            {getDifficultyTrendAnalysis()?.trend === 'declining' && (
+                              <>
+                                <FontAwesome name="arrow-up" size={16} color="#ef4444" />
+                                <Text className="text-red-400 font-bold text-xl">
+                                  Mais Difícil
+                                </Text>
+                              </>
+                            )}
+                            {getDifficultyTrendAnalysis()?.trend === 'stable' && (
+                              <>
+                                <FontAwesome name="minus" size={16} color="#a3a3a3" />
+                                <Text className="text-neutral-400 font-bold text-xl">
+                                  Estável
+                                </Text>
+                              </>
+                            )}
+                          </View>
+                          <Text className={`text-xs mt-1 ${
+                            getDifficultyTrendAnalysis()?.trend === 'improving' ? 'text-green-400' :
+                            getDifficultyTrendAnalysis()?.trend === 'declining' ? 'text-red-400' :
+                            'text-neutral-400'
+                          }`}>
+                            {(() => {
+                              const analysis = getDifficultyTrendAnalysis();
+                              if (analysis?.difference !== undefined && analysis.difference !== 0) {
+                                return (
+                                  <>
+                                    {analysis.difference > 0 ? '+' : ''}
+                                    {analysis.difference.toFixed(1)} pontos
+                                  </>
+                                );
+                              }
+                              if (analysis?.difference === 0) {
+                                return 'Sem mudança';
+                              }
+                              return null;
+                            })()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <EmptyState
+                  icon="star-o"
+                  message="Complete treinos e dê feedback para ver a evolução da dificuldade aqui."
+                />
+              )}
+            </View>
+          )}
+
+          {/* Seção de Conquistas e Recordes */}
+          {getCompletedWorkouts().length > 0 && (
+            <View className="w-full mb-6">
+              <Text className="text-xl font-bold text-white mb-4">
+                🏆 Conquistas e Recordes
+              </Text>
+              
+              <View className="flex-row gap-3 flex-wrap">
+                {/* Card: Maior Sequência */}
+                {getMaxStreak().maxStreak > 0 && (
+                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-yellow-500/30 rounded-xl p-4"
+                    style={{
+                      shadowColor: '#f59e0b',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 4,
                     }}
                   >
-                    <Text className="text-black font-bold text-center text-base">
-                      ▶ Iniciar Treino
+                    <View className="flex-row items-center mb-2">
+                      <FontAwesome name="fire" size={20} color="#f59e0b" />
+                      <Text className="text-neutral-400 text-xs ml-2">Maior Sequência</Text>
+                    </View>
+                    <Text className="text-3xl font-bold text-yellow-400 mb-1">
+                      {getMaxStreak().maxStreak}
                     </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
+                    <Text className="text-neutral-400 text-xs">
+                      dias consecutivos
+                    </Text>
+                    {getMaxStreak().currentStreak > 0 && getMaxStreak().currentStreak < getMaxStreak().maxStreak && (
+                      <Text className="text-neutral-500 text-[10px] mt-1">
+                        Atual: {getMaxStreak().currentStreak} dias
+                      </Text>
+                    )}
+                    {getMaxStreak().currentStreak === getMaxStreak().maxStreak && getMaxStreak().currentStreak > 0 && (
+                      <Text className="text-green-400 text-[10px] mt-1 font-semibold">
+                        🎯 Novo recorde!
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {/* Card: Melhor Semana */}
+                {getBestWeek() && (
+                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-primary-500/30 rounded-xl p-4"
+                    style={{
+                      shadowColor: '#fb923c',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <FontAwesome name="calendar-check-o" size={20} color="#fb923c" />
+                      <Text className="text-neutral-400 text-xs ml-2">Melhor Semana</Text>
+                    </View>
+                    <Text className="text-3xl font-bold text-primary-400 mb-1">
+                      {getBestWeek()?.count}
+                    </Text>
+                    <Text className="text-neutral-400 text-xs">
+                      treinos
+                    </Text>
+                    <Text className="text-neutral-500 text-[10px] mt-1">
+                      {getBestWeek()?.label}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Card: Melhor Mês */}
+                {getBestMonth() && (
+                  <View className="flex-1 min-w-[150px] bg-dark-900 border border-green-500/30 rounded-xl p-4"
+                    style={{
+                      shadowColor: '#10b981',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <FontAwesome name="trophy" size={20} color="#10b981" />
+                      <Text className="text-neutral-400 text-xs ml-2">Melhor Mês</Text>
+                    </View>
+                    <Text className="text-3xl font-bold text-green-400 mb-1">
+                      {getBestMonth()?.count}
+                    </Text>
+                    <Text className="text-neutral-400 text-xs">
+                      treinos
+                    </Text>
+                    <Text className="text-neutral-500 text-[10px] mt-1">
+                      {getBestMonth()?.label}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
@@ -1541,15 +2573,10 @@ useEffect(() => {
 
           {/* Mensagem quando não há treinos */}
           {workouts.length === 0 && (
-            <View className="bg-dark-900 border border-dark-700 rounded-xl p-8 items-center">
-              <FontAwesome name="calendar-times-o" size={48} color="#737373" />
-              <Text className="text-white text-lg font-semibold mt-4 mb-2">
-                Nenhum treino atribuído
-              </Text>
-              <Text className="text-neutral-400 text-center">
-                Seu treinador ainda não atribuiu treinos para você.
-              </Text>
-            </View>
+            <EmptyState
+              icon="calendar-times-o"
+              message="Seu treinador ainda não atribuiu treinos para você."
+            />
           )}
         </View>
       

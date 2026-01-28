@@ -5,12 +5,15 @@
  * incluindo lista de exercícios e permite marcar como concluído.
  */
 
+import { CelebrationAnimation } from '@/components/CelebrationAnimation';
+import { CustomAlert } from '@/components/CustomAlert';
+import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { WorkoutBlockData } from '@/src/types';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View, } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -183,6 +186,31 @@ export default function WorkoutDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<number | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  
+  // Estados para CustomAlert
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+  
+  // Animação de pulse para o botão
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // Função helper para mostrar alert customizado
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'info' | 'warning' = 'info',
+    onConfirm?: () => void
+  ) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertOnConfirm(() => onConfirm);
+    setAlertVisible(true);
+  };
   
   // Estados para progresso do treino
   // Set é uma estrutura que não permite valores duplicados - perfeito para IDs de exercícios
@@ -206,6 +234,28 @@ export default function WorkoutDetailsScreen() {
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
   const [savedWeights, setSavedWeights] = useState<Record<string, number>>({}); // Pesos salvos por exercício
+
+  // Animação de pulse contínua no botão
+  useEffect(() => {
+    if (assignedWorkout?.status === 'Pendente') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [assignedWorkout?.status, pulseAnim]);
   
   // Emojis de feedback (5 níveis: muito fácil até muito difícil)
   const feedbackEmojis = [
@@ -229,8 +279,7 @@ export default function WorkoutDetailsScreen() {
 
         const found = assignedWorkouts.find((w: any) => w.id === workoutId);
         if(!found) {
-          Alert.alert('Erro', 'Treino não encontrado');
-          router.back();
+          showAlert('Erro', 'Treino não encontrado', 'error', () => router.back());
           return;
         }
 
@@ -264,7 +313,7 @@ export default function WorkoutDetailsScreen() {
 
       } catch (error) {
         console.error('Erro ao carregar treino:', error);
-        Alert.alert('Erro', 'Não foi possível carregar o treino');
+        showAlert('Erro', 'Não foi possível carregar o treino', 'error');
       } finally {
         setLoading(false);
       }
@@ -384,7 +433,7 @@ export default function WorkoutDetailsScreen() {
         setRestTime((prev) => {
           if (prev <= 1) {
             setIsResting(false);
-            Alert.alert('Descanso Concluído', 'Hora de continuar o treino!');
+            showAlert('Descanso Concluído', 'Hora de continuar o treino!', 'success');
             return 0;
           }
           return prev - 1;
@@ -406,7 +455,7 @@ export default function WorkoutDetailsScreen() {
         setDurationTime((prev) => {
           if (prev >= durationTotal - 1) {
             setIsRunningDuration(false);
-            Alert.alert('Tempo Concluído', 'Alongamento completo!');
+            showAlert('Tempo Concluído', 'Alongamento completo!', 'success');
             return durationTotal;
           }
           return prev + 1;
@@ -488,7 +537,7 @@ export default function WorkoutDetailsScreen() {
     
     // Se não há próximo exercício, fechar modal
     setShowExerciseModal(false);
-    Alert.alert('Treino Completo', 'Você chegou ao final do treino!');
+    showAlert('Treino Completo', 'Você chegou ao final do treino!', 'success');
   }, [currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
   // Função para navegar para o exercício anterior
@@ -575,10 +624,10 @@ export default function WorkoutDetailsScreen() {
       // Limpar campo de input
       setExerciseWeight('');
       
-      Alert.alert('Sucesso', `Peso de ${weight}kg registrado com sucesso!`);
+      showAlert('Sucesso', `Peso de ${weight}kg registrado com sucesso!`, 'success');
     } catch (error) {
       console.error('Erro ao salvar peso:', error);
-      Alert.alert('Erro', 'Não foi possível salvar o peso');
+      showAlert('Erro', 'Não foi possível salvar o peso', 'error');
     }
   }, [assignedWorkout, getCurrentExercise]);
 
@@ -621,11 +670,36 @@ export default function WorkoutDetailsScreen() {
   // Se não encontrou o treino, volta para a tela anterior
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-dark-950 px-6">
-        <Text className="text-xl font-bold text-white mb-4">
-          Carregando treino
-        </Text>
-      </View>
+      <ScrollView className="flex-1 bg-dark-950">
+        <View className="px-6 pt-20 pb-20">
+          {/* Skeleton do Header */}
+          <View className="mb-6">
+            <SkeletonLoader width="60%" height={32} borderRadius={8} style={{ marginBottom: 12 }} />
+            <SkeletonLoader width="40%" height={20} borderRadius={8} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width="50%" height={20} borderRadius={8} />
+          </View>
+          
+          {/* Skeleton do Progresso */}
+          <View className="bg-dark-900 border border-dark-700 rounded-xl p-4 mb-6">
+            <SkeletonLoader width="50%" height={20} borderRadius={8} style={{ marginBottom: 16 }} />
+            <SkeletonLoader width="100%" height={8} borderRadius={4} style={{ marginBottom: 8 }} />
+            <SkeletonLoader width="40%" height={16} borderRadius={8} />
+          </View>
+          
+          {/* Skeleton dos Blocos */}
+          {Array.from({ length: 3 }).map((_, blockIndex) => (
+            <View key={blockIndex} className="mb-6">
+              <SkeletonLoader width="40%" height={24} borderRadius={8} style={{ marginBottom: 12 }} />
+              {Array.from({ length: 2 }).map((_, exerciseIndex) => (
+                <SkeletonCard key={exerciseIndex} lines={3} />
+              ))}
+            </View>
+          ))}
+          
+          {/* Skeleton do Botão */}
+          <SkeletonLoader width="100%" height={56} borderRadius={12} />
+        </View>
+      </ScrollView>
     );
   }
 
@@ -654,7 +728,11 @@ export default function WorkoutDetailsScreen() {
 
   const handleConfirmCompletion = async () => {
     if (selectedFeedback === null) {
-      Alert.alert('Atenção', 'Por favor, selecione como você se sentiu após o treino.');
+      showAlert(
+        'Atenção',
+        'Por favor, selecione como você se sentiu após o treino.',
+        'warning'
+      );
       return;
     }
 
@@ -715,22 +793,25 @@ export default function WorkoutDetailsScreen() {
         feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
       });
       
-      // 6. Fechar modal e mostrar confirmação
+      // 6. Fechar modal e mostrar animação de celebração
       setShowFeedbackModal(false);
+      setShowCelebration(true);
       
-      Alert.alert(
-        'Treino Concluído',
-        `Parabéns! Você concluiu o treino "${assignedWorkout?.name}"`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      // Após animação, mostrar alerta customizado e voltar
+      setTimeout(() => {
+        showAlert(
+          'Treino Concluído',
+          `Parabéns! Você concluiu o treino "${assignedWorkout?.name}"`,
+          'success',
+          () => {
+            setShowCelebration(false);
+            router.back();
+          }
+        );
+      }, 500);
     } catch (error) {
       console.error('Erro ao marcar como concluído:', error);
-      Alert.alert('Erro', 'Não foi possível marcar o treino como concluído');
+      showAlert('Erro', 'Não foi possível marcar o treino como concluído', 'error');
     }
   };
 
@@ -1167,7 +1248,7 @@ export default function WorkoutDetailsScreen() {
                           onPress={() => {
                             const weight = parseFloat(exerciseWeight);
                             if (isNaN(weight) || weight <= 0) {
-                              Alert.alert('Atenção', 'Por favor, digite um peso válido');
+                              showAlert('Atenção', 'Por favor, digite um peso válido', 'warning');
                               return;
                             }
                             saveExerciseWeight(exerciseUniqueId, weight, workoutId as string);
@@ -1255,21 +1336,27 @@ export default function WorkoutDetailsScreen() {
 
                 {/* Botão marcar como concluído (só aparece se estiver pendente) */}
                 {assignedWorkout.status === 'Pendente' && (
-          <TouchableOpacity
-            className="bg-primary-500 rounded-lg py-4 px-6"
+          <Animated.View
             style={{
-              shadowColor: '#fb923c',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 6,
+              transform: [{ scale: pulseAnim }],
             }}
-            onPress={handleMarkAsCompleted}
           >
-            <Text className="text-white font-semibold text-center text-lg">
-              Marcar como Concluído
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-primary-500 rounded-lg py-4 px-6"
+              style={{
+                shadowColor: '#fb923c',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={handleMarkAsCompleted}
+            >
+              <Text className="text-white font-semibold text-center text-lg">
+                Marcar como Concluído
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Modal de Feedback */}
@@ -1353,6 +1440,25 @@ export default function WorkoutDetailsScreen() {
         )}
        
       </View>
+      
+      {/* Animação de Celebração */}
+      <CelebrationAnimation
+        visible={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
+      
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        confirmText="OK"
+        onConfirm={() => {
+          setAlertVisible(false);
+          alertOnConfirm?.();
+        }}
+      />
     </ScrollView>
   );
 }

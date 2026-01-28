@@ -6,7 +6,7 @@
 2. [Opção 2: Sistema de Estatísticas e Relatórios](#opção-2-sistema-de-estatísticas-e-relatórios) 🔄 **EM ANDAMENTO**
 3. [Opção 3: Sistema de Notificações e Lembretes](#opção-3-sistema-de-notificações-e-lembretes)
 4. [Opção 4: Sistema de Comunicação](#opção-4-sistema-de-comunicação)
-5. [Opção 5: Melhorias de UX/UI](#opção-5-melhorias-de-uxui)
+5. [Opção 5: Melhorias de UX/UI](#opção-5-melhorias-de-uxui) 🔄 **PARCIALMENTE CONCLUÍDO**
 
 ---
 
@@ -897,7 +897,7 @@ const CommentItem = ({ comment }) => (
 
 ## 🎨 Opção 5: Melhorias de UX/UI
 
-### Status: **PENDENTE** ⏳
+### Status: **PARCIALMENTE CONCLUÍDO** ✅ (5.1.1, 5.1.2, 5.1.3, 5.1.4, 5.2.1, 5.2.2)
 
 ### Por que fazer isso?
 - Tornar o app mais intuitivo e agradável
@@ -909,7 +909,7 @@ const CommentItem = ({ comment }) => (
 
 ### ✨ Fase 5.1: Animações
 
-#### Etapa 5.1.1: Transições Suaves entre Telas
+#### Etapa 5.1.1: Transições Suaves entre Telas ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Adicionar animações de transição ao navegar
@@ -920,6 +920,11 @@ const CommentItem = ({ comment }) => (
 **Onde vamos trabalhar:**
 - `app/_layout.tsx` (configuração de navegação)
 - Modais existentes
+
+**✅ Implementado:**
+- Transições customizadas por tipo de tela (slide_from_right, slide_from_bottom, fade)
+- Fundo escuro mantido durante transições
+- Animações suaves configuradas no Stack Navigator
 
 **Código que você vai escrever:**
 ```typescript
@@ -947,7 +952,7 @@ useEffect(() => {
 
 ---
 
-#### Etapa 5.1.2: Animações ao Completar Treino
+#### Etapa 5.1.2: Animações ao Completar Treino ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Animação de confete ao completar treino
@@ -957,6 +962,13 @@ useEffect(() => {
 
 **Onde vamos trabalhar:**
 - `app/workout-details.tsx` (ao marcar como concluído)
+
+**✅ Implementado:**
+- Componente `CelebrationAnimation.tsx` criado
+- 20 partículas de confete coloridas animadas
+- Checkmark central animado com círculo verde
+- Efeito pulse contínuo no botão "Marcar como Concluído"
+- Integrado na função `handleConfirmCompletion`
 
 **Código que você vai escrever:**
 ```typescript
@@ -976,7 +988,7 @@ const celebrateCompletion = () => {
 
 ---
 
-#### Etapa 5.1.3: Loading States Mais Bonitos
+#### Etapa 5.1.3: Loading States Mais Bonitos ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Substituir "Carregando..." por skeleton loaders
@@ -987,6 +999,12 @@ const celebrateCompletion = () => {
 **Onde vamos trabalhar:**
 - Todas as telas com loading
 - Criar componente `SkeletonLoader.tsx`
+
+**✅ Implementado:**
+- Componente `SkeletonLoader.tsx` criado com animação shimmer
+- Componente `SkeletonCard.tsx` para cards de skeleton
+- Aplicado na tela `workout-details.tsx` durante carregamento
+- Placeholders animados para header, progresso, blocos e botão
 
 **Código que você vai escrever:**
 ```typescript
@@ -1008,7 +1026,7 @@ const SkeletonCard = () => (
 
 ---
 
-#### Etapa 5.1.4: Pull-to-Refresh
+#### Etapa 5.1.4: Pull-to-Refresh ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Adicionar pull-to-refresh nas listas
@@ -1020,6 +1038,12 @@ const SkeletonCard = () => (
 - `app/(tabs)/index.tsx`
 - `app/athlete-profile.tsx`
 - Outras telas com listas
+
+**✅ Implementado:**
+- Pull-to-refresh adicionado na tela Home (`index.tsx`)
+- Pull-to-refresh adicionado na tela de Atletas (`two.tsx`)
+- Toast de confirmação após atualizar dados
+- Indicador visual laranja (#fb923c) durante refresh
 
 **Código que você vai escrever:**
 ```typescript
@@ -1046,7 +1070,7 @@ import { RefreshControl } from 'react-native';
 
 ### 🎯 Fase 5.2: Melhorias Visuais
 
-#### Etapa 5.2.1: Empty States Mais Informativos
+#### Etapa 5.2.1: Empty States Mais Informativos ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Quando não há treinos, mostrar mensagem útil
@@ -1056,6 +1080,12 @@ import { RefreshControl } from 'react-native';
 
 **Onde vamos trabalhar:**
 - Todas as telas com listas vazias
+
+**✅ Implementado:**
+- Componente `EmptyState.tsx` criado e reutilizável
+- Aplicado em: lista de treinos vazia, histórico de peso, gráfico de frequência, gráfico de dificuldade, lista de atletas
+- Ícones FontAwesome integrados
+- Suporte a call-to-action opcional
 
 **Código que você vai escrever:**
 ```typescript
@@ -1081,7 +1111,7 @@ const EmptyState = ({ message, actionLabel, onAction }) => (
 
 ---
 
-#### Etapa 5.2.2: Melhor Feedback de Ações (Toasts)
+#### Etapa 5.2.2: Melhor Feedback de Ações (Toasts) ✅ **CONCLUÍDO**
 
 **O que vamos fazer:**
 - Substituir `Alert.alert` por toasts mais bonitos
@@ -1092,6 +1122,13 @@ const EmptyState = ({ message, actionLabel, onAction }) => (
 **Onde vamos trabalhar:**
 - Criar componente `Toast.tsx`
 - Substituir alerts em todas as telas
+
+**✅ Implementado:**
+- Componente `Toast.tsx` criado com 4 tipos (success, error, info, warning)
+- `ToastProvider.tsx` para gerenciamento global
+- Integrado no `_layout.tsx`
+- Usado no pull-to-refresh e outras ações
+- Animações de entrada/saída suaves
 
 **Código que você vai escrever:**
 ```typescript
@@ -1171,8 +1208,15 @@ const ThemeProvider = ({ children }) => {
 
 ### Opção 5: UX/UI
 - **Total:** ~10-12 horas
-- **Fase 5.1 (Animações):** ~7-9 horas
-- **Fase 5.2 (Visuais):** ~3-4 horas
+- **Fase 5.1 (Animações):** ✅ **CONCLUÍDO** (~7-9 horas)
+  - ✅ 5.1.1: Transições Suaves
+  - ✅ 5.1.2: Animações ao Completar Treino
+  - ✅ 5.1.3: Loading States Mais Bonitos
+  - ✅ 5.1.4: Pull-to-Refresh
+- **Fase 5.2 (Visuais):** 🔄 **PARCIALMENTE CONCLUÍDO** (~3-4 horas)
+  - ✅ 5.2.1: Empty States Mais Informativos
+  - ✅ 5.2.2: Melhor Feedback de Ações (Toasts)
+  - ⏳ 5.2.3: Dark Mode Toggle (Pendente)
 
 ---
 
@@ -1182,28 +1226,43 @@ const ThemeProvider = ({ children }) => {
 
 1. ✅ **Opção 2.2.1** - Evolução de Peso/Carga (Atleta) - **CONCLUÍDO**
 2. ✅ **Opção 2.2.2** - Gráfico de Frequência de Treinos - **CONCLUÍDO**
-3. 🔄 **Opção 2.2.3** - Média de Dificuldade dos Treinos - **PRÓXIMO**
-   - Usa feedback já implementado
-   - Complementa estatísticas do atleta
-   - Gráfico de linha com tendência
+3. ✅ **Opção 2.2.3** - Média de Dificuldade dos Treinos - **CONCLUÍDO** (já estava implementado)
+4. ✅ **Opção 2.2.4** - Recordes Pessoais - **CONCLUÍDO** (já estava implementado)
+5. ✅ **Opção 5.1.1** - Transições Suaves entre Telas - **CONCLUÍDO**
+6. ✅ **Opção 5.1.2** - Animações ao Completar Treino - **CONCLUÍDO**
+7. ✅ **Opção 5.1.3** - Loading States Mais Bonitos - **CONCLUÍDO**
+8. ✅ **Opção 5.1.4** - Pull-to-Refresh - **CONCLUÍDO**
+9. ✅ **Opção 5.2.1** - Empty States Mais Informativos - **CONCLUÍDO**
+10. ✅ **Opção 5.2.2** - Melhor Feedback de Ações (Toasts) - **CONCLUÍDO**
 
-4. ⏳ **Opção 2.2.4** - Recordes Pessoais
-   - Gamificação
-   - Destacar conquistas
+### 🔄 Próximas Etapas Sugeridas:
 
-5. ⏳ **Opção 2.1.1** - Gráfico de Treinos Concluídos por Semana (Treinador)
+1. ⏳ **Opção 5.2.3** - Dark Mode Toggle
+   - Adicionar modo claro (light mode)
+   - Toggle para alternar entre dark/light
+   - Salvar preferência do usuário
+   - Estimativa: 3-4 horas
+
+2. ⏳ **Opção 2.1.1** - Gráfico de Treinos Concluídos por Semana (Treinador)
    - Estatísticas para o treinador
    - Visualização de progresso dos atletas
+   - Estimativa: 2-3 horas
 
-6. ⏳ **Opção 3.1.1** - Configurar Notificações
+3. ⏳ **Opção 3.1.1** - Configurar Notificações
    - Base para todas as notificações
    - Melhora engajamento
+   - Estimativa: 1-2 horas
+
+4. ⏳ **Opção 4.1.1** - Sistema de Chat/Mensagens
+   - Comunicação entre treinador e atleta
+   - Histórico de mensagens
+   - Estimativa: 8-9 horas
 
 ---
 
 ## 📍 Onde Paramos Hoje (Última Sessão)
 
-### ✅ Concluído Hoje:
+### ✅ Concluído na Sessão Anterior:
 
 1. **Etapa 2.2.1: Evolução de Peso/Carga por Exercício**
    - ✅ Campo de registro de peso no modal de exercício (`workout-details.tsx`)
@@ -1221,15 +1280,69 @@ const ThemeProvider = ({ children }) => {
    - ✅ Estatísticas: média semanal, comparação semana atual vs anterior
    - ✅ Otimização: altura reduzida (140px), barras retangulares, labels corretos
 
-### 🔄 Próximo Passo:
+### ✅ Concluído Hoje (Sessão Atual):
 
-**Etapa 2.2.3: Média de Dificuldade dos Treinos**
-- Calcular média do feedback (1-5) ao longo do tempo
-- Gráfico de linha com evolução da dificuldade
-- Identificar se está ficando mais fácil (melhorando) ou mais difícil
-- Mostrar tendência
-- Onde trabalhar: `app/(tabs)/index.tsx` (dashboard do atleta)
-- Estimativa: 2 horas
+3. **Etapa 2.2.3: Média de Dificuldade dos Treinos** ✅ **JÁ ESTAVA IMPLEMENTADO**
+   - ✅ Gráfico de linha com evolução do feedback (1-5)
+   - ✅ Análise de tendência (melhorando/piorando/estável)
+   - ✅ Comparação primeira vs última semana
+   - ✅ Empty state quando não há dados
+
+4. **Etapa 2.2.4: Recordes Pessoais** ✅ **JÁ ESTAVA IMPLEMENTADO**
+   - ✅ Maior sequência de dias consecutivos
+   - ✅ Melhor semana (mais treinos)
+   - ✅ Melhor mês (mais treinos)
+   - ✅ Badge "Novo recorde!" quando bate recorde
+
+5. **Etapa 5.1.1: Transições Suaves entre Telas** ✅ **CONCLUÍDO**
+   - ✅ Animações customizadas por tipo de tela
+   - ✅ Fundo escuro mantido durante transições
+   - ✅ Configuração no Stack Navigator
+
+6. **Etapa 5.1.2: Animações ao Completar Treino** ✅ **CONCLUÍDO**
+   - ✅ Confete animado (20 partículas)
+   - ✅ Checkmark central animado
+   - ✅ Efeito pulse no botão
+
+7. **Etapa 5.1.3: Loading States Mais Bonitos** ✅ **CONCLUÍDO**
+   - ✅ SkeletonLoader aplicado em workout-details
+   - ✅ Placeholders animados
+
+8. **Etapa 5.1.4: Pull-to-Refresh** ✅ **CONCLUÍDO**
+   - ✅ Implementado nas telas principais
+   - ✅ Toast de confirmação
+
+9. **Etapa 5.2.1: Empty States Mais Informativos** ✅ **CONCLUÍDO**
+   - ✅ Componente reutilizável criado
+   - ✅ Aplicado em todas as listas vazias
+
+10. **Etapa 5.2.2: Melhor Feedback de Ações** ✅ **CONCLUÍDO**
+    - ✅ Sistema de Toast implementado
+    - ✅ ToastProvider global
+
+11. **Melhorias Adicionais Implementadas:**
+    - ✅ Componente `CustomAlert.tsx` criado para substituir Alert.alert feios
+    - ✅ Modais customizados com design escuro, ícones coloridos e animações suaves
+    - ✅ Reordenação da tela home do atleta: "Treino de Hoje" agora aparece após "Seu Progresso" e antes de "Frequência de Treinos"
+    - ✅ Todos os Alert.alert substituídos por CustomAlert em workout-details.tsx
+    - ✅ Design profissional mantido em todo o app
+
+### 📦 Componentes Criados Nesta Sessão:
+
+- `components/CelebrationAnimation.tsx` - Animações de celebração ao completar treino
+- `components/CustomAlert.tsx` - Modais customizados para substituir Alert.alert
+- `components/SkeletonLoader.tsx` - Loading states animados (já existia, agora aplicado)
+- `components/EmptyState.tsx` - Estados vazios informativos (já existia, agora aplicado)
+- `components/Toast.tsx` - Sistema de feedback visual (já existia, agora aplicado)
+- `components/ToastProvider.tsx` - Provider global para toasts (já existia, agora aplicado)
+
+### 🔄 Próximos Passos Sugeridos:
+
+**Etapa 5.2.3: Dark Mode Toggle**
+- Adicionar modo claro (light mode)
+- Toggle para alternar entre dark/light
+- Salvar preferência do usuário
+- Estimativa: 3-4 horas
 
 ---
 

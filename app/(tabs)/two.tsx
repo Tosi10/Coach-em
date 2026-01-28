@@ -1,5 +1,8 @@
+import { EmptyState } from '@/components/EmptyState';
+import { useToastContext } from '@/components/ToastProvider';
 import { useRouter } from 'expo-router';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const mockAthletes = [
   { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
@@ -14,9 +17,34 @@ const mockAthletes = [
 
 export default function TabTwoScreen() {
   const router = useRouter();
+  const { showToast } = useToastContext();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Simular carregamento de dados
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      showToast('Lista de atletas atualizada!', 'success');
+    } catch (error) {
+      showToast('Erro ao atualizar', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [showToast]);
 
   return (
-    <ScrollView className="flex-1 bg-dark-950">
+    <ScrollView 
+      className="flex-1 bg-dark-950"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#fb923c"
+          colors={['#fb923c']}
+        />
+      }
+    >
       <View className="px-6 pt-12 pb-20">
         {/* Título */}
         <Text className="text-3xl font-bold text-white mb-2">
@@ -32,7 +60,18 @@ export default function TabTwoScreen() {
         </Text>
 
         {/* Lista de atletas */}
-        {mockAthletes.map((athlete) => (
+        {mockAthletes.length === 0 ? (
+          <EmptyState
+            icon="users"
+            message="Você ainda não tem atletas cadastrados."
+            actionLabel="Adicionar Atleta"
+            onAction={() => {
+              // TODO: Implementar navegação para adicionar atleta
+              showToast('Funcionalidade em desenvolvimento', 'info');
+            }}
+          />
+        ) : (
+          mockAthletes.map((athlete) => (
           <TouchableOpacity
             key={athlete.id}
             className="bg-dark-900 rounded-xl p-4 mb-3 border border-dark-700"
@@ -57,7 +96,8 @@ export default function TabTwoScreen() {
               {athlete.status}
             </Text>
           </TouchableOpacity>
-        ))}
+        ))
+        )}
       </View>
     </ScrollView>
   );
