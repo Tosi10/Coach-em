@@ -1,3 +1,5 @@
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -25,6 +27,8 @@ export function CustomAlert({
   showCancel = false,
   cancelText = 'Cancelar',
 }: CustomAlertProps) {
+  const { theme } = useTheme();
+  const themeStyles = getThemeStyles(theme.colors);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -105,7 +109,7 @@ export function CustomAlert({
       animationType="none"
       onRequestClose={handleCancel}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
         <Animated.View
           style={[
             styles.container,
@@ -115,30 +119,63 @@ export function CustomAlert({
             },
           ]}
         >
-          <View style={[styles.content, { borderTopColor: config.borderColor }]}>
+          <View 
+            style={[
+              styles.content, 
+              { 
+                backgroundColor: theme.colors.card,
+                borderTopColor: config.borderColor,
+                borderColor: theme.colors.border,
+              }
+            ]}
+          >
             {/* Icon */}
-            <View style={[styles.iconContainer, { backgroundColor: `${config.bgColor}20` }]}>
+            <View 
+              style={[
+                styles.iconContainer, 
+                { 
+                  backgroundColor: theme.mode === 'dark' 
+                    ? `${config.bgColor}30` 
+                    : `${config.bgColor}20`
+                }
+              ]}
+            >
               <FontAwesome name={config.icon} size={48} color={config.iconColor} />
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
 
             {/* Message */}
-            <Text style={styles.message}>{message}</Text>
+            <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text>
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               {showCancel && (
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[
+                    styles.button, 
+                    { 
+                      backgroundColor: theme.colors.backgroundTertiary,
+                      borderColor: theme.colors.border,
+                    }
+                  ]}
                   onPress={handleCancel}
                 >
-                  <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                  <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>
+                    {cancelText}
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.button, styles.confirmButton, { backgroundColor: config.bgColor }]}
+                style={[
+                  styles.button, 
+                  styles.confirmButton, 
+                  { 
+                    backgroundColor: config.bgColor,
+                    shadowColor: config.bgColor,
+                  }
+                ]}
                 onPress={handleConfirm}
               >
                 <Text style={styles.confirmButtonText}>{confirmText}</Text>
@@ -154,7 +191,6 @@ export function CustomAlert({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -164,12 +200,11 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   content: {
-    backgroundColor: '#171717',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderTopWidth: 4,
-    shadowColor: '#000',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -186,13 +221,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#a3a3a3',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
@@ -209,21 +242,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   cancelButton: {
-    backgroundColor: '#262626',
-    borderWidth: 1,
-    borderColor: '#404040',
+    // Estilos aplicados inline com theme
   },
   confirmButton: {
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
   cancelButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

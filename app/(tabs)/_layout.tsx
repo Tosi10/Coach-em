@@ -1,10 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { UserType } from '@/src/types';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -17,6 +19,28 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { theme } = useTheme();
+  const [userType, setUserType] = useState<UserType | null>(null);
+
+  // Carregar tipo de usuário do AsyncStorage
+  useEffect(() => {
+    const loadUserType = async () => {
+      try {
+        const storedUserType = await AsyncStorage.getItem('userType');
+        if (storedUserType) {
+          setUserType(storedUserType as UserType);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tipo de usuário:', error);
+      }
+    };
+    loadUserType();
+  }, []);
+
+  // Determinar título e ícone da segunda aba baseado no tipo de usuário
+  const secondTabTitle = userType === UserType.ATHLETE ? 'Treinos' : 'Atletas';
+  // Usando 'heartbeat' para treinos (batimento cardíaco/fitness) - ícone disponível no FontAwesome padrão
+  // Alternativas disponíveis: 'fire' (intensidade), 'trophy' (troféu), 'calendar' (agenda)
+  const secondTabIcon = userType === UserType.ATHLETE ? 'heartbeat' : 'users';
 
   return (
     <Tabs
@@ -51,8 +75,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Atletas',
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
+          title: secondTabTitle,
+          tabBarIcon: ({ color }) => <TabBarIcon name={secondTabIcon as any} color={color} />,
         }}
       />
     </Tabs>

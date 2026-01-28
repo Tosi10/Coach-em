@@ -9,13 +9,14 @@
  * - Botão para atribuir treino
  */
 
+import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 // Dados mockados de atletas
@@ -59,6 +60,27 @@ export default function AthleteProfileScreen() {
   const [availableExercises, setAvailableExercises] = useState<any[]>([]);
   const [workoutsToShow, setWorkoutsToShow] = useState(5); // Mostrar apenas 5 treinos inicialmente
   const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos'>('proximos'); // Sub-tab dentro de Treinos
+
+  // Estados para CustomAlert
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+  // Função helper para mostrar alert customizado
+  const showAlert = (
+      title: string,
+      message: string,
+      type: 'success' | 'error' | 'info' | 'warning' = 'info',
+      onConfirm?: () => void
+  ) => {
+      setAlertTitle(title);
+      setAlertMessage(message);
+      setAlertType(type);
+      setAlertOnConfirm(() => onConfirm);
+      setAlertVisible(true);
+  };
 
   useEffect(() => {
     // Buscar dados do atleta
@@ -170,53 +192,49 @@ export default function AthleteProfileScreen() {
 
 
   // Função para deletar treino(s)
-  const handleDeleteWorkout = async (workoutIds: string[], isGroup: boolean = false) => {
+  const confirmDeleteWorkout = async (workoutIds: string[], workoutCount: number) => {
+    try {
+      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
+      let allWorkouts = [];
+      
+      if (assignedWorkoutsJson) {
+        allWorkouts = JSON.parse(assignedWorkoutsJson);
+      }
+
+      // Remover os treinos deletados
+      const updatedWorkouts = allWorkouts.filter((w: any) => !workoutIds.includes(w.id));
+      
+      // Também remover status salvos individualmente
+      for (const id of workoutIds) {
+        await AsyncStorage.removeItem(`workout_${id}_status`);
+        await AsyncStorage.removeItem(`workout_${id}_completedDate`);
+        await AsyncStorage.removeItem(`workout_${id}_feedbackEmoji`);
+      }
+
+      await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
+      
+      // Recarregar a lista
+      await loadAthleteWorkouts();
+      
+      // Mostrar alerta de sucesso
+      showAlert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`, 'success');
+    } catch (error) {
+      console.error('Erro ao deletar treino:', error);
+      showAlert('Erro', 'Não foi possível deletar o treino. Tente novamente.', 'error');
+    }
+  };
+
+  const handleDeleteWorkout = (workoutIds: string[], isGroup: boolean = false) => {
     const workoutCount = workoutIds.length;
     const message = isGroup 
       ? `Deseja deletar este grupo de ${workoutCount} treino${workoutCount !== 1 ? 's' : ''}?`
       : `Deseja deletar este treino?`;
 
-    Alert.alert(
+    showAlert(
       'Confirmar exclusão',
       message,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Deletar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-              let allWorkouts = [];
-              
-              if (assignedWorkoutsJson) {
-                allWorkouts = JSON.parse(assignedWorkoutsJson);
-              }
-
-              // Remover os treinos deletados
-              const updatedWorkouts = allWorkouts.filter((w: any) => !workoutIds.includes(w.id));
-              
-              // Também remover status salvos individualmente
-              for (const id of workoutIds) {
-                await AsyncStorage.removeItem(`workout_${id}_status`);
-              }
-
-              await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
-              
-              // Recarregar a lista
-              await loadAthleteWorkouts();
-              
-              Alert.alert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`);
-            } catch (error) {
-              console.error('Erro ao deletar treino:', error);
-              Alert.alert('Erro', 'Não foi possível deletar o treino. Tente novamente.');
-            }
-          },
-        },
-      ]
+      'warning',
+      () => confirmDeleteWorkout(workoutIds, workoutCount)
     );
   };
 
@@ -998,6 +1016,24 @@ export default function AthleteProfileScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Custom Alert */}
+      <CustomAlert
+          visible={alertVisible}
+          title={alertTitle}
+          message={alertMessage}
+          type={alertType}
+          confirmText="OK"
+          cancelText="Cancelar"
+          showCancel={alertType === 'warning'}
+          onConfirm={() => {
+              setAlertVisible(false);
+              alertOnConfirm?.();
+          }}
+          onCancel={() => {
+              setAlertVisible(false);
+          }}
+      />
     </ScrollView>
   );
 }

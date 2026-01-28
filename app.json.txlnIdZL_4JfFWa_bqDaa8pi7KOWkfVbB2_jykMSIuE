@@ -37,11 +37,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "882f63be-2b20-4a26-8b98-a9c1538e0b2d"
       }
-    },
-    "owner": "v6core"
+    }
   }
 }

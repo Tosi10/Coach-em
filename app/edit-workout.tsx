@@ -1,3 +1,4 @@
+import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -5,7 +6,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const mockExercises: Exercise[] = [
     { id: '1', name: 'Agachamento', description: 'Exercício fundamental para desenvolvimento de força nas pernas e glúteos.', difficulty: 'beginner', muscleGroups: ['pernas', 'glúteos'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
@@ -57,6 +58,27 @@ export default function EditWorkoutScreen() {
     // Estado para armazenar o treino original (para manter createdAt, createdBy, etc)
     const [originalWorkout, setOriginalWorkout] = useState<any>(null);
 
+    // Estados para CustomAlert
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+    // Função helper para mostrar alert customizado
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(() => onConfirm);
+        setAlertVisible(true);
+    };
+
     // NOVOS ESTADOS: Para carregar e filtrar exercícios
     const [allExercises, setAllExercises] = useState<Exercise[]>(mockExercises);
     const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
@@ -101,13 +123,11 @@ export default function EditWorkoutScreen() {
                     setWorkNotes(workBlock?.notes || '');
                     setCoolDownNotes(coolDownBlock?.notes || '');
                 } else {
-                    Alert.alert('Erro', 'Treino não encontrado.');
-                    router.back();
+                    showAlert('Erro', 'Treino não encontrado.', 'error', () => router.back());
                 }
             } catch (error) {
                 console.error('Erro ao carregar treino:', error);
-                Alert.alert('Erro', 'Não foi possível carregar o treino.');
-                router.back();
+                showAlert('Erro', 'Não foi possível carregar o treino.', 'error', () => router.back());
             } finally {
                 setLoading(false);
             }
@@ -285,7 +305,7 @@ export default function EditWorkoutScreen() {
     const handleUpdateWorkout = async () => {
         // Validação básica
         if (!workoutName.trim()) {
-            Alert.alert('Erro', 'Por favor, preencha o nome do treino.');
+            showAlert('Erro', 'Por favor, preencha o nome do treino.', 'error');
             return;
         }
 
@@ -304,7 +324,7 @@ export default function EditWorkoutScreen() {
             const workoutIndex = savedWorkouts.findIndex((w: any) => w.id === workoutIdString);
 
             if (workoutIndex === -1) {
-                Alert.alert('Erro', 'Treino não encontrado.');
+                showAlert('Erro', 'Treino não encontrado.', 'error');
                 return;
             }
 
@@ -345,11 +365,12 @@ export default function EditWorkoutScreen() {
                 JSON.stringify(savedWorkouts)
             );
 
-            Alert.alert('Sucesso', 'Treino atualizado com sucesso!');
-            router.back();
+            showAlert('Sucesso', 'Treino atualizado com sucesso!', 'success', () => {
+                router.back();
+            });
         } catch (error) {
             console.error('Erro ao atualizar treino:', error);
-            Alert.alert('Erro', 'Não foi possível atualizar o treino.');
+            showAlert('Erro', 'Não foi possível atualizar o treino.', 'error');
         }
     };
 
@@ -887,6 +908,19 @@ export default function EditWorkoutScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Custom Alert */}
+                <CustomAlert
+                    visible={alertVisible}
+                    title={alertTitle}
+                    message={alertMessage}
+                    type={alertType}
+                    confirmText="OK"
+                    onConfirm={() => {
+                        setAlertVisible(false);
+                        alertOnConfirm?.();
+                    }}
+                />
             </View>
         </ScrollView>
     );

@@ -5,6 +5,7 @@
  * Por enquanto com dados mockados, depois virá do Firebase.
  */
 
+import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -12,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Dados mockados de exercícios (temporário - depois virá do Firebase)
 const mockExercises = [
@@ -118,6 +119,27 @@ export default function ExercisesLibraryScreen() {
   // ESTADO: Filtro por grupo muscular
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
 
+  // Estados para CustomAlert
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+  // Função helper para mostrar alert customizado
+  const showAlert = (
+      title: string,
+      message: string,
+      type: 'success' | 'error' | 'info' | 'warning' = 'info',
+      onConfirm?: () => void
+  ) => {
+      setAlertTitle(title);
+      setAlertMessage(message);
+      setAlertType(type);
+      setAlertOnConfirm(() => onConfirm);
+      setAlertVisible(true);
+  };
+
   const loadSavedExercises = useCallback(async () => {
     try {
       console.log('🔍 Carregando exercícios salvos...');
@@ -156,57 +178,47 @@ export default function ExercisesLibraryScreen() {
     }, [loadSavedExercises])
   );
 
-  const handleDeleteExercise = async (exerciseId: string, exerciseName: string) => {
-    // PARTE 1: Confirmar com o usuário antes de deletar
-    Alert.alert(
+  const confirmDeleteExercise = async (exerciseId: string) => {
+    try {
+        // Buscar todos os exercícios salvos do AsyncStorage
+        const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
+        let savedExercises = [];
+        
+        if (savedExercisesJson) {
+            savedExercises = JSON.parse(savedExercisesJson);
+        }
+
+        // Filtrar o exercício que queremos deletar
+        const updatedExercises = savedExercises.filter(
+            (ex: any) => ex.id !== exerciseId
+        );
+
+        // Salvar a lista atualizada de volta no AsyncStorage
+        await AsyncStorage.setItem(
+            'saved_exercises',
+            JSON.stringify(updatedExercises)
+        );
+
+        // Recarregar a lista de exercícios
+        await loadSavedExercises();
+
+        // Mostrar mensagem de sucesso
+        showAlert('Sucesso', 'Exercício deletado com sucesso!', 'success');
+    } catch (error) {
+        // Se der erro, mostrar mensagem
+        console.error('Erro ao deletar exercício:', error);
+        showAlert('Erro', 'Não foi possível deletar o exercício.', 'error');
+    }
+  };
+
+  const handleDeleteExercise = (exerciseId: string, exerciseName: string) => {
+    showAlert(
         'Deletar Exercício',
         `Tem certeza que deseja deletar o exercício "${exerciseName}"? Esta ação não pode ser desfeita.`,
-        [
-            {
-                text: 'Cancelar',
-                style: 'cancel', // Botão de cancelar (não faz nada)
-            },
-            {
-                text: 'Deletar',
-                style: 'destructive', // Botão vermelho (iOS) ou destrutivo
-                onPress: async () => {
-                    try {
-                        // PARTE 2: Buscar todos os exercícios salvos do AsyncStorage
-                        const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
-                        let savedExercises = [];
-                        
-                        if (savedExercisesJson) {
-                            savedExercises = JSON.parse(savedExercisesJson);
-                        }
-
-                        // PARTE 3: Filtrar o exercício que queremos deletar
-                        // Usamos filter para criar um novo array SEM o exercício deletado
-                        const updatedExercises = savedExercises.filter(
-                            (ex: any) => ex.id !== exerciseId
-                        );
-
-                        // PARTE 4: Salvar a lista atualizada de volta no AsyncStorage
-                        await AsyncStorage.setItem(
-                            'saved_exercises',
-                            JSON.stringify(updatedExercises)
-                        );
-
-                        // PARTE 5: Recarregar a lista de exercícios
-                        // Isso vai atualizar a tela automaticamente
-                        await loadSavedExercises();
-
-                        // PARTE 6: Mostrar mensagem de sucesso
-                        Alert.alert('Sucesso', 'Exercício deletado com sucesso!');
-                    } catch (error) {
-                        // PARTE 7: Se der erro, mostrar mensagem
-                        console.error('Erro ao deletar exercício:', error);
-                        Alert.alert('Erro', 'Não foi possível deletar o exercício.');
-                    }
-                },
-            },
-        ]
+        'warning',
+        () => confirmDeleteExercise(exerciseId)
     );
-};
+  };
 
   // FUNÇÃO: Obter todos os grupos musculares únicos
   const getAllMuscleGroups = (): string[] => {
@@ -510,6 +522,24 @@ export default function ExercisesLibraryScreen() {
           </View>
         )}
       </View>
+
+      {/* Custom Alert */}
+      <CustomAlert
+          visible={alertVisible}
+          title={alertTitle}
+          message={alertMessage}
+          type={alertType}
+          confirmText="OK"
+          cancelText="Cancelar"
+          showCancel={alertType === 'warning'}
+          onConfirm={() => {
+              setAlertVisible(false);
+              alertOnConfirm?.();
+          }}
+          onCancel={() => {
+              setAlertVisible(false);
+          }}
+      />
     </ScrollView>
   );
 }

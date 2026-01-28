@@ -1,3 +1,4 @@
+import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutCard } from '@/src/components/WorkoutCard';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
@@ -179,6 +180,27 @@ export default function WorkoutLibraryScreen() {
   const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
   const [searchText, setSearchText] = useState('');
 
+  // Estados para CustomAlert
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+  // Função helper para mostrar alert customizado
+  const showAlert = (
+      title: string,
+      message: string,
+      type: 'success' | 'error' | 'info' | 'warning' = 'info',
+      onConfirm?: () => void
+  ) => {
+      setAlertTitle(title);
+      setAlertMessage(message);
+      setAlertType(type);
+      setAlertOnConfirm(() => onConfirm);
+      setAlertVisible(true);
+  };
+
     const loadSavedWorkouts = async () => {
         try {
             const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
@@ -242,10 +264,10 @@ export default function WorkoutLibraryScreen() {
             const updatedAll = [...allWorkouts, newWorkout];
             setAllWorkouts(updatedAll);
 
-            Alert.alert('Sucesso', 'Treino duplicado com sucesso!');
+            showAlert('Sucesso', 'Treino duplicado com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao duplicar treino:', error);
-            Alert.alert('Erro', 'Não foi possível duplicar o treino.');
+            showAlert('Erro', 'Não foi possível duplicar o treino.', 'error');
         }
     };
 
@@ -362,6 +384,19 @@ export default function WorkoutLibraryScreen() {
                     )}
                 </View>
             </View>
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                type={alertType}
+                confirmText="OK"
+                onConfirm={() => {
+                    setAlertVisible(false);
+                    alertOnConfirm?.();
+                }}
+            />
         </ScrollView>
     );
 

@@ -15,7 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -230,10 +230,15 @@ export default function WorkoutDetailsScreen() {
   const [restTime, setRestTime] = useState(0); // Tempo restante em segundos
   const [isResting, setIsResting] = useState(false);
   
-  // Estados para timer de duração (alongamento/desaquecimento)
+  // Estados para timer de duração (alongamento/desaquecimento) - progressivo
   const [durationTime, setDurationTime] = useState(0); // Tempo decorrido em segundos
   const [durationTotal, setDurationTotal] = useState(0); // Tempo total em segundos
   const [isRunningDuration, setIsRunningDuration] = useState(false);
+  
+  // Estados para timer de aquecimento - regressivo (countdown)
+  const [warmUpTime, setWarmUpTime] = useState(0); // Tempo restante em segundos (countdown)
+  const [warmUpTotal, setWarmUpTotal] = useState(0); // Tempo total em segundos
+  const [isRunningWarmUp, setIsRunningWarmUp] = useState(false);
   
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
@@ -437,6 +442,9 @@ export default function WorkoutDetailsScreen() {
         setRestTime((prev) => {
           if (prev <= 1) {
             setIsResting(false);
+            // Vibrar quando o timer acabar
+            Vibration.vibrate(400);
+            // Mostrar alerta
             showAlert('Descanso Concluído', 'Hora de continuar o treino!', 'success');
             return 0;
           }
@@ -459,6 +467,9 @@ export default function WorkoutDetailsScreen() {
         setDurationTime((prev) => {
           if (prev >= durationTotal - 1) {
             setIsRunningDuration(false);
+            // Vibrar quando o timer acabar
+            Vibration.vibrate(400);
+            // Mostrar alerta
             showAlert('Tempo Concluído', 'Alongamento completo!', 'success');
             return durationTotal;
           }
@@ -471,6 +482,31 @@ export default function WorkoutDetailsScreen() {
       if (interval) clearInterval(interval);
     };
   }, [isRunningDuration, durationTime, durationTotal]);
+
+  // Timer de aquecimento - contador regressivo (countdown)
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    
+    if (isRunningWarmUp && warmUpTime > 0) {
+      interval = setInterval(() => {
+        setWarmUpTime((prev) => {
+          if (prev <= 1) {
+            setIsRunningWarmUp(false);
+            // Vibrar quando o timer acabar (padrão: 400ms)
+            Vibration.vibrate(400);
+            // Mostrar alerta
+            showAlert('Aquecimento Concluído', 'Hora de começar o treino!', 'success');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRunningWarmUp, warmUpTime]);
 
   // Função para calcular o índice total do exercício (considerando todos os blocos)
   const getTotalExerciseIndex = useCallback((blockIndex: number, exerciseIndex: number): number => {
@@ -509,6 +545,9 @@ export default function WorkoutDetailsScreen() {
     setIsRunningDuration(false);
     setDurationTime(0);
     setDurationTotal(0);
+    setIsRunningWarmUp(false);
+    setWarmUpTime(0);
+    setWarmUpTotal(0);
     
     setCurrentBlockIndex(blockIndex);
     setCurrentExerciseIndex(exerciseIndex);
@@ -582,7 +621,7 @@ export default function WorkoutDetailsScreen() {
     setIsResting(false);
   }, []);
 
-  // Função para iniciar timer de duração (alongamento)
+  // Função para iniciar timer de duração (alongamento) - progressivo
   const startDurationTimer = useCallback((totalSeconds: number) => {
     setDurationTotal(totalSeconds);
     setDurationTime(0);
@@ -593,6 +632,19 @@ export default function WorkoutDetailsScreen() {
   const stopDurationTimer = useCallback(() => {
     setIsRunningDuration(false);
     setDurationTime(0);
+  }, []);
+
+  // Função para iniciar timer de aquecimento - regressivo (countdown)
+  const startWarmUpTimer = useCallback((totalSeconds: number) => {
+    setWarmUpTotal(totalSeconds);
+    setWarmUpTime(totalSeconds);
+    setIsRunningWarmUp(true);
+  }, []);
+
+  // Função para parar timer de aquecimento
+  const stopWarmUpTimer = useCallback(() => {
+    setIsRunningWarmUp(false);
+    setWarmUpTime(0);
   }, []);
 
   // Função para salvar peso usado no exercício
@@ -1081,9 +1133,9 @@ export default function WorkoutDetailsScreen() {
               onRequestClose={() => setShowExerciseModal(false)}
             >
               <View className="flex-1 bg-black/80 justify-center items-center p-6">
-                <View className="rounded-3xl p-6 w-full max-w-md border" style={themeStyles.card}>
+                <View className="rounded-3xl w-full max-w-md border" style={{...themeStyles.card, maxHeight: '85%'}}>
                   {/* Header do Modal */}
-                  <View className="flex-row items-center justify-between mb-4">
+                  <View className="flex-row items-center justify-between mb-4 px-6 pt-6">
                     <TouchableOpacity
                       onPress={() => {
                         // Resetar timers ao fechar modal
@@ -1092,6 +1144,9 @@ export default function WorkoutDetailsScreen() {
                         setIsRunningDuration(false);
                         setDurationTime(0);
                         setDurationTotal(0);
+                        setIsRunningWarmUp(false);
+                        setWarmUpTime(0);
+                        setWarmUpTotal(0);
                         setShowExerciseModal(false);
                       }}
                       className="p-2"
@@ -1105,7 +1160,12 @@ export default function WorkoutDetailsScreen() {
                   </View>
                   
                   {/* Detalhes do Exercício */}
-                  <ScrollView className="max-h-96">
+                  <ScrollView 
+                    style={{ maxHeight: 500 }}
+                    contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                  >
                     <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
                       {exercise.exercise?.name || `Exercício ${exerciseNumber}`}
                     </Text>
@@ -1178,6 +1238,53 @@ export default function WorkoutDetailsScreen() {
                           >
                             <Text className="text-primary-400 font-semibold">
                               Iniciar Descanso ({exercise.restTime}s)
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                    
+                    {/* Timer de Duração (para exercícios de aquecimento) - REGRESSIVO */}
+                    {exercise.duration && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'WARM_UP' && (
+                      <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>🔥 Timer de Aquecimento</Text>
+                        {isRunningWarmUp ? (
+                          <View className="items-center">
+                            <Text className="text-4xl font-bold mb-2" style={{ color: theme.colors.primary }}>
+                              {formatTime(warmUpTime)}
+                            </Text>
+                            <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
+                              de {formatTime(warmUpTotal)}
+                            </Text>
+                            <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
+                              <View 
+                                className="h-2 rounded-full"
+                                style={{ 
+                                  backgroundColor: theme.colors.primary,
+                                  width: `${((warmUpTotal - warmUpTime) / warmUpTotal) * 100}%` 
+                                }}
+                              />
+                            </View>
+                            <TouchableOpacity
+                              onPress={stopWarmUpTimer}
+                              className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
+                            >
+                              <Text className="text-red-400 font-semibold">Parar Timer</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => startWarmUpTimer(exercise.duration)}
+                            className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center"
+                            style={{
+                              backgroundColor: theme.mode === 'dark' 
+                                ? 'rgba(251, 146, 60, 0.2)' 
+                                : 'rgba(251, 146, 60, 0.1)',
+                              borderColor: theme.colors.primary + '50',
+                            }}
+                          >
+                            <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                              Iniciar Aquecimento ({Math.floor(exercise.duration / 60)}min)
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1309,7 +1416,7 @@ export default function WorkoutDetailsScreen() {
                   </ScrollView>
                   
                   {/* Botões de Navegação */}
-                  <View className="flex-row gap-3 mt-4">
+                  <View className="flex-row gap-3 px-6 pb-6 mt-4">
                     <TouchableOpacity
                       onPress={goToPreviousExercise}
                       disabled={!hasPrevious}

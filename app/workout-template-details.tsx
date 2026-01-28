@@ -5,6 +5,7 @@
  * incluindo os 3 blocos organizados: Aquecimento, Principal e Finalização.
  */
 
+import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
@@ -13,7 +14,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (mesmos do workouts-library.tsx)
 const mockExercises: Exercise[] = [
@@ -191,6 +192,27 @@ export default function WorkoutTemplateDetailsScreen() {
     const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
     const [loading, setLoading] = useState(true);
 
+    // Estados para CustomAlert
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+    // Função helper para mostrar alert customizado
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(() => onConfirm);
+        setAlertVisible(true);
+    };
+
     // Função para carregar treinos salvos do AsyncStorage
 useEffect(() => {
     const loadSavedWorkouts = async () => {
@@ -252,46 +274,41 @@ useEffect(() => {
         );
     }
 
-     const handleDeleteWorkout = async () => {
-        Alert.alert(
+     const confirmDeleteWorkout = async () => {
+        try {
+            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
+            let savedWorkouts = [];
+
+            if (savedWorkoutsJson) {
+                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            }
+
+            const updatedWorkouts = savedWorkouts.filter(
+                (w:any) => w.id !== workoutIdString
+            );
+
+            await AsyncStorage.setItem(
+                'workout_templates',
+                JSON.stringify(updatedWorkouts)
+            );
+
+            // Mostrar alerta de sucesso
+            showAlert('Sucesso', 'Treino deletado com sucesso!', 'success', () => {
+                router.back();
+            });
+        }
+        catch (error) {
+            console.error('Erro ao deletar treino:', error);
+            showAlert('Erro', 'Não foi possível deletar o treino.', 'error');
+        }
+     };
+
+     const handleDeleteWorkout = () => {
+        showAlert(
             'Deletar treino',
-            `Tem certeza que deseja deletar o treino "${workout.name}"? Esta açaão não pode ser desfeita.`,
-            [
-                {
-                    text:'Cancelar',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Deletar',
-                    style: 'destructive',
-                    onPress: async() => {
-                        try {
-                            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-                            let savedWorkouts = [];
-
-                            if (savedWorkoutsJson) {
-                                savedWorkouts = JSON.parse(savedWorkoutsJson);
-                            }
-
-                            const updatedWorkouts = savedWorkouts.filter(
-                                (w:any) => w.id !== workoutIdString
-                            );
-
-                            await AsyncStorage.setItem(
-                                'workout_templates',
-                                JSON.stringify(updatedWorkouts)
-                            );
-
-                            Alert.alert('Sucesso', 'Treino deletado com sucesso!');
-                            router.back();
-                        }
-                        catch (error) {
-                            console.error('Erro ao deletar treino:', error);
-                            Alert.alert('Erro', 'Não foi possível deletar o treino.');
-                        }
-                    },
-                },
-            ]
+            `Tem certeza que deseja deletar o treino "${workout.name}"? Esta ação não pode ser desfeita.`,
+            'warning',
+            confirmDeleteWorkout
         );
      };
 
@@ -375,6 +392,24 @@ useEffect(() => {
                     workoutName={workout.name}
                 />
             </View>
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                type={alertType}
+                confirmText="OK"
+                cancelText="Cancelar"
+                showCancel={alertType === 'warning'}
+                onConfirm={() => {
+                    setAlertVisible(false);
+                    alertOnConfirm?.();
+                }}
+                onCancel={() => {
+                    setAlertVisible(false);
+                }}
+            />
         </ScrollView>
     );
 }

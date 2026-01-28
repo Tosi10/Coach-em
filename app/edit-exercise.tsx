@@ -1,10 +1,11 @@
+import { CustomAlert } from '@/components/CustomAlert';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { getThemeStyles } from '@/src/utils/themeStyles';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function EditExerciseScreen() {
     const router = useRouter();
@@ -25,6 +26,27 @@ export default function EditExerciseScreen() {
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
     const [loading, setLoading] = useState(true);
+
+    // Estados para CustomAlert
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+    // Função helper para mostrar alert customizado
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(() => onConfirm);
+        setAlertVisible(true);
+    };
 
     // PARTE 1: Carregar dados do exercício quando a tela abrir
     useEffect(() => {
@@ -50,13 +72,11 @@ export default function EditExerciseScreen() {
                     setEquipment(exercise.equipment || []);
                     setDuration(exercise.duration ? exercise.duration.toString() : '');
                 } else {
-                    Alert.alert('Erro', 'Exercício não encontrado.');
-                    router.back();
+                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => router.back());
                 }
             } catch (error) {
                 console.error('Erro ao carregar exercício:', error);
-                Alert.alert('Erro', 'Não foi possível carregar o exercício.');
-                router.back();
+                showAlert('Erro', 'Não foi possível carregar o exercício.', 'error', () => router.back());
             } finally {
                 setLoading(false);
             }
@@ -71,17 +91,17 @@ export default function EditExerciseScreen() {
     const handleUpdateExercise = async () => {
         // Validação (igual ao create)
         if (!name.trim()) {
-            Alert.alert('Erro', 'Por favor, preencha o nome do exercício.');
+            showAlert('Erro', 'Por favor, preencha o nome do exercício.', 'error');
             return;
         }
       
         if (!description.trim()) {
-            Alert.alert('Erro', 'Por favor, preencha a descrição do exercício.');
+            showAlert('Erro', 'Por favor, preencha a descrição do exercício.', 'error');
             return;
         }
       
         if (muscleGroups.length === 0) {
-            Alert.alert('Erro', 'Por favor, adicione pelo menos um grupo muscular.');
+            showAlert('Erro', 'Por favor, adicione pelo menos um grupo muscular.', 'error');
             return;
         }
       
@@ -98,7 +118,7 @@ export default function EditExerciseScreen() {
             const exerciseIndex = savedExercises.findIndex((ex: any) => ex.id === exerciseIdString);
 
             if (exerciseIndex === -1) {
-                Alert.alert('Erro', 'Exercício não encontrado.');
+                showAlert('Erro', 'Exercício não encontrado.', 'error');
                 return;
             }
 
@@ -123,11 +143,12 @@ export default function EditExerciseScreen() {
                 JSON.stringify(savedExercises)
             );
 
-            Alert.alert('Sucesso', 'Exercício atualizado com sucesso!');
-            router.back();
+            showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => {
+                router.back();
+            });
         } catch (error) {
             console.error('Erro ao atualizar exercício:', error);
-            Alert.alert('Erro', 'Não foi possível atualizar o exercício.');
+            showAlert('Erro', 'Não foi possível atualizar o exercício.', 'error');
         }
     };
 
@@ -390,6 +411,19 @@ export default function EditExerciseScreen() {
                     </Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                type={alertType}
+                confirmText="OK"
+                onConfirm={() => {
+                    setAlertVisible(false);
+                    alertOnConfirm?.();
+                }}
+            />
         </ScrollView>
     );
 }
