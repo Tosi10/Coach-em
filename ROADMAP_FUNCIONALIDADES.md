@@ -6,7 +6,7 @@
 2. [Opção 2: Sistema de Estatísticas e Relatórios](#opção-2-sistema-de-estatísticas-e-relatórios) 🔄 **EM ANDAMENTO**
 3. [Opção 3: Sistema de Notificações e Lembretes](#opção-3-sistema-de-notificações-e-lembretes)
 4. [Opção 4: Sistema de Comunicação](#opção-4-sistema-de-comunicação)
-5. [Opção 5: Melhorias de UX/UI](#opção-5-melhorias-de-uxui) 🔄 **PARCIALMENTE CONCLUÍDO**
+5. [Opção 5: Melhorias de UX/UI](#opção-5-melhorias-de-uxui) ✅ **CONCLUÍDO**
 
 ---
 
@@ -399,45 +399,26 @@ const getBestWeek = () => {
 
 ### 📱 Fase 3.1: Notificações Locais
 
-#### Etapa 3.1.1: Configurar Biblioteca de Notificações
+#### Etapa 3.1.1: Configurar Biblioteca de Notificações ✅ **CONCLUÍDO**
 
-**O que vamos fazer:**
-- Instalar `expo-notifications`
-- Solicitar permissões do dispositivo
-- Configurar canal de notificações (Android)
-- Testar envio de notificação básica
+**O que foi implementado:**
+- ✅ Instalado `expo-notifications`
+- ✅ Solicitação de permissões do dispositivo (`requestNotificationPermissions`)
+- ✅ Handler de notificações em primeiro plano (`setNotificationHandler`)
+- ✅ Canais de notificação no Android (padrão + "Treinos") em `setupNotificationChannel`
+- ✅ Configuração inicial no `app/_layout.tsx` (chamada ao carregar o app)
 
-**Onde vamos trabalhar:**
-- `app/_layout.tsx` (configuração inicial)
-- Criar `src/services/notifications.ts`
+**Onde foi trabalhado:**
+- ✅ `app/_layout.tsx` (useEffect que chama setup e permissões)
+- ✅ `src/services/notifications.service.ts` (requestNotificationPermissions, setupNotificationChannel, setNotificationHandler)
 
-**Código que você vai escrever:**
-```typescript
-import * as Notifications from 'expo-notifications';
-
-// Solicitar permissões
-const requestPermissions = async () => {
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
-};
-
-// Configurar handler de notificações
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-```
-
-**Conceitos que você vai aprender:**
+**Conceitos utilizados:**
 - Permissões do dispositivo
 - Configuração de notificações
 - Handlers de notificações
 - `expo-notifications` API
 
-**Estimativa:** 1-2 horas
+**Tempo gasto:** ~1 hora
 
 ---
 
@@ -897,7 +878,7 @@ const CommentItem = ({ comment }) => (
 
 ## 🎨 Opção 5: Melhorias de UX/UI
 
-### Status: **PARCIALMENTE CONCLUÍDO** ✅ (5.1.1, 5.1.2, 5.1.3, 5.1.4, 5.2.1, 5.2.2)
+### Status: **CONCLUÍDO** ✅ (5.1.1, 5.1.2, 5.1.3, 5.1.4, 5.2.1, 5.2.2, 5.2.3)
 
 ### Por que fazer isso?
 - Tornar o app mais intuitivo e agradável
@@ -1149,43 +1130,26 @@ const Toast = ({ message, type }) => (
 
 ---
 
-#### Etapa 5.2.3: Dark Mode Toggle (Já temos dark, adicionar light)
+#### Etapa 5.2.3: Dark Mode Toggle ✅ **CONCLUÍDO**
 
-**O que vamos fazer:**
-- Adicionar modo claro (light mode)
-- Toggle para alternar entre dark/light
-- Salvar preferência do usuário
-- Aplicar tema em todas as telas
+**O que foi implementado:**
+- ✅ Modo claro (light mode) e modo escuro (dark mode)
+- ✅ Toggle para alternar entre dark/light (componente ThemeToggle)
+- ✅ Preferência do usuário salva no AsyncStorage
+- ✅ Tema aplicado em todas as telas via ThemeContext
 
-**Onde vamos trabalhar:**
-- Criar `src/contexts/ThemeContext.tsx`
-- Atualizar todas as telas para usar tema dinâmico
+**Onde foi trabalhado:**
+- ✅ `src/contexts/ThemeContext.tsx` (ThemeProvider com dark/light e persistência)
+- ✅ `components/ThemeToggle.tsx` (toggle no header)
+- ✅ Todas as telas usando `useTheme()` e `theme.colors`
 
-**Código que você vai escrever:**
-```typescript
-// Theme context
-const ThemeContext = createContext();
-
-const ThemeProvider = ({ children }) => {
-  const [isDark, setIsDark] = useState(true);
-  
-  const theme = isDark ? darkTheme : lightTheme;
-  
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-```
-
-**Conceitos que você vai aprender:**
+**Conceitos utilizados:**
 - Context API
 - Theming dinâmico
-- Preferências do usuário
-- Aplicação de temas
+- Preferências do usuário (AsyncStorage)
+- Aplicação de temas em todo o app
 
-**Estimativa:** 3-4 horas
+**Tempo gasto:** ~3-4 horas
 
 ---
 
@@ -1213,10 +1177,10 @@ const ThemeProvider = ({ children }) => {
   - ✅ 5.1.2: Animações ao Completar Treino
   - ✅ 5.1.3: Loading States Mais Bonitos
   - ✅ 5.1.4: Pull-to-Refresh
-- **Fase 5.2 (Visuais):** 🔄 **PARCIALMENTE CONCLUÍDO** (~3-4 horas)
+- **Fase 5.2 (Visuais):** ✅ **CONCLUÍDO** (~3-4 horas)
   - ✅ 5.2.1: Empty States Mais Informativos
   - ✅ 5.2.2: Melhor Feedback de Ações (Toasts)
-  - ⏳ 5.2.3: Dark Mode Toggle (Pendente)
+  - ✅ 5.2.3: Dark Mode Toggle
 
 ---
 
@@ -1234,26 +1198,21 @@ const ThemeProvider = ({ children }) => {
 8. ✅ **Opção 5.1.4** - Pull-to-Refresh - **CONCLUÍDO**
 9. ✅ **Opção 5.2.1** - Empty States Mais Informativos - **CONCLUÍDO**
 10. ✅ **Opção 5.2.2** - Melhor Feedback de Ações (Toasts) - **CONCLUÍDO**
+11. ✅ **Opção 5.2.3** - Dark Mode Toggle - **CONCLUÍDO**
 
 ### 🔄 Próximas Etapas Sugeridas:
 
-1. ⏳ **Opção 5.2.3** - Dark Mode Toggle
-   - Adicionar modo claro (light mode)
-   - Toggle para alternar entre dark/light
-   - Salvar preferência do usuário
-   - Estimativa: 3-4 horas
-
-2. ⏳ **Opção 2.1.1** - Gráfico de Treinos Concluídos por Semana (Treinador)
+1. ⏳ **Opção 2.1.1** - Gráfico de Treinos Concluídos por Semana (Treinador) ← **PRÓXIMO**
    - Estatísticas para o treinador
    - Visualização de progresso dos atletas
    - Estimativa: 2-3 horas
 
-3. ⏳ **Opção 3.1.1** - Configurar Notificações
+2. ⏳ **Opção 3.1.1** - Configurar Notificações
    - Base para todas as notificações
    - Melhora engajamento
    - Estimativa: 1-2 horas
 
-4. ⏳ **Opção 4.1.1** - Sistema de Chat/Mensagens
+3. ⏳ **Opção 4.1.1** - Sistema de Chat/Mensagens
    - Comunicação entre treinador e atleta
    - Histórico de mensagens
    - Estimativa: 8-9 horas
@@ -1320,7 +1279,13 @@ const ThemeProvider = ({ children }) => {
     - ✅ Sistema de Toast implementado
     - ✅ ToastProvider global
 
-11. **Melhorias Adicionais Implementadas:**
+11. **Etapa 5.2.3: Dark Mode Toggle** ✅ **CONCLUÍDO** (implementado anteriormente)
+    - ✅ ThemeContext com modo dark e light
+    - ✅ ThemeToggle no header
+    - ✅ Preferência salva no AsyncStorage
+    - ✅ Tema aplicado em todas as telas
+
+12. **Melhorias Adicionais Implementadas:**
     - ✅ Componente `CustomAlert.tsx` criado para substituir Alert.alert feios
     - ✅ Modais customizados com design escuro, ícones coloridos e animações suaves
     - ✅ Reordenação da tela home do atleta: "Treino de Hoje" agora aparece após "Seu Progresso" e antes de "Frequência de Treinos"
@@ -1338,11 +1303,11 @@ const ThemeProvider = ({ children }) => {
 
 ### 🔄 Próximos Passos Sugeridos:
 
-**Etapa 5.2.3: Dark Mode Toggle**
-- Adicionar modo claro (light mode)
-- Toggle para alternar entre dark/light
-- Salvar preferência do usuário
-- Estimativa: 3-4 horas
+**Opção 2.1.1: Gráfico de Treinos Concluídos por Semana (Treinador)** ← **PRÓXIMO**
+- Nova seção no dashboard do treinador
+- Gráfico de linha ou barras com treinos concluídos por semana (últimas 4-8 semanas)
+- Mostrar tendência (aumentando/diminuindo)
+- Estimativa: 2-3 horas
 
 ---
 

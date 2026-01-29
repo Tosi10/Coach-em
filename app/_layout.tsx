@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -11,10 +12,11 @@ import '../global.css';
 
 import { ToastProvider } from '@/components/ToastProvider';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
+import Constants from 'expo-constants';
 
 export {
-    // Catch any errors thrown by the Layout component.
-    ErrorBoundary
+  // Catch any errors thrown by the Layout component.
+  ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -42,6 +44,21 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') return;
+      // expo-notifications não é suportado no Expo Go (SDK 53+). Só carrega em development build.
+      if (Constants.appOwnership === 'expo') return;
+      try {
+        const { setupNotificationChannel, requestNotificationPermissions } = await import('@/src/services/notifications.service');
+        await setupNotificationChannel();
+        await requestNotificationPermissions();
+      } catch (e) {
+        console.warn('Notificações não disponíveis (use um development build):', e);
+      }
+    })();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -51,6 +68,27 @@ export default function RootLayout() {
 
 function RootLayoutNavContent() {
   const { theme } = useTheme();
+  
+  // Configurar barra de navegação do sistema Android para escuro
+  // NOTA: setBackgroundColorAsync não funciona com edgeToEdgeEnabled=true no app.json
+  // A configuração da barra é feita via app.json (navigationBar)
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const configureNavigationBar = async () => {
+        try {
+          // Configurar cor dos ícones da barra (claro no modo escuro, escuro no modo claro)
+          await NavigationBar.setButtonStyleAsync(theme.mode === 'dark' ? 'light' : 'dark');
+          // Garantir que a barra seja sempre visível
+          await NavigationBar.setVisibilityAsync('visible');
+          // NOTA: setBackgroundColorAsync não é suportado com edgeToEdgeEnabled
+          // A cor de fundo é configurada via app.json > android > navigationBar > backgroundColor
+        } catch (error) {
+          console.error('Erro ao configurar barra de navegação:', error);
+        }
+      };
+      configureNavigationBar();
+    }
+  }, [theme.mode]);
   
   // Custom theme para React Navigation baseado no tema atual
   const navigationTheme = {
@@ -81,9 +119,6 @@ function RootLayoutNavContent() {
     contentStyle: {
       backgroundColor: theme.colors.background,
     },
-    cardStyle: {
-      backgroundColor: theme.colors.background,
-    },
   };
 
   return (
@@ -102,9 +137,6 @@ function RootLayoutNavContent() {
             contentStyle: {
               backgroundColor: '#0a0a0a',
             },
-            cardStyle: {
-              backgroundColor: '#0a0a0a',
-            },
           }} 
         />
         <Stack.Screen 
@@ -113,9 +145,6 @@ function RootLayoutNavContent() {
             headerShown: false,
             animation: 'slide_from_right' as const,
             contentStyle: {
-              backgroundColor: '#0a0a0a',
-            },
-            cardStyle: {
               backgroundColor: '#0a0a0a',
             },
           }} 
@@ -128,9 +157,6 @@ function RootLayoutNavContent() {
             contentStyle: {
               backgroundColor: '#0a0a0a',
             },
-            cardStyle: {
-              backgroundColor: '#0a0a0a',
-            },
           }} 
         />
         <Stack.Screen 
@@ -139,9 +165,6 @@ function RootLayoutNavContent() {
             headerShown: false,
             animation: 'slide_from_right' as const,
             contentStyle: {
-              backgroundColor: '#0a0a0a',
-            },
-            cardStyle: {
               backgroundColor: '#0a0a0a',
             },
           }} 
@@ -154,9 +177,6 @@ function RootLayoutNavContent() {
             contentStyle: {
               backgroundColor: '#0a0a0a',
             },
-            cardStyle: {
-              backgroundColor: '#0a0a0a',
-            },
           }} 
         />
         <Stack.Screen 
@@ -165,9 +185,6 @@ function RootLayoutNavContent() {
             headerShown: false,
             animation: 'slide_from_bottom' as const,
             contentStyle: {
-              backgroundColor: '#0a0a0a',
-            },
-            cardStyle: {
               backgroundColor: '#0a0a0a',
             },
           }} 
@@ -180,9 +197,6 @@ function RootLayoutNavContent() {
             contentStyle: {
               backgroundColor: '#0a0a0a',
             },
-            cardStyle: {
-              backgroundColor: '#0a0a0a',
-            },
           }} 
         />
         <Stack.Screen 
@@ -191,9 +205,6 @@ function RootLayoutNavContent() {
             headerShown: false,
             animation: 'slide_from_right' as const,
             contentStyle: {
-              backgroundColor: '#0a0a0a',
-            },
-            cardStyle: {
               backgroundColor: '#0a0a0a',
             },
           }} 
@@ -205,9 +216,6 @@ function RootLayoutNavContent() {
             animation: 'fade' as const,
             animationDuration: 250,
             contentStyle: {
-              backgroundColor: '#0a0a0a',
-            },
-            cardStyle: {
               backgroundColor: '#0a0a0a',
             },
           }} 

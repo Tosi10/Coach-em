@@ -1,10 +1,13 @@
+import { CustomAlert } from '@/components/CustomAlert';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { uploadExerciseVideo } from '@/src/services/storage.service';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { getThemeStyles } from '@/src/utils/themeStyles';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CreateExerciseScreen() {
     const router = useRouter();
@@ -19,83 +22,109 @@ export default function CreateExerciseScreen() {
     const [duration, setDuration] = useState('');
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
+    const [videoUri, setVideoUri] = useState<string | null>(null);
+    const [uploadingVideo, setUploadingVideo] = useState(false);
+
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>();
+
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(onConfirm ? () => { setAlertVisible(false); onConfirm(); } : undefined);
+        setAlertVisible(true);
+    };
+
+    const handleConfirmAlert = () => {
+        if (alertOnConfirm) alertOnConfirm();
+        else setAlertVisible(false);
+    };
+
+    const pickVideo = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permissão necessária', 'Precisamos acessar sua galeria para escolher um vídeo.', 'warning');
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['videos'],
+          allowsEditing: true,
+          quality: 0.8,
+          videoMaxDuration: 60,
+        });
+        if (!result.canceled && result.assets[0]) {
+          setVideoUri(result.assets[0].uri);
+        }
+    };
+
+    const removeVideo = () => setVideoUri(null);
     
     const handleSaveExercise = async () => {
-        // Validação dos campos obrigatórios
         if (!name.trim()) {
-          Alert.alert('Erro', 'Por favor, preencha o nome do exercício.');
+          showAlert('Erro', 'Por favor, preencha o nome do exercício.', 'error');
           return;
         }
-      
         if (!description.trim()) {
-          Alert.alert('Erro', 'Por favor, preencha a descrição do exercício.');
+          showAlert('Erro', 'Por favor, preencha a descrição do exercício.', 'error');
           return;
         }
-      
         if (muscleGroups.length === 0) {
-          Alert.alert('Erro', 'Por favor, adicione pelo menos um grupo muscular.');
+          showAlert('Erro', 'Por favor, adicione pelo menos um grupo muscular.', 'error');
           return;
         }
-      
-        // Criar o objeto do exercício
-        const newExercise = {
-          id: `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,
+
+        const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
+        const newExercise: Record<string, unknown> = {
+          id: exerciseId,
           name: name.trim(),
           description: description.trim(),
           difficulty: difficulty,
           muscleGroups: muscleGroups,
           equipment: equipment.length > 0 ? equipment : ['Nenhum'],
-          duration: duration ? parseInt(duration) : undefined,
-          createdBy: 'coach1', // Temporário (depois virá do usuário logado)
+          duration: duration ? parseInt(duration, 10) : undefined,
+          createdBy: 'coach1',
           isGlobal: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-      
+
         try {
-            console.log('💾 Tentando salvar exercício:', newExercise);
-            
+            if (videoUri) {
+              setUploadingVideo(true);
+              const videoURL = await uploadExerciseVideo(videoUri, exerciseId);
+              if (videoURL) newExercise.videoURL = videoURL;
+              setUploadingVideo(false);
+            }
+
             const existingExerciseJson = await AsyncStorage.getItem('saved_exercises');
-            console.log('📦 Exercícios existentes (JSON):', existingExerciseJson);
-            
-            const existingExercises = existingExerciseJson
-            ? JSON.parse(existingExerciseJson)
-            : [];
-            
-            console.log('📋 Exercícios existentes (parseados):', existingExercises);
-
+            const existingExercises = existingExerciseJson ? JSON.parse(existingExerciseJson) : [];
             const updatedExercises = [...existingExercises, newExercise];
-            
-            console.log('🔄 Array atualizado:', updatedExercises);
-            console.log('📊 Total de exercícios após adicionar:', updatedExercises.length);
-
             await AsyncStorage.setItem('saved_exercises', JSON.stringify(updatedExercises));
-            
-            console.log('✅ Exercício salvo com sucesso no AsyncStorage!');
 
-            Alert.alert(
-                'Exercício Criado!',
-                `O exercício "${newExercise.name}" foi criado com sucesso!`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
+            showAlert(
+                'Exercício criado!',
+                `O exercício "${newExercise.name}" foi criado com sucesso.`,
+                'success',
+                () => router.back()
+            );
         } catch (error) {
-            console.error('❌ Erro ao salvar exercício:', error);
-            Alert.alert('Erro', 'Não foi possível salvar o exercício. Tente novamente.');
+            setUploadingVideo(false);
+            console.error('Erro ao salvar exercício:', error);
+            showAlert('Erro', 'Não foi possível salvar o exercício. Tente novamente.', 'error');
         }
-
-
-       
-      
-        // TODO: Depois vamos salvar no Firebase aqui
-        // await saveExerciseToFirebase(newExercise);
       };
 
     return ( 
+        <>
         <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20 ">
                 {/* Header com botão voltar melhorado */}
@@ -252,6 +281,41 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
+                        Vídeo do exercício (opcional)
+                    </Text>
+                    <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
+                        Um vídeo curto mostrando como fazer o exercício ajuda os atletas.
+                    </Text>
+                    {!videoUri ? (
+                        <TouchableOpacity
+                            className="flex-row items-center justify-center rounded-lg py-3 px-4 border-2 border-dashed"
+                            style={{
+                                borderColor: theme.colors.primary + '80',
+                                backgroundColor: theme.mode === 'dark' ? theme.colors.primary + '15' : theme.colors.primary + '10',
+                            }}
+                            onPress={pickVideo}
+                            disabled={uploadingVideo}
+                        >
+                            <FontAwesome name="video-camera" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                            <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                                {uploadingVideo ? 'Enviando vídeo...' : 'Selecionar vídeo'}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View className="flex-row items-center rounded-lg py-3 px-4 border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+                            <FontAwesome name="check-circle" size={20} color="#10b981" style={{ marginRight: 8 }} />
+                            <Text className="flex-1 font-medium" style={themeStyles.text} numberOfLines={1}>
+                                Vídeo selecionado
+                            </Text>
+                            <TouchableOpacity onPress={removeVideo} className="rounded-full px-3 py-1" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
+                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>Remover</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+
+                <View className="mb-4">
+                    <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                         Grupos Musculares *
                     </Text>
 
@@ -398,11 +462,13 @@ export default function CreateExerciseScreen() {
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
                   elevation: 6,
+                  opacity: uploadingVideo ? 0.7 : 1,
                 }}
                 onPress={handleSaveExercise}
+                disabled={uploadingVideo}
                 >
                 <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                    💾 Salvar Exercício
+                    {uploadingVideo ? '⏳ Salvando...' : '💾 Salvar Exercício'}
                 </Text>
                 </TouchableOpacity>
 
@@ -410,5 +476,15 @@ export default function CreateExerciseScreen() {
             </View>
 
         </ScrollView>
+
+        <CustomAlert
+            visible={alertVisible}
+            title={alertTitle}
+            message={alertMessage}
+            type={alertType}
+            confirmText="OK"
+            onConfirm={handleConfirmAlert}
+        />
+        </>
     )
 }

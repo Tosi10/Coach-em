@@ -1,3 +1,4 @@
+import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -5,7 +6,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 // Dados mockados de atletas (temporário - depois virá do Firebase)
@@ -223,6 +224,13 @@ const mockAthletes = [
     );
     const [showCalendar, setShowCalendar] = useState<boolean>(false);
     const [showWorkoutModal, setShowWorkoutModal] = useState<boolean>(false);
+    
+    // Estados para CustomAlert
+    const [alertVisible, setAlertVisible] = useState<boolean>(false);
+    const [alertTitle, setAlertTitle] = useState<string>('');
+    const [alertMessage, setAlertMessage] = useState<string>('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>(undefined);
 
     // NOVO ESTADO: Lista completa de treinos (mock + salvos)
     const [allWorkouts, setAllWorkouts] = useState<any[]>(mockWorkouts);
@@ -318,37 +326,51 @@ const mockAthletes = [
         return dates;
     };
 
+    // Função auxiliar para mostrar alertas customizados
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(() => onConfirm);
+        setAlertVisible(true);
+    };
+
     const handleAssignWorkout = async () => {
         if (!selectedWorkoutId) {
-            Alert.alert('Erro', 'Por favor, selecione um treino.');
+            showAlert('Erro', 'Por favor, selecione um treino.', 'error');
             return;
         }
 
         const workout = allWorkouts.find(w => w.id === selectedWorkoutId);
 
         if(!workout) {
-            Alert.alert('Erro', 'Treino não encontrado.');
+            showAlert('Erro', 'Treino não encontrado.', 'error');
             return;
         }
 
         if(!athlete) {
-            Alert.alert('Erro', 'Atleta não encontrado.');
+            showAlert('Erro', 'Atleta não encontrado.', 'error');
             return;
         }
 
         // Validar recorrência
         if (isRecurring) {
             if (!startDate || startDate.trim() === '') {
-                Alert.alert('Erro', 'Por favor, selecione a data inicial.');
+                showAlert('Erro', 'Por favor, selecione a data inicial.', 'error');
                 return;
             }
             if (selectedDayOfWeek === null) {
-                Alert.alert('Erro', 'Por favor, selecione o dia da semana.');
+                showAlert('Erro', 'Por favor, selecione o dia da semana.', 'error');
                 return;
             }
         } else {
             if(!selectedDate || selectedDate.trim() === '') {
-                Alert.alert('Erro', 'Por favor, informe a data do treino.');
+                showAlert('Erro', 'Por favor, informe a data do treino.', 'error');
                 return;
             }
         }
@@ -409,19 +431,19 @@ const mockAthletes = [
                 ? `Treino "${workout.name}" atribuído para ${athlete.name} em ${newAssignments.length} datas (${recurrenceCount} treinos)`
                 : `Treino "${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`;
 
-            Alert.alert(
-                '✅ Treino Atribuído!',
+            showAlert(
+                'Treino Atribuído!',
                 message,
-                [
-                    {text: 'OK', onPress: () => router.back()}
-                ]
+                'success',
+                () => router.back()
             );
 
         } catch(error) {
             console.error('Erro ao salvar treino:', error);
-            Alert.alert(
+            showAlert(
                 'Erro',
-                'Não foi possível salvar o treino. Tente novamente.'
+                'Não foi possível salvar o treino. Tente novamente.',
+                'error'
             );
         }
     };
@@ -447,6 +469,7 @@ const mockAthletes = [
     }
 
     return (
+            <>
             <ScrollView className="flex-1" style={themeStyles.bg}>
                 <View className="px-6 pt-20 pb-20">
                     {/* Header com botão voltar melhorado */}
@@ -855,5 +878,19 @@ const mockAthletes = [
                 </View>
 
             </ScrollView>
+            
+            {/* CustomAlert para substituir Alert.alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                type={alertType}
+                confirmText="OK"
+                onConfirm={() => {
+                    setAlertVisible(false);
+                    alertOnConfirm?.();
+                }}
+            />
+            </>
     );
 }

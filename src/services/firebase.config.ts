@@ -8,8 +8,9 @@
  * variáveis de ambiente (expo-constants) em produção.
  */
 
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
+import { Auth, getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 
@@ -45,14 +46,24 @@ if (getApps().length === 0) {
  * Serviços do Firebase
  * 
  * Exportamos instâncias singleton dos serviços principais:
- * - Auth: Autenticação de usuários
- *   NOTA: O warning sobre AsyncStorage pode aparecer, mas o Firebase
- *   já persiste automaticamente no React Native. Para remover o warning,
- *   atualize para Firebase v13+ ou configure manualmente.
+ * - Auth: Autenticação de usuários com persistência AsyncStorage
  * - Firestore: Banco de dados NoSQL
  * - Storage: Armazenamento de arquivos (vídeos, imagens)
  */
-export const auth: Auth = getAuth(app);
+// Inicializar Auth com persistência AsyncStorage para React Native
+let auth: Auth;
+try {
+  // Tentar obter instância existente ou criar nova com persistência
+  auth = getAuth(app);
+  // Se já existe, não precisa fazer nada
+} catch {
+  // Se não existe, inicializar com persistência AsyncStorage
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+  });
+}
+
+export { auth };
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 

@@ -13,6 +13,7 @@ import { WorkoutBlockData } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ResizeMode, Video } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
@@ -1174,6 +1175,19 @@ export default function WorkoutDetailsScreen() {
                       <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
                         {exercise.exercise.description}
                       </Text>
+                    )}
+
+                    {/* Vídeo do Exercício - player dentro do app (mobile) */}
+                    {exercise.exercise?.videoURL && (
+                      <View className="rounded-xl overflow-hidden mb-4" style={themeStyles.cardSecondary}>
+                        <Video
+                          source={{ uri: exercise.exercise.videoURL }}
+                          style={{ width: '100%', height: 200 }}
+                          useNativeControls
+                          resizeMode={ResizeMode.CONTAIN}
+                          shouldPlay={false}
+                        />
+                      </View>
                     )}
                     
                     <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
