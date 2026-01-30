@@ -1277,14 +1277,14 @@ useEffect(() => {
         //Dashboard do Treinador - Tema Escuro Estilo Zeus
         <View className="w-full mt-8">
 
-          {/* Panorama Semanal - Cards de Estatísticas */}
-          <View className="mb-6">
+          {/* Panorama Semanal - Cards de Estatísticas (altura reduzida) */}
+          <View className="mb-4">
             <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               Panorama Semanal
             </Text>
             <View className="flex-row gap-3">
               {/* Card: Ativos Hoje */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#fb923c',
@@ -1294,10 +1294,10 @@ useEffect(() => {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="users" size={20} color="#fb923c" />
+                <View className="flex-row items-center mb-1">
+                  <FontAwesome name="users" size={16} color="#fb923c" />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().athletesToday}
                 </Text>
                 <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -1306,7 +1306,7 @@ useEffect(() => {
               </View>
 
               {/* Card: Treinos Concluídos */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#10b981',
@@ -1316,10 +1316,10 @@ useEffect(() => {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="check-circle" size={20} color="#10b981" />
+                <View className="flex-row items-center mb-1">
+                  <FontAwesome name="check-circle" size={16} color="#10b981" />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().completedToday}
                 </Text>
                 <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -1328,7 +1328,7 @@ useEffect(() => {
               </View>
 
               {/* Card: Pendentes */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#f59e0b',
@@ -1338,10 +1338,10 @@ useEffect(() => {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="clock-o" size={20} color="#f59e0b" />
+                <View className="flex-row items-center mb-1">
+                  <FontAwesome name="clock-o" size={16} color="#f59e0b" />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().pendingWorkouts}
                 </Text>
                 <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -1350,6 +1350,22 @@ useEffect(() => {
               </View>
             </View>
           </View>
+
+          {/* Botão Ver Agenda (Calendário do treinador) - espaçamento equilibrado com os quadrados e os botões */}
+          <TouchableOpacity
+            className="border-2 rounded-xl flex-row items-center justify-center py-3 px-4 mt-5 mb-5"
+            style={{
+              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.15)' : 'rgba(251, 146, 60, 0.1)',
+              borderColor: theme.colors.primary + '50',
+            }}
+            onPress={() => router.push('/coach-calendar')}
+            activeOpacity={0.7}
+          >
+            <FontAwesome name="calendar" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+            <Text className="font-semibold text-base" style={{ color: theme.colors.primary }}>
+              Ver minha agenda
+            </Text>
+          </TouchableOpacity>
 
           {/* Botões principais - Design Colorido Transparente (estilo AgendaApp) */}
           <View className="flex-row gap-5 mb-8">

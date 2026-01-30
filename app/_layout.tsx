@@ -15,8 +15,8 @@ import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -201,6 +201,16 @@ function RootLayoutNavContent() {
         />
         <Stack.Screen 
           name="athlete-profile" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right' as const,
+            contentStyle: {
+              backgroundColor: '#0a0a0a',
+            },
+          }} 
+        />
+        <Stack.Screen 
+          name="coach-calendar" 
           options={{ 
             headerShown: false,
             animation: 'slide_from_right' as const,

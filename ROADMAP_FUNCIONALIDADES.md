@@ -118,38 +118,18 @@ const getWeeklyStats = () => {
 
 ---
 
-#### Etapa 2.1.2: Taxa de Aderência dos Atletas
+#### Etapa 2.1.2: Taxa de Aderência dos Atletas ✅ **CONCLUÍDO**
 
-**O que vamos fazer:**
-- Calcular % de treinos concluídos vs atribuídos para cada atleta
-- Mostrar lista de atletas com suas taxas de aderência
-- Destacar atletas com baixa aderência (< 70%)
-- Mostrar gráfico de barras comparando atletas
+**Status:** Implementado no dashboard do treinador (`app/(tabs)/index.tsx`).
 
-**Onde vamos trabalhar:**
-- `app/(tabs)/index.tsx` ou criar `app/athlete-statistics.tsx`
-- Criar função para calcular aderência
+**O que foi implementado:**
+- ✅ Calcular % de treinos concluídos vs atribuídos para cada atleta (`calculateAdherenceRate`, `getAllAthletesAdherence`)
+- ✅ Gráfico de barras comparando atletas (BarChart com cores: verde ≥70%, amarelo ≥50%, vermelho <50%)
+- ✅ Lista de atletas com taxa, "X/Y treinos" e ícone de alerta quando < 70%
+- ✅ Cards clicáveis que levam ao perfil do atleta
 
-**Código que você vai escrever:**
-```typescript
-// Calcular taxa de aderência
-const calculateAdherenceRate = (athleteId: string) => {
-  const assigned = getAssignedWorkouts(athleteId);
-  const completed = assigned.filter(w => w.status === 'Concluído');
-  return (completed.length / assigned.length) * 100;
-};
-
-// Mostrar em gráfico de barras
-<BarChart data={athletesWithRates} />
-```
-
-**Conceitos que você vai aprender:**
-- Cálculo de porcentagens
-- Filtragem e agregação de dados
-- Gráficos de barras comparativos
-- Identificação de padrões (baixa aderência)
-
-**Estimativa:** 2-3 horas
+**Onde está:**
+- `app/(tabs)/index.tsx` – seção "📈 Taxa de Aderência dos Atletas" (visível quando há atletas com treinos atribuídos)
 
 ---
 
