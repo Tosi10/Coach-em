@@ -544,39 +544,28 @@ export default function AthleteProfileScreen() {
               </View>
             )}
 
-            {/* Meta */}
-            <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text className="font-semibold mb-1" style={themeStyles.text}>
-                    Meta: 100kg no Agachamento
+            {/* Último Feedback - dados reais dos treinos concluídos */}
+            {(() => {
+              const workoutsWithFeedback = athleteWorkouts
+                .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji))
+                .sort((a: any, b: any) => new Date(b.completedDate || b.date).getTime() - new Date(a.completedDate || a.date).getTime());
+              const lastFeedback = workoutsWithFeedback[0];
+              if (!lastFeedback) return null;
+              const dateStr = lastFeedback.completedDate || lastFeedback.date;
+              const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+              const feedbackMessage = lastFeedback.feedbackText || (lastFeedback.feedbackEmoji ? `Sentiu: ${lastFeedback.feedbackEmoji}` : '');
+              if (!feedbackMessage) return null;
+              return (
+                <View className="rounded-xl p-4 border mb-4" style={themeStyles.card}>
+                  <Text className="font-semibold mb-3" style={themeStyles.text}>
+                    Último Feedback
                   </Text>
-                  <Text className="text-sm" style={themeStyles.textSecondary}>
-                    Progresso: 40.32%
+                  <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
+                    {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
                   </Text>
                 </View>
-                <View className="w-10 h-10 rounded-full border items-center justify-center ml-3"
-                  style={{
-                    backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
-                    borderColor: theme.colors.primary + '50',
-                  }}
-                >
-                  <Text className="font-bold text-sm" style={{ color: theme.colors.primary }}>
-                    T
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Último Feedback */}
-            <View className="rounded-xl p-4 border" style={themeStyles.card}>
-              <Text className="font-semibold mb-3" style={themeStyles.text}>
-                Último Feedback
-              </Text>
-              <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
-                {athlete.name} disse: 'Senti um pouco de dor no joelho no Leg Press' - 23/01/2026
-              </Text>
-            </View>
+              );
+            })()}
           </View>
         )}
 

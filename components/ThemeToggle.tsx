@@ -41,6 +41,7 @@ export function ThemeToggle() {
           styles.toggle,
           {
             backgroundColor: isDark ? theme.colors.primary : theme.colors.borderSecondary,
+            marginLeft: 3,
           },
         ]}
       >

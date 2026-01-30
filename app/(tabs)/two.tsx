@@ -2,6 +2,11 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useToastContext } from '@/components/ToastProvider';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import {
+    requestNotificationPermissions,
+    scheduleWorkoutRemindersForAthlete,
+    setupNotificationChannel,
+} from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -107,20 +112,48 @@ export default function TabTwoScreen() {
           const completedDateJson = await AsyncStorage.getItem(`workout_${workout.id}_completedDate`);
           const completedDate = completedDateJson ? completedDateJson : null;
           
-          // Buscar feedbackEmoji se existir
+          // Buscar feedbackEmoji: priorizar chave AsyncStorage, depois o próprio objeto do treino (assigned_workouts)
           const feedbackEmojiJson = await AsyncStorage.getItem(`workout_${workout.id}_feedbackEmoji`);
-          const feedbackEmoji = feedbackEmojiJson ? feedbackEmojiJson : null;
+          const feedbackEmoji = feedbackEmojiJson || workout.feedbackEmoji || null;
+          const feedbackText = workout.feedbackText || null;
           
           return {
             ...workout,
             status,
             completedDate,
             feedbackEmoji,
+            feedbackText,
           };
         })
       );
 
       setAthleteWorkouts(workoutsWithStatus);
+
+      // Agendar lembretes do ATLETA (30 min antes + na hora) para treinos pendentes e futuros
+      try {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) return;
+
+        await setupNotificationChannel();
+
+        const now = Date.now();
+        for (const w of workoutsWithStatus) {
+          if (w.status === 'Concluído' || !w.scheduledTime || !w.date) continue;
+
+          const [y, mo, d] = w.date.split('-').map(Number);
+          const [h, min] = w.scheduledTime.split(':').map(Number);
+          const workoutAt = new Date(y, mo - 1, d, h, min, 0, 0);
+          if (workoutAt.getTime() <= now) continue;
+
+          const alreadyScheduled = await AsyncStorage.getItem(`workout_${w.id}_athlete_reminders_scheduled`);
+          if (alreadyScheduled === 'true') continue;
+
+          await scheduleWorkoutRemindersForAthlete(w.id, w.date, w.scheduledTime, w.name, 'workouts');
+          await AsyncStorage.setItem(`workout_${w.id}_athlete_reminders_scheduled`, 'true');
+        }
+      } catch (notifErr) {
+        console.warn('Lembretes do atleta não agendados:', notifErr);
+      }
     } catch (error) {
       console.error('Erro ao carregar treinos do atleta:', error);
     }
@@ -385,6 +418,7 @@ export default function TabTwoScreen() {
                               day: '2-digit', 
                               month: 'long' 
                             })}
+                            {group[0].scheduledTime ? ` às ${group[0].scheduledTime}` : ''}
                           </Text>
                         </TouchableOpacity>
                         
@@ -422,6 +456,7 @@ export default function TabTwoScreen() {
                             </Text>
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                               {workout.date} • {workout.dayOfWeek}
+                              {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                             </Text>
                             {workout.completedDate && (
                               <Text className="text-xs" style={themeStyles.textTertiary}>

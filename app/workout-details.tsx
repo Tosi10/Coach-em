@@ -191,6 +191,7 @@ export default function WorkoutDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<number | null>(null);
+  const [feedbackText, setFeedbackText] = useState(''); // Observação opcional do atleta
   const [showCelebration, setShowCelebration] = useState(false);
   
   // Estados para CustomAlert
@@ -832,8 +833,9 @@ export default function WorkoutDetailsScreen() {
             ...w,
             status: 'Concluído',
             completedDate: new Date().toISOString(),
-            feedback: selectedFeedback, // Salvar o feedback (1-5)
-            feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji, // Salvar o emoji
+            feedback: selectedFeedback,
+            feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
+            feedbackText: feedbackText.trim() || undefined, // Observação do atleta (opcional)
           };
         }
         return w;
@@ -841,6 +843,11 @@ export default function WorkoutDetailsScreen() {
       
       // 4. Salvar de volta no AsyncStorage
       await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
+      // Persistir feedback em chaves separadas para listas que leem por treino
+      await AsyncStorage.setItem(`workout_${workoutId}_feedbackEmoji`, feedbackEmojis[selectedFeedback - 1].emoji);
+      if (feedbackText.trim()) {
+        await AsyncStorage.setItem(`workout_${workoutId}_feedbackText`, feedbackText.trim());
+      }
       
       // 5. Atualizar o estado local
       setAssignedWorkout({
@@ -849,10 +856,12 @@ export default function WorkoutDetailsScreen() {
         completedDate: new Date().toISOString(),
         feedback: selectedFeedback,
         feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
+        feedbackText: feedbackText.trim() || undefined,
       });
       
       // 6. Fechar modal e mostrar animação de celebração
       setShowFeedbackModal(false);
+      setFeedbackText('');
       setShowCelebration(true);
       
       // Após animação, mostrar alerta customizado e voltar
@@ -900,6 +909,7 @@ export default function WorkoutDetailsScreen() {
           </Text>
           <Text className="mb-4" style={themeStyles.textSecondary}>
             Data: {assignedWorkout.date} ({assignedWorkout.dayOfWeek})
+            {assignedWorkout.scheduledTime ? ` • ${assignedWorkout.scheduledTime}` : ''}
           </Text>
 
           {/* Indicador de Progresso - Disco Circular + Barra */}
@@ -982,6 +992,32 @@ export default function WorkoutDetailsScreen() {
               {assignedWorkout.status}
             </Text>
           </View>
+
+          {/* Seu feedback (emoji + observação) - visível para o atleta no próprio treino */}
+          {assignedWorkout.status === 'Concluído' && (assignedWorkout.feedbackEmoji || assignedWorkout.feedbackText) && (
+            <View className="mt-4 rounded-xl p-4 border" style={themeStyles.card}>
+              <Text className="font-semibold mb-2" style={themeStyles.text}>
+                Seu feedback
+              </Text>
+              <View className="flex-row flex-wrap items-center gap-2 mb-2">
+                {assignedWorkout.feedbackEmoji && (
+                  <Text className="text-2xl" style={{ lineHeight: 32 }}>
+                    {assignedWorkout.feedbackEmoji}
+                  </Text>
+                )}
+                {assignedWorkout.completedDate && (
+                  <Text className="text-sm" style={themeStyles.textTertiary}>
+                    {new Date(assignedWorkout.completedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </Text>
+                )}
+              </View>
+              {assignedWorkout.feedbackText ? (
+                <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
+                  "{assignedWorkout.feedbackText}"
+                </Text>
+              ) : null}
+            </View>
+          )}
         </View>
 
                 {/* Lista de blocos e exercícios */}
@@ -1514,7 +1550,7 @@ export default function WorkoutDetailsScreen() {
               </Text>
 
               {/* Grid de emojis */}
-              <View className="flex-row flex-wrap justify-center gap-4 mb-6">
+              <View className="flex-row flex-wrap justify-center gap-4 mb-4">
                 {feedbackEmojis.map((feedback) => (
                   <TouchableOpacity
                     key={feedback.level}
@@ -1546,6 +1582,28 @@ export default function WorkoutDetailsScreen() {
                 ))}
               </View>
 
+              {/* Observação opcional (feedback em texto) */}
+              <View className="mb-6">
+                <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
+                  Observação (opcional)
+                </Text>
+                <TextInput
+                  className="rounded-xl px-4 py-3 border text-base"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                    minHeight: 80,
+                  }}
+                  placeholder="Ex: Senti dor no joelho no Leg Press..."
+                  placeholderTextColor={theme.colors.textTertiary}
+                  value={feedbackText}
+                  onChangeText={setFeedbackText}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
               {/* Botões */}
               <View className="flex-row gap-3">
                 <TouchableOpacity
@@ -1553,6 +1611,7 @@ export default function WorkoutDetailsScreen() {
                   onPress={() => {
                     setShowFeedbackModal(false);
                     setSelectedFeedback(null);
+                    setFeedbackText('');
                   }}
                 >
                   <Text className="text-white font-semibold text-center">

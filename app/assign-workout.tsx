@@ -1,5 +1,6 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -8,6 +9,24 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+
+/** Horários de 30 em 30 min: começa às 05:00, vai até 23:30 e continua 00:00→04:30 (dia completo) */
+function getAllDayTimes(): string[] {
+  const times: string[] = [];
+  for (let h = 5; h <= 23; h++) {
+    for (const m of [0, 30]) {
+      times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  for (let h = 0; h <= 4; h++) {
+    for (const m of [0, 30]) {
+      times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return times;
+}
+
+const ALL_DAY_TIMES = getAllDayTimes();
 
 // Dados mockados de atletas (temporário - depois virá do Firebase)
 const mockAthletes = [
@@ -224,6 +243,9 @@ const mockAthletes = [
     );
     const [showCalendar, setShowCalendar] = useState<boolean>(false);
     const [showWorkoutModal, setShowWorkoutModal] = useState<boolean>(false);
+    const [showTimeModal, setShowTimeModal] = useState<boolean>(false);
+    // Horário do treino (para lembretes/avisos)
+    const [scheduledTime, setScheduledTime] = useState<string>('08:00');
     
     // Estados para CustomAlert
     const [alertVisible, setAlertVisible] = useState<boolean>(false);
@@ -398,7 +420,7 @@ const mockAthletes = [
             // Criar um ID único para este grupo de atribuição recorrente
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
             
-            // Criar uma atribuição para cada data
+            // Criar uma atribuição para cada data (com horário para lembretes)
             const newAssignments = datesToAssign.map((date) => {
                 const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
                 return {
@@ -409,6 +431,7 @@ const mockAthletes = [
                     athleteId: athlete.id,
                     scheduledDate: date,
                     date: date,
+                    scheduledTime, // Horário do treino (ex: "08:00") para avisos/lembretes
                     status: 'Pendente',
                     coach: 'Treinador',
                     dayOfWeek: new Date(date).toLocaleDateString('pt-BR', { weekday: 'long'}),
@@ -417,12 +440,31 @@ const mockAthletes = [
                     createdAt: new Date().toISOString(),
                     blocks: workout.blocks || [],
                     isRecurring: isRecurring,
-                    recurrenceGroupId: recurrenceGroupId, // ID do grupo de atribuição recorrente
+                    recurrenceGroupId: recurrenceGroupId,
                 };
             });
 
             const updatedWorkouts = [...existingWorkouts, ...newAssignments];
             await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
+            
+            // Agendar lembrete para o TREINADOR (apenas na hora do treino, 1 por aula)
+            try {
+                const hasPermission = await requestNotificationPermissions();
+                if (hasPermission) {
+                    await setupNotificationChannel();
+                    for (const assignment of newAssignments) {
+                        await scheduleWorkoutRemindersForCoach(
+                            assignment.id,
+                            assignment.date,
+                            scheduledTime,
+                            workout.name,
+                            'workouts'
+                        );
+                    }
+                }
+            } catch (notifErr) {
+                console.warn('Lembretes não agendados:', notifErr);
+            }
             
             console.log('💾 Treinos salvos! Total:', updatedWorkouts.length);
             console.log('📝 Novos treinos:', newAssignments.length);
@@ -854,6 +896,102 @@ const mockAthletes = [
                                             textDayHeaderFontSize: 13,
                                         }}
                                     />
+                                </View>
+                            </View>
+                        </Modal>
+                    </View>
+
+                    {/* Horário do treino (para avisos e lembretes) - abre modal com todo o dia de 30 em 30 min */}
+                    <View className="mb-6">
+                        <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
+                            Horário do treino *
+                        </Text>
+                        <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
+                            Toque para escolher o horário (lembretes: 1h antes, 30 min antes e na hora)
+                        </Text>
+                        <TouchableOpacity
+                            className="border rounded-xl px-4 py-3 flex-row items-center justify-between"
+                            style={themeStyles.card}
+                            onPress={() => setShowTimeModal(true)}
+                        >
+                            <Text className="text-lg font-semibold" style={themeStyles.text}>
+                                {scheduledTime}
+                            </Text>
+                            <FontAwesome name="clock-o" size={20} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                        <Modal
+                            visible={showTimeModal}
+                            transparent={true}
+                            animationType="slide"
+                            onRequestClose={() => setShowTimeModal(false)}
+                        >
+                            <View className="flex-1 bg-black/50 justify-center px-2">
+                                <View
+                                    className="rounded-3xl border overflow-hidden"
+                                    style={[
+                                        themeStyles.card,
+                                        { maxHeight: '85%', minHeight: 320 },
+                                    ]}
+                                >
+                                    <View className="flex-row justify-between items-center p-4 border-b" style={{ borderBottomColor: theme.colors.border }}>
+                                        <Text className="text-xl font-bold" style={themeStyles.text}>
+                                            Escolher horário
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => setShowTimeModal(false)}
+                                            className="rounded-full w-8 h-8 items-center justify-center"
+                                            style={themeStyles.cardSecondary}
+                                        >
+                                            <Text className="text-lg" style={themeStyles.text}>✕</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <ScrollView
+                                        className="flex-1"
+                                        showsVerticalScrollIndicator={true}
+                                        contentContainerStyle={{
+                                            padding: 12,
+                                            paddingBottom: 24,
+                                            flexDirection: 'row',
+                                            flexWrap: 'wrap',
+                                            gap: 8,
+                                        }}
+                                    >
+                                        {ALL_DAY_TIMES.map((time) => {
+                                            const isSelected = scheduledTime === time;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={time}
+                                                    className="rounded-xl items-center justify-center py-2.5"
+                                                    style={{
+                                                        width: '31%',
+                                                        backgroundColor: isSelected
+                                                            ? (theme.mode === 'dark' ? theme.colors.primary + '90' : theme.colors.primary + '50')
+                                                            : theme.colors.backgroundTertiary || 'rgba(128,128,128,0.15)',
+                                                        borderWidth: isSelected ? 2 : 0,
+                                                        borderColor: theme.colors.primary,
+                                                    }}
+                                                    onPress={() => {
+                                                        setScheduledTime(time);
+                                                        setShowTimeModal(false);
+                                                    }}
+                                                >
+                                                    <Text
+                                                        className="text-sm font-semibold"
+                                                        style={{
+                                                            color: isSelected
+                                                                ? (theme.mode === 'dark' ? '#000' : theme.colors.text)
+                                                                : theme.colors.text,
+                                                        }}
+                                                    >
+                                                        {time}
+                                                    </Text>
+                                                    {isSelected && (
+                                                        <FontAwesome name="check" size={14} color={theme.colors.primary} style={{ marginTop: 2 }} />
+                                                    )}
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
                                 </View>
                             </View>
                         </Modal>

@@ -351,34 +351,20 @@ export default function WorkoutLibraryScreen() {
                             );
 
                             return (
-                                <View key={workout.id} className="mb-3">
-                                    <WorkoutCard
-                                        name={workout.name}
-                                        description={workout.description}
-                                        exercisesCount={totalExercises}
-                                        createdAt={workout.createdAt}
-                                        onPress={() => {
-                                            router.push({
-                                                pathname: '/workout-template-details',
-                                                params: { workoutId: workout.id },
-                                            });
-                                        }}
-                                    />
-                                    
-                                    {/* Botão de duplicar (ação rápida que não precisa ver detalhes) */}
-                                    <TouchableOpacity
-                                        className="rounded-lg py-2 px-4 border mt-2"
-                                        style={{
-                                          backgroundColor: theme.colors.backgroundTertiary,
-                                          borderColor: theme.colors.border,
-                                        }}
-                                        onPress={() => handleDuplicateWorkout(workout)}
-                                    >
-                                        <Text className="text-center font-semibold" style={themeStyles.text}>
-                                            📋 Duplicar Treino
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <WorkoutCard
+                                    key={workout.id}
+                                    name={workout.name}
+                                    description={workout.description}
+                                    exercisesCount={totalExercises}
+                                    createdAt={workout.createdAt}
+                                    onPress={() => {
+                                        router.push({
+                                            pathname: '/workout-template-details',
+                                            params: { workoutId: workout.id },
+                                        });
+                                    }}
+                                    onDuplicate={() => handleDuplicateWorkout(workout)}
+                                />
                             );
                         })
                     )}

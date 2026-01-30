@@ -12,6 +12,7 @@
  * 5. Botão de salvar
  */
 
+import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -19,7 +20,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (mesmos da biblioteca de exercícios)
 // TODO: Depois vamos buscar da biblioteca real
@@ -63,6 +64,25 @@ export default function CreateWorkoutScreen() {
     const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
     const [selectedExerciseType, setSelectedExerciseType] = useState<'warmup' | 'work' | 'cooldown' | null>(null);
     const [searchExerciseText, setSearchExerciseText] = useState('');
+
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+    const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+
+    const showAlert = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'info' | 'warning' = 'info',
+        onConfirm?: () => void
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertOnConfirm(() => onConfirm ?? null);
+        setAlertVisible(true);
+    };
 
     const loadAllExercises = useCallback(async () => {
         try {
@@ -173,13 +193,13 @@ export default function CreateWorkoutScreen() {
     const handleSaveWorkout = async() => {
         // Validação básica
         if (!workoutName.trim()) {
-            Alert.alert('Erro', 'Por favor, preencha o nome do treino.');
+            showAlert('Erro', 'Por favor, preencha o nome do treino.', 'error');
             return;
         }
 
         // Validação: cada bloco deve ter pelo menos 1 exercício
         if (warmUpExercises.length === 0 || workExercises.length === 0 || coolDownExercises.length === 0) {
-            Alert.alert('Erro', 'Cada bloco deve ter pelo menos 1 exercício.');
+            showAlert('Erro', 'Cada bloco deve ter pelo menos 1 exercício.', 'error');
             return;
         }
 
@@ -219,22 +239,18 @@ export default function CreateWorkoutScreen() {
             const updatedWorkouts = [...existingWorkouts, newWorkout];
             await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
 
-            Alert.alert(
+            showAlert(
                 'Treino Criado!',
                 `Treino "${workoutName}" criado com sucesso!\n\n` +
                 `Aquecimento: ${warmUpExercises.length} exercício(s)\n` +
                 `Principal: ${workExercises.length} exercício(s)\n` +
                 `Finalização: ${coolDownExercises.length} exercício(s)`,
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.back(),
-                    },
-                ]
+                'success',
+                () => router.back()
             );
         } catch (error){
             console.error('Erro ao salvar treino:', error);
-            Alert.alert('Erro', 'Não foi possível salvar o treino. Por favor, tente novamente.');
+            showAlert('Erro', 'Não foi possível salvar o treino. Por favor, tente novamente.', 'error');
         }
     };
 
@@ -508,6 +524,7 @@ export default function CreateWorkoutScreen() {
     };
 
     return (
+        <>
         <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
                 {/* Header com botão voltar melhorado */}
@@ -825,5 +842,18 @@ export default function CreateWorkoutScreen() {
                 </TouchableOpacity>
             </View>
         </ScrollView>
+
+        <CustomAlert
+            visible={alertVisible}
+            title={alertTitle}
+            message={alertMessage}
+            type={alertType}
+            confirmText="OK"
+            onConfirm={() => {
+                setAlertVisible(false);
+                alertOnConfirm?.();
+            }}
+        />
+    </>
     );
 }
