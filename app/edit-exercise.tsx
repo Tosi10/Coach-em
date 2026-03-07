@@ -1,8 +1,8 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { getExerciseById, updateExercise } from '@/src/services/exercises.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -48,23 +48,12 @@ export default function EditExerciseScreen() {
         setAlertVisible(true);
     };
 
-    // PARTE 1: Carregar dados do exercício quando a tela abrir
     useEffect(() => {
         const loadExercise = async () => {
             try {
-                // Buscar todos os exercícios salvos
-                const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
-                let savedExercises = [];
-                
-                if (savedExercisesJson) {
-                    savedExercises = JSON.parse(savedExercisesJson);
-                }
-
-                // Encontrar o exercício pelo ID
-                const exercise = savedExercises.find((ex: any) => ex.id === exerciseIdString);
-
+                if (!exerciseIdString) return;
+                const exercise = await getExerciseById(exerciseIdString);
                 if (exercise) {
-                    // Preencher os campos com os dados do exercício
                     setName(exercise.name || '');
                     setDescription(exercise.description || '');
                     setDifficulty(exercise.difficulty || 'beginner');
@@ -72,19 +61,16 @@ export default function EditExerciseScreen() {
                     setEquipment(exercise.equipment || []);
                     setDuration(exercise.duration ? exercise.duration.toString() : '');
                 } else {
-                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => router.back());
+                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
                 }
             } catch (error) {
                 console.error('Erro ao carregar exercício:', error);
-                showAlert('Erro', 'Não foi possível carregar o exercício.', 'error', () => router.back());
+                showAlert('Erro', 'Não foi possível carregar o exercício.', 'error', () => setTimeout(() => router.back(), 0));
             } finally {
                 setLoading(false);
             }
         };
-
-        if (exerciseIdString) {
-            loadExercise();
-        }
+        if (exerciseIdString) loadExercise();
     }, [exerciseIdString]);
 
     // PARTE 2: Função para salvar as alterações
@@ -106,46 +92,15 @@ export default function EditExerciseScreen() {
         }
       
         try {
-            // Buscar todos os exercícios salvos
-            const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
-            let savedExercises = [];
-            
-            if (savedExercisesJson) {
-                savedExercises = JSON.parse(savedExercisesJson);
-            }
-
-            // Encontrar o índice do exercício a ser atualizado
-            const exerciseIndex = savedExercises.findIndex((ex: any) => ex.id === exerciseIdString);
-
-            if (exerciseIndex === -1) {
-                showAlert('Erro', 'Exercício não encontrado.', 'error');
-                return;
-            }
-
-            // Criar objeto atualizado (mantém ID, createdAt, createdBy, isGlobal)
-            const updatedExercise = {
-                ...savedExercises[exerciseIndex], // Mantém dados originais
+            await updateExercise(exerciseIdString!, {
                 name: name.trim(),
                 description: description.trim(),
-                difficulty: difficulty,
-                muscleGroups: muscleGroups,
+                difficulty,
+                muscleGroups,
                 equipment: equipment.length > 0 ? equipment : ['Nenhum'],
-                duration: duration ? parseInt(duration) : undefined,
-                updatedAt: new Date().toISOString(), // Atualiza data de modificação
-            };
-
-            // Substituir o exercício antigo pelo atualizado
-            savedExercises[exerciseIndex] = updatedExercise;
-
-            // Salvar de volta no AsyncStorage
-            await AsyncStorage.setItem(
-                'saved_exercises',
-                JSON.stringify(savedExercises)
-            );
-
-            showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => {
-                router.back();
+                duration: duration ? parseInt(duration, 10) : undefined,
             });
+            showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => setTimeout(() => router.back(), 0));
         } catch (error) {
             console.error('Erro ao atualizar exercício:', error);
             showAlert('Erro', 'Não foi possível atualizar o exercício.', 'error');

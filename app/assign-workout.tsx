@@ -1,5 +1,8 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service';
+import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -28,18 +31,6 @@ function getAllDayTimes(): string[] {
 
 const ALL_DAY_TIMES = getAllDayTimes();
 
-// Dados mockados de atletas (temporário - depois virá do Firebase)
-const mockAthletes = [
-    { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo' },
-    { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo' },
-    { id: '3', name: 'Pedro Santos', sport: 'Basquete', status: 'Ativo' },
-    { id: '4', name: 'Ana Souza', sport: 'Atletismo', status: 'Ativo' },
-    { id: '5', name: 'Carlos Ferreira', sport: 'Futebol', status: 'Ativo' },
-    { id: '6', name: 'Laura Rodrigues', sport: 'Vôlei', status: 'Ativo' },
-    { id: '7', name: 'Rafael Oliveira', sport: 'Basquete', status: 'Ativo' },
-    { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo' },
-  ];
-  
   const mockExercises: Exercise[] = [
     { id: 'ex1', name: 'Agachamento', description: 'Agachamento livre', difficulty: 'intermediate', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
     { id: 'ex2', name: 'Leg Press', description: 'Leg press 45°', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
@@ -221,9 +212,11 @@ const mockAthletes = [
   
   export default function AssignWorkoutScreen() {
     const router = useRouter();
+    const { user } = useAuthContext();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
-    const { athleteId } = useLocalSearchParams<{ athleteId: string }>();
+    const { athleteId: athleteIdParam } = useLocalSearchParams<{ athleteId?: string }>();
+    const athleteId = Array.isArray(athleteIdParam) ? athleteIdParam[0] : athleteIdParam;
   
     // Estado para armazenar qual treino foi selecionado
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
@@ -254,32 +247,54 @@ const mockAthletes = [
     const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
     const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-    // NOVO ESTADO: Lista completa de treinos (mock + salvos)
-    const [allWorkouts, setAllWorkouts] = useState<any[]>(mockWorkouts);
+    // Lista de templates do Firestore (do treinador logado)
+    const [allWorkouts, setAllWorkouts] = useState<any[]>([]);
+    // Nome do atleta (Firestore coachemAthletes) quando athleteId vem pela navegação
+    const [athleteName, setAthleteName] = useState<string | null>(null);
+    // Lista de atletas para seleção quando assign-workout é aberto sem athleteId
+    const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string }>>([]);
   
-    // Encontrar o atleta pelo ID recebido
-    const athlete = mockAthletes.find(a => a.id === athleteId);
+    useEffect(() => {
+      if (!athleteId) {
+        setAthleteName(null);
+        return;
+      }
+      import('@/src/services/athletes.service').then(({ getAthleteById }) =>
+        getAthleteById(athleteId).then((a) => setAthleteName(a?.name ?? null))
+      );
+    }, [athleteId]);
 
-    // FUNÇÃO: Carregar treinos do AsyncStorage
+    useEffect(() => {
+      if (athleteId || !user?.id) {
+        setAthletesList([]);
+        return;
+      }
+      import('@/src/services/athletes.service').then(({ listAthletesByCoachId }) =>
+        listAthletesByCoachId(user.id).then((list) =>
+          setAthletesList(list.map((a) => ({ id: a.id, name: a.name })))
+        )
+      );
+    }, [athleteId, user?.id]);
+
+    const athlete = athleteId
+      ? { id: athleteId, name: athleteName ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}` }
+      : null;
+
+    // Carregar templates do Firestore
     const loadAllWorkouts = useCallback(async () => {
         try {
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts: any[] = [];
-
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            const coachId = user?.id;
+            if (!coachId) {
+                setAllWorkouts([]);
+                return;
             }
-
-            // Combinar mockWorkouts + savedWorkouts
-            const combined = [...mockWorkouts, ...savedWorkouts];
-            setAllWorkouts(combined);
-
-            console.log('✅ Treinos carregados no assign:', combined.length);
+            const templates = await listWorkoutTemplatesByCoachId(coachId);
+            setAllWorkouts(templates);
         } catch (error) {
             console.error('❌ Erro ao carregar treinos:', error);
-            setAllWorkouts(mockWorkouts);
+            setAllWorkouts([]);
         }
-    }, []);
+    }, [user?.id]);
 
     // Carregar treinos quando a tela abrir
     useEffect(() => {
@@ -398,29 +413,24 @@ const mockAthletes = [
         }
 
         try {
-            const existingWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-            const existingWorkouts = existingWorkoutsJson ? JSON.parse(existingWorkoutsJson) : [];
+            const coachId = user?.id;
+            if (!coachId) {
+                showAlert('Erro', 'Você precisa estar logado para atribuir treinos.', 'error');
+                return;
+            }
 
             let datesToAssign: string[] = [];
 
             if (isRecurring) {
-                // Gerar todas as datas recorrentes baseado na quantidade de treinos
                 console.log(`🔄 Gerando treinos recorrentes:`);
-                console.log(`   - Data inicial: ${startDate}`);
-                console.log(`   - Dia da semana: ${selectedDayOfWeek} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][selectedDayOfWeek!]})`);
-                console.log(`   - Quantidade de treinos: ${recurrenceCount}`);
                 datesToAssign = generateRecurringDates(startDate, selectedDayOfWeek!, recurrenceCount);
-                console.log(`   ✅ Total de datas geradas: ${datesToAssign.length}`);
-                console.log(`   📋 Datas: ${datesToAssign.join(', ')}`);
             } else {
-                // Apenas uma data
                 datesToAssign = [selectedDate];
             }
 
-            // Criar um ID único para este grupo de atribuição recorrente
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
-            
-            // Criar uma atribuição para cada data (com horário para lembretes)
+            const todayStr = new Date().toISOString().split('T')[0];
+
             const newAssignments = datesToAssign.map((date) => {
                 const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
                 return {
@@ -430,22 +440,21 @@ const mockAthletes = [
                     description: workout.description || '',
                     athleteId: athlete.id,
                     scheduledDate: date,
-                    date: date,
-                    scheduledTime, // Horário do treino (ex: "08:00") para avisos/lembretes
+                    date,
+                    scheduledTime,
                     status: 'Pendente',
                     coach: 'Treinador',
                     dayOfWeek: new Date(date).toLocaleDateString('pt-BR', { weekday: 'long'}),
-                    isToday: date === new Date().toISOString().split('T')[0],
+                    isToday: date === todayStr,
                     isThisWeek: isDateThisWeek(date),
                     createdAt: new Date().toISOString(),
                     blocks: workout.blocks || [],
-                    isRecurring: isRecurring,
-                    recurrenceGroupId: recurrenceGroupId,
+                    isRecurring: !!isRecurring,
+                    recurrenceGroupId,
                 };
             });
 
-            const updatedWorkouts = [...existingWorkouts, ...newAssignments];
-            await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
+            await createAssignedWorkouts(coachId, newAssignments);
             
             // Agendar lembrete para o TREINADOR (apenas na hora do treino, 1 por aula)
             try {
@@ -466,8 +475,7 @@ const mockAthletes = [
                 console.warn('Lembretes não agendados:', notifErr);
             }
             
-            console.log('💾 Treinos salvos! Total:', updatedWorkouts.length);
-            console.log('📝 Novos treinos:', newAssignments.length);
+            console.log('💾 Treinos salvos! Total:', newAssignments.length);
 
             const message = isRecurring 
                 ? `Treino "${workout.name}" atribuído para ${athlete.name} em ${newAssignments.length} datas (${recurrenceCount} treinos)`
@@ -490,21 +498,57 @@ const mockAthletes = [
         }
     };
 
-    // Se o atleta não foi encontrado, mostra mensagem de erro
+    // Sem athleteId: mostrar seletor de atleta
+    if (!athleteId) {
+        return (
+            <ScrollView className="flex-1" style={themeStyles.bg}>
+                <View className="px-6 pt-20 pb-20">
+                    <TouchableOpacity className="mb-6 flex-row items-center" onPress={() => router.back()} activeOpacity={0.7}>
+                        <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
+                            <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
+                        </View>
+                        <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>Voltar</Text>
+                    </TouchableOpacity>
+                    <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>Atribuir treino</Text>
+                    <Text className="mb-6" style={themeStyles.textSecondary}>Selecione o atleta para atribuir o treino.</Text>
+                    {athletesList.length === 0 ? (
+                        <View className="rounded-xl p-6 border" style={themeStyles.card}>
+                            <Text className="text-center mb-4" style={themeStyles.textSecondary}>
+                                Nenhum atleta cadastrado. Cadastre um na aba Atletas primeiro.
+                            </Text>
+                            <TouchableOpacity
+                                className="rounded-xl py-3"
+                                style={{ backgroundColor: theme.colors.primary }}
+                                onPress={() => router.back()}
+                            >
+                                <Text className="font-semibold text-center" style={{ color: '#fff' }}>Voltar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        athletesList.map((a) => (
+                            <TouchableOpacity
+                                key={a.id}
+                                className="rounded-xl p-4 mb-3 border"
+                                style={themeStyles.card}
+                                onPress={() => router.push({ pathname: '/assign-workout', params: { athleteId: a.id } })}
+                            >
+                                <Text className="text-lg font-semibold" style={themeStyles.text}>{a.name}</Text>
+                                <Text className="text-sm mt-1" style={themeStyles.textSecondary}>Toque para atribuir treino</Text>
+                            </TouchableOpacity>
+                        ))
+                    )}
+                </View>
+            </ScrollView>
+        );
+    }
+
+    // athleteId presente mas atleta não encontrado (doc deletado etc.)
     if (!athlete) {
         return (
             <View className="flex-1 justify-center items-center px-6" style={themeStyles.bg}>
-                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                    Atleta não encontrado
-                </Text>
-                <TouchableOpacity
-                    className="rounded-lg py-3 px-6"
-                    style={{ backgroundColor: theme.colors.primary }}
-                    onPress={() => router.back()}
-                >
-                    <Text className="font-semibold" style={{ color: '#ffffff' }}>
-                        Voltar
-                    </Text>
+                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>Atleta não encontrado</Text>
+                <TouchableOpacity className="rounded-lg py-3 px-6" style={{ backgroundColor: theme.colors.primary }} onPress={() => router.back()}>
+                    <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
                 </TouchableOpacity>
             </View>
         );

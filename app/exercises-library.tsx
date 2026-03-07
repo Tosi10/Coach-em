@@ -6,10 +6,11 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { deleteExercises, listExercisesByCoachId } from '@/src/services/exercises.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -107,10 +108,29 @@ const mockExercises = [
     equipment: ['Nenhum'],
     duration: 60,
   },
+  {
+    id: '11',
+    name: 'Caminhada Leve',
+    description: '5 minutos de caminhada. Ideal para aquecimento.',
+    difficulty: 'beginner' as const,
+    muscleGroups: ['cardio'],
+    equipment: ['Nenhum'],
+    duration: 300,
+  },
+  {
+    id: '12',
+    name: 'Corrida Leve',
+    description: '5 minutos de corrida. Ideal para aquecimento ou bloco principal.',
+    difficulty: 'beginner' as const,
+    muscleGroups: ['cardio'],
+    equipment: ['Nenhum'],
+    duration: 300,
+  },
 ];
 
 export default function ExercisesLibraryScreen() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [searchText, setSearchText] = useState('');
@@ -142,29 +162,17 @@ export default function ExercisesLibraryScreen() {
 
   const loadSavedExercises = useCallback(async () => {
     try {
-      console.log('🔍 Carregando exercícios salvos...');
-      
-      const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
-      console.log('📦 JSON do AsyncStorage:', savedExercisesJson);
-      
-      const savedExercises = savedExercisesJson
-        ? JSON.parse(savedExercisesJson)
+      const coachId = user?.id;
+      const savedExercises = coachId
+        ? await listExercisesByCoachId(coachId)
         : [];
-      
-      console.log('✅ Exercícios salvos parseados:', savedExercises);
-      console.log('📊 Quantidade de exercícios salvos:', savedExercises.length);
-  
       const combinedExercises = [...mockExercises, ...savedExercises];
-      
-      console.log('🔄 Total de exercícios combinados:', combinedExercises.length);
-      console.log('📋 Lista completa:', combinedExercises.map(e => e.name));
-  
       setAllExercises(combinedExercises);
     } catch (error) {
-      console.error('❌ Erro ao carregar exercícios', error);
+      console.error('Erro ao carregar exercícios', error);
       setAllExercises(mockExercises);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadSavedExercises();
@@ -180,34 +188,12 @@ export default function ExercisesLibraryScreen() {
 
   const confirmDeleteExercise = async (exerciseId: string) => {
     try {
-        // Buscar todos os exercícios salvos do AsyncStorage
-        const savedExercisesJson = await AsyncStorage.getItem('saved_exercises');
-        let savedExercises = [];
-        
-        if (savedExercisesJson) {
-            savedExercises = JSON.parse(savedExercisesJson);
-        }
-
-        // Filtrar o exercício que queremos deletar
-        const updatedExercises = savedExercises.filter(
-            (ex: any) => ex.id !== exerciseId
-        );
-
-        // Salvar a lista atualizada de volta no AsyncStorage
-        await AsyncStorage.setItem(
-            'saved_exercises',
-            JSON.stringify(updatedExercises)
-        );
-
-        // Recarregar a lista de exercícios
-        await loadSavedExercises();
-
-        // Mostrar mensagem de sucesso
-        showAlert('Sucesso', 'Exercício deletado com sucesso!', 'success');
+      await deleteExercises([exerciseId]);
+      await loadSavedExercises();
+      showAlert('Sucesso', 'Exercício deletado com sucesso!', 'success');
     } catch (error) {
-        // Se der erro, mostrar mensagem
-        console.error('Erro ao deletar exercício:', error);
-        showAlert('Erro', 'Não foi possível deletar o exercício.', 'error');
+      console.error('Erro ao deletar exercício:', error);
+      showAlert('Erro', 'Não foi possível deletar o exercício.', 'error');
     }
   };
 

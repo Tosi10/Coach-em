@@ -19,17 +19,6 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
-// Dados mockados de atletas
-const mockAthletes = [
-  { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo' },
-  { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo' },
-  { id: '3', name: 'Pedro Santos', sport: 'Basquete', status: 'Ativo' },
-  { id: '4', name: 'Ana Souza', sport: 'Atletismo', status: 'Ativo' },
-  { id: '5', name: 'Carlos Ferreira', sport: 'Futebol', status: 'Ativo' },
-  { id: '6', name: 'Laura Rodrigues', sport: 'Vôlei', status: 'Ativo' },
-  { id: '7', name: 'Rafael Oliveira', sport: 'Basquete', status: 'Ativo' },
-  { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo' },
-];
 
 // Dados mockados para gráfico de evolução (volume de carga em kg)
 const mockEvolutionData = [
@@ -83,44 +72,41 @@ export default function AthleteProfileScreen() {
   };
 
   useEffect(() => {
-    // Buscar dados do atleta
-    const foundAthlete = mockAthletes.find(a => a.id === athleteIdString);
-    if (foundAthlete) {
-      setAthlete(foundAthlete);
-    }
-
-    // Verificar se treinou hoje
+    if (!athleteIdString) return;
+    const load = async () => {
+      try {
+        const { getAthleteById } = await import('@/src/services/athletes.service');
+        const a = await getAthleteById(athleteIdString);
+        setAthlete({
+          id: athleteIdString,
+          name: a?.name ?? `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
+          sport: a?.sport ?? '-',
+          status: a?.status ?? 'Ativo',
+        });
+      } catch {
+        setAthlete({
+          id: athleteIdString,
+          name: `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
+          sport: '-',
+          status: 'Ativo',
+        });
+      }
+    };
+    load();
     loadAthleteWorkouts();
-    // Carregar histórico de peso
     loadWeightHistory();
   }, [athleteIdString]);
 
   const loadAthleteWorkouts = async () => {
     try {
-      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-      let allWorkouts = [];
-      
-      if (assignedWorkoutsJson) {
-        allWorkouts = JSON.parse(assignedWorkoutsJson);
+      if (!athleteIdString) {
+        setAthleteWorkouts([]);
+        return;
       }
-
-      // Filtrar treinos deste atleta
-      const workouts = allWorkouts.filter((w: any) => w.athleteId === athleteIdString);
-      
-      // Carregar status de cada treino
-      const workoutsWithStatus = await Promise.all(
-        workouts.map(async (workout: any) => {
-          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-          return {
-            ...workout,
-            status: savedStatus || workout.status || 'Pendente',
-          };
-        })
-      );
-
+      const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
+      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString);
       setAthleteWorkouts(workoutsWithStatus);
 
-      // Verificar se treinou hoje
       const today = new Date().toISOString().split('T')[0];
       const trainedToday = workoutsWithStatus.some((w: any) => {
         const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
@@ -143,11 +129,16 @@ export default function AthleteProfileScreen() {
       }
 
       const allHistory = JSON.parse(weightHistoryJson);
-      
-      // Filtrar apenas registros deste atleta
-      // Nota: Por enquanto, vamos mostrar todos os registros, já que não temos sistema de autenticação
-      // Quando implementar autenticação, filtrar por athleteId
-      const athleteHistory = allHistory; // TODO: Filtrar por athleteId quando tiver autenticação
+      const athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
+        (r: any) => r.athleteId === athleteIdString
+      );
+
+      if (athleteHistory.length === 0) {
+        setAvailableExercises([]);
+        setWeightHistory([]);
+        setSelectedExercise(null);
+        return;
+      }
       
       // Agrupar por exercício para criar lista de exercícios disponíveis
       const exercisesMap = new Map<string, string>();
@@ -194,29 +185,9 @@ export default function AthleteProfileScreen() {
   // Função para deletar treino(s)
   const confirmDeleteWorkout = async (workoutIds: string[], workoutCount: number) => {
     try {
-      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-      let allWorkouts = [];
-      
-      if (assignedWorkoutsJson) {
-        allWorkouts = JSON.parse(assignedWorkoutsJson);
-      }
-
-      // Remover os treinos deletados
-      const updatedWorkouts = allWorkouts.filter((w: any) => !workoutIds.includes(w.id));
-      
-      // Também remover status salvos individualmente
-      for (const id of workoutIds) {
-        await AsyncStorage.removeItem(`workout_${id}_status`);
-        await AsyncStorage.removeItem(`workout_${id}_completedDate`);
-        await AsyncStorage.removeItem(`workout_${id}_feedbackEmoji`);
-      }
-
-      await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
-      
-      // Recarregar a lista
+      const { deleteAssignedWorkouts } = await import('@/src/services/assignedWorkouts.service');
+      await deleteAssignedWorkouts(workoutIds);
       await loadAthleteWorkouts();
-      
-      // Mostrar alerta de sucesso
       showAlert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`, 'success');
     } catch (error) {
       console.error('Erro ao deletar treino:', error);

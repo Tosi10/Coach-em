@@ -8,14 +8,16 @@
 import { EmptyState } from '@/components/EmptyState';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useToastContext } from '@/components/ToastProvider';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
 import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 
@@ -29,8 +31,8 @@ import { BarChart, LineChart } from 'react-native-gifted-charts';
  * No React Native, cada tela é uma função que retorna elementos visuais.
  */
 export default function HomeScreen() {
-
   const router = useRouter();
+  const { user } = useAuthContext();
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -43,153 +45,72 @@ export default function HomeScreen() {
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [availableExercises, setAvailableExercises] = useState<Array<{id: string, name: string}>>([]);
   
-  const mockAthletes = [
-    { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
-    { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo'},
-    { id: '3', name: 'Pedro Santos', sport: 'Basquete', status: 'Ativo'},
-    { id: '4', name: 'Ana Souza', sport: 'Atletismo', status: 'Ativo'},
-    { id: '5', name: 'Carlos Ferreira', sport: 'Futebol', status: 'Ativo'},
-    { id: '6', name: 'Laura Rodrigues', sport: 'Vôlei', status: 'Ativo'},
-    { id: '7', name: 'Rafael Oliveira', sport: 'Basquete', status: 'Ativo'},
-    { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
-  ]
-  
-  // Workouts mockados iniciais - usar useRef para evitar loop infinito
-  const initialWorkoutsRef = useRef([
-    {
-      id: '1',
-      name: 'Treino de Força - Pernas',
-      date: '2026-01-06',
-      scheduledDate: '2026-01-06',
-      status: 'Concluído',
-      coach: 'João Silva',
-      dayOfWeek: 'Segunda-feira',
-      isToday: false,
-      isThisWeek: false,
-    },
-    {
-      id: '2',
-      name: 'Treino de Força - Peito',
-      date: new Date().toISOString().split('T')[0], // Data de hoje
-      scheduledDate: new Date().toISOString().split('T')[0],
-      status: 'Pendente',
-      coach: 'Maria Oliveira',
-      dayOfWeek: new Date().toLocaleDateString('pt-BR', { weekday: 'long' }),
-      isToday: true,
-      isThisWeek: true,
-    },
-    {
-      id: '3',
-      name: 'Treino de Força - Costas',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
-      scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      status: 'Pendente',
-      coach: 'João Silva',
-      dayOfWeek: new Date(Date.now() + 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-      isToday: false,
-      isThisWeek: true,
-    },
-    {
-      id: '4',
-      name: 'Treino de Força - Bíceps',
-      date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Depois de amanhã
-      scheduledDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
-      status: 'Pendente',
-      coach: 'Ana Souza',
-      dayOfWeek: new Date(Date.now() + 172800000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-      isToday: false,
-      isThisWeek: true,
-    },
-    {
-      id: '5',
-      name: 'Treino de Força - Tríceps',
-      date: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 dias
-      scheduledDate: new Date(Date.now() + 259200000).toISOString().split('T')[0],
-      status: 'Pendente',
-      coach: 'Carlos Ferreira',
-      dayOfWeek: new Date(Date.now() + 259200000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-      isToday: false,
-      isThisWeek: true,
-    },
-    {
-      id: '6',
-      name: 'Treino Cardio - Corrida',
-      date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Ontem
-      scheduledDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-      status: 'Concluído',
-      coach: 'João Silva',
-      dayOfWeek: new Date(Date.now() - 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-      isToday: false,
-      isThisWeek: false,
-    },
-  ]);
-  
-  const [workouts, setWorkouts] = useState<any[]>(initialWorkoutsRef.current);
+  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Atletas derivados dos treinos; nome vindo do Firestore (coachemAthletes) quando existir
+  const getAthletesFromWorkouts = useCallback(() => {
+    const ids = new Set<string>();
+    workouts.forEach((w: any) => {
+      const id = w.athleteId || w.coach;
+      if (id) ids.add(id);
+    });
+    return Array.from(ids).map((id) => ({
+      id,
+      name: athletesList.find((a) => a.id === id)?.name || `Atleta ${id.length > 8 ? id.slice(-8) : id}`,
+    }));
+  }, [workouts, athletesList]);
 
   useEffect(() => {
-    const loadUserType = async () => {
-      // PARTE 1: Carregar tipo de usuário
+    const loadUserTypeAndWorkouts = async () => {
       const savedType = await AsyncStorage.getItem('userType');
-      if (savedType) {
-        setUserType(savedType as UserType);
-      }
-  
-      // PARTE 2: Se for atleta, carregar o ID do atleta logado
-      let athleteId = null;
+      if (savedType) setUserType(savedType as UserType);
+
+      let athleteId: string | null = null;
       if (savedType === UserType.ATHLETE) {
         athleteId = await AsyncStorage.getItem('currentAthleteId');
-        if (athleteId) {
-          setCurrentAthleteId(athleteId);
-        }
+        if (athleteId) setCurrentAthleteId(athleteId);
       }
-  
-      // PARTE 3: Carregar treinos atribuídos
-      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-      let assignedWorkouts = [];
-  
-      if (assignedWorkoutsJson) {
-        assignedWorkouts = JSON.parse(assignedWorkoutsJson);
-        
-        // PARTE 4: Se for atleta, filtrar apenas os treinos dele
+
+      let allWorkouts: any[] = [];
+      try {
         if (savedType === UserType.ATHLETE && athleteId) {
-          console.log('🔍 Filtrando treinos para atleta ID:', athleteId);
-          console.log('📋 Treinos antes do filtro:', assignedWorkouts.length);
-          console.log('📝 Todos os treinos (antes do filtro):', assignedWorkouts);
-          assignedWorkouts = assignedWorkouts.filter(
-            (workout: any) => {
-              console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId})`);
-              return workout.athleteId === athleteId;
-            }
-          );
-          console.log('✅ Treinos após filtro:', assignedWorkouts.length);
-          console.log('📝 Treinos filtrados:', assignedWorkouts);
+          allWorkouts = await listAssignedWorkoutsByAthleteId(athleteId);
+        } else if (savedType === UserType.COACH && user?.id) {
+          allWorkouts = await listAssignedWorkoutsByCoachId(user.id);
         }
+      } catch (e) {
+        console.warn('Erro ao carregar treinos atribuídos:', e);
       }
-  
-      // PARTE 5: Combinar treinos mockados com atribuídos
-      let allWorkouts = [];
-      if (savedType === UserType.ATHLETE) {
-        allWorkouts = assignedWorkouts;
-        console.log('👤 ATLETA - Mostrando apenas treinos atribuídos:', allWorkouts.length);
-      } else {
-        allWorkouts = [...initialWorkoutsRef.current, ...assignedWorkouts];
-        console.log('👨‍🏫 TREINADOR - Mostrando treinos mockados + atribuídos:', allWorkouts.length);
-      }
-  
-      // PARTE 6: Carregar status de todos os treinos
-      const updatedWorkouts = await Promise.all(
-        allWorkouts.map(async (workout: any) => {
-          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-          if (savedStatus) {
-            return { ...workout, status: savedStatus };
-          }
-          return workout;
-        })
-      );
-      setWorkouts(updatedWorkouts);
+      setWorkouts(allWorkouts);
     };
-    loadUserType();
-  }, []);
+    loadUserTypeAndWorkouts();
+  }, [user?.id]);
+
+  const loadAthletesList = useCallback(async () => {
+    if (!user?.id) {
+      setAthletesList([]);
+      return;
+    }
+    try {
+      const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
+      const list = await listAthletesByCoachId(user.id);
+      setAthletesList(list.map((a) => ({ id: a.id, name: a.name })));
+    } catch {
+      setAthletesList([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (userType === UserType.COACH) loadAthletesList();
+    else setAthletesList([]);
+  }, [userType, loadAthletesList]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userType === UserType.COACH) loadAthletesList();
+    }, [userType, loadAthletesList])
+  );
 
   // Carregar histórico de peso do atleta
   const loadWeightHistory = useCallback(async () => {
@@ -204,10 +125,9 @@ export default function HomeScreen() {
       }
 
       const allHistory = JSON.parse(weightHistoryJson);
-      
-      // Filtrar apenas registros deste atleta
-      // Por enquanto, vamos mostrar todos os registros (quando tiver autenticação, filtrar por athleteId)
-      const athleteHistory = allHistory; // TODO: Filtrar por athleteId quando tiver autenticação
+      const athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
+        (r: any) => r.athleteId === currentAthleteId
+      );
       
       // Agrupar por exercício para criar lista de exercícios disponíveis
       const exercisesMap = new Map<string, string>();
@@ -749,31 +669,17 @@ export default function HomeScreen() {
     };
   };
 
-  // Função para obter taxa de aderência de todos os atletas do treinador
+  // Função para obter taxa de aderência de todos os atletas (derivados dos treinos)
   const getAllAthletesAdherence = () => {
-    // Pegar apenas os atletas que estão na lista mockAthletes (atletas do treinador)
-    // e que têm pelo menos um treino atribuído
-    const athletesWithWorkouts = mockAthletes.filter((athlete) => {
-      // Verificar se este atleta tem pelo menos um treino atribuído
-      return workouts.some((w: any) => 
-        (w.athleteId || w.coach) === athlete.id
-      );
-    });
-
-    // Calcular aderência para cada atleta do treinador
-    const adherenceData = athletesWithWorkouts
+    const athletes = getAthletesFromWorkouts();
+    const adherenceData = athletes
       .map((athlete) => {
         const adherence = calculateAdherenceRate(athlete.id);
         if (!adherence) return null;
-        
-        return {
-          ...adherence,
-          athleteName: athlete.name,
-        };
+        return { ...adherence, athleteName: athlete.name };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
-      .sort((a, b) => b.rate - a.rate); // Ordenar por maior aderência primeiro
-
+      .sort((a, b) => b.rate - a.rate);
     return adherenceData;
   };
 
@@ -890,9 +796,10 @@ export default function HomeScreen() {
     // Criar lista de atividades individuais (não agrupadas por atleta)
     // Garantir keys únicas mesmo se houver treinos com IDs duplicados
     const seenIds = new Set<string>();
+    const athletes = getAthletesFromWorkouts();
     const activities = recentCompleted.map((w: any, index: number) => {
       const athleteId = w.athleteId || w.coach;
-      const athlete = mockAthletes.find(a => a.id === athleteId);
+      const athlete = athletes.find(a => a.id === athleteId);
       
       // Criar ID único: usar workout.id + completedAt timestamp + índice para garantir unicidade absoluta
       const completedTimestamp = w.completedDate 
@@ -915,7 +822,7 @@ export default function HomeScreen() {
       return {
         id: uniqueId,
         athleteId: athleteId,
-        athleteName: athlete?.name || 'Atleta',
+        athleteName: athlete?.name || `Atleta ${athleteId}`,
         workoutName: w.name,
         completedAt: w.completedDate || new Date().toISOString(),
         feedbackEmoji: w.feedbackEmoji || null,
@@ -943,63 +850,63 @@ export default function HomeScreen() {
   };
 
   const getAthletesNeedingAttention = () => {
-    // Atletas que não completaram treinos nos últimos 5 dias
+    const athletes = getAthletesFromWorkouts();
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    const fiveDaysAgoTime = fiveDaysAgo.getTime();
-    
-    // Pegar TODOS os atletas (não apenas os que têm treinos)
-    // Para mostrar atletas que nunca treinaram também
-    const allAthleteIds = new Set([
-      ...workouts.map((w: any) => w.athleteId || w.coach),
-      ...mockAthletes.map(a => a.id)
-    ]);
-    
-    return Array.from(allAthleteIds)
-      .map(id => {
-        const athlete = mockAthletes.find(a => a.id === id);
-        if (!athlete) return null;
-        
-        // Verificar último treino concluído
-        const athleteWorkouts = workouts.filter((w: any) => 
-          (w.athleteId || w.coach) === id && 
-          w.status === 'Concluído'
+    fiveDaysAgo.setHours(0, 0, 0, 0);
+
+    return athletes
+      .map((athlete) => {
+        const athleteWorkouts = workouts.filter((w: any) =>
+          (w.athleteId || w.coach) === athlete.id && w.status === 'Concluído'
         );
-        
-        // Usar completedDate se disponível, senão usar date
         const lastCompleted = athleteWorkouts.sort((a: any, b: any) => {
           const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
           const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
           return dateB - dateA;
         })[0];
-        
+
         if (!lastCompleted) {
-          // Atleta nunca completou um treino
-          return {
-            ...athlete,
-            daysSinceLastWorkout: 999,
-          };
+          return { ...athlete, daysSinceLastWorkout: 999 };
         }
-        
-        // Calcular dias desde o último treino usando completedDate ou date
-        const lastCompletedDate = (lastCompleted as any).completedDate 
+        const lastCompletedDate = (lastCompleted as any).completedDate
           ? new Date((lastCompleted as any).completedDate).getTime()
           : new Date(lastCompleted.date).getTime();
-        
         const daysSince = Math.floor((new Date().getTime() - lastCompletedDate) / (1000 * 60 * 60 * 24));
-        
-        // Retornar apenas se não treinou há mais de 5 dias
-        if (daysSince > 5) {
-          return {
-            ...athlete,
-            daysSinceLastWorkout: daysSince,
-          };
-        }
-        
-        return null;
+        if (daysSince <= 5) return null;
+        return { ...athlete, daysSinceLastWorkout: daysSince };
       })
       .filter(Boolean)
       .sort((a: any, b: any) => b.daysSinceLastWorkout - a.daysSinceLastWorkout);
+  };
+
+  // Atletas mais ativos: ranking por treinos concluídos no último mês
+  const getMostActiveAthletes = () => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    oneMonthAgo.setHours(0, 0, 0, 0);
+
+    const completedLastMonth = workouts.filter((w: any) => {
+      if (w.status !== 'Concluído') return false;
+      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+      return completedDate >= oneMonthAgo;
+    });
+
+    const byAthlete = new Map<string, number>();
+    completedLastMonth.forEach((w: any) => {
+      const id = w.athleteId || w.coach;
+      byAthlete.set(id, (byAthlete.get(id) || 0) + 1);
+    });
+
+    const athletes = getAthletesFromWorkouts();
+    return Array.from(byAthlete.entries())
+      .map(([athleteId, count]) => ({
+        athleteId,
+        athleteName: athletes.find(a => a.id === athleteId)?.name || `Atleta ${athleteId}`,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
   };
 
   // Estatísticas para o Panorama Semanal
@@ -1015,12 +922,6 @@ export default function HomeScreen() {
     // Treinos pendentes (todos os status Pendente)
     const pendingWorkouts = workouts.filter((w: any) => w.status === 'Pendente').length;
     
-    // Debug logs
-    console.log('📊 getWeeklyStats - Atletas hoje:', athletesToday);
-    console.log('📊 getWeeklyStats - Treinos concluídos hoje:', completedToday);
-    console.log('📊 getWeeklyStats - Pendentes:', pendingWorkouts);
-    console.log('📊 getWeeklyStats - Atletas precisando atenção:', getAthletesNeedingAttention().length);
-    
     return {
       athletesToday,
       completedToday,
@@ -1028,186 +929,31 @@ export default function HomeScreen() {
     };
   };
 
-  // ⚠️ CÓDIGO TEMPORÁRIO - REMOVER DEPOIS DE USAR
-useEffect(() => {
-  const clearAllStatuses = async () => {
-    try {
-      const workoutIds = ['1', '2', '3', '4', '5', '6'];
-      for (const id of workoutIds) {
-        await AsyncStorage.removeItem(`workout_${id}_status`);
-      }
-      // Resetar estado para valores iniciais
-      setWorkouts([
-        {
-          id: '1',
-          name: 'Treino de Força - Pernas',
-          date: '2026-01-06',
-          scheduledDate: '2026-01-06',
-          status: 'Concluído',
-          coach: 'João Silva',
-          dayOfWeek: 'Segunda-feira',
-          isToday: false,
-          isThisWeek: false,
-        },
-        {
-          id: '2',
-          name: 'Treino de Força - Peito',
-          date: new Date().toISOString().split('T')[0],
-          scheduledDate: new Date().toISOString().split('T')[0],
-          status: 'Pendente',
-          coach: 'Maria Oliveira',
-          dayOfWeek: new Date().toLocaleDateString('pt-BR', { weekday: 'long' }),
-          isToday: true,
-          isThisWeek: true,
-        },
-        {
-          id: '3',
-          name: 'Treino de Força - Costas',
-          date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          status: 'Pendente',
-          coach: 'João Silva',
-          dayOfWeek: new Date(Date.now() + 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-          isToday: false,
-          isThisWeek: true,
-        },
-        {
-          id: '4',
-          name: 'Treino de Força - Bíceps',
-          date: new Date(Date.now() + 172800000).toISOString().split('T')[0],
-          scheduledDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
-          status: 'Pendente',
-          coach: 'Ana Souza',
-          dayOfWeek: new Date(Date.now() + 172800000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-          isToday: false,
-          isThisWeek: true,
-        },
-        {
-          id: '5',
-          name: 'Treino de Força - Tríceps',
-          date: new Date(Date.now() + 259200000).toISOString().split('T')[0],
-          scheduledDate: new Date(Date.now() + 259200000).toISOString().split('T')[0],
-          status: 'Pendente',
-          coach: 'Carlos Ferreira',
-          dayOfWeek: new Date(Date.now() + 259200000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-          isToday: false,
-          isThisWeek: true,
-        },
-        {
-          id: '6',
-          name: 'Treino Cardio - Corrida',
-          date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-          scheduledDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-          status: 'Concluído',
-          coach: 'João Silva',
-          dayOfWeek: new Date(Date.now() - 86400000).toLocaleDateString('pt-BR', { weekday: 'long' }),
-          isToday: false,
-          isThisWeek: false,
-        },
-      ]);
-      console.log('✅ Dados resetados!');
-    } catch (error) {
-      console.error('Erro ao limpar:', error);
-    }
-  };
-  
-  // Descomente a linha abaixo para limpar os dados
-  //clearAllStatuses();
-}, []);
-
   const loadWorkoutStatuses = useCallback(async () => {
-    // PARTE 1: Carregar tipo de usuário e atleta atual
     const savedType = await AsyncStorage.getItem('userType');
-    console.log('🔄 loadWorkoutStatuses - Tipo carregado:', savedType);
-    
-    // ✅ ADICIONAR: Atualizar o estado userType se mudou
-    if (savedType) {
-      setUserType(savedType as UserType);
-    }
-    
-    let athleteId = null;
-    
+    if (savedType) setUserType(savedType as UserType);
+
+    let athleteId: string | null = null;
     if (savedType === UserType.ATHLETE) {
       athleteId = await AsyncStorage.getItem('currentAthleteId');
-      console.log('👤 loadWorkoutStatuses - AthleteId carregado:', athleteId);
-      if (athleteId) {
-        setCurrentAthleteId(athleteId);
-      }
+      if (athleteId) setCurrentAthleteId(athleteId);
     }
 
-    // PARTE 2: Carregar treinos atribuídos
-    const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-    let assignedWorkouts = [];
-    
-    console.log('📦 loadWorkoutStatuses - Treinos no AsyncStorage:', assignedWorkoutsJson ? 'Existem' : 'Não existem');
-
-    if (assignedWorkoutsJson) {
-      assignedWorkouts = JSON.parse(assignedWorkoutsJson);
-      console.log('📋 loadWorkoutStatuses - Total de treinos carregados:', assignedWorkouts.length);
-      console.log('📝 loadWorkoutStatuses - Todos os treinos:', assignedWorkouts);
-      
-      // PARTE 3: Se for atleta, filtrar apenas os treinos dele
+    let allWorkouts: any[] = [];
+    try {
       if (savedType === UserType.ATHLETE && athleteId) {
-        console.log('🔍 loadWorkoutStatuses - Filtrando para atleta ID:', athleteId);
-        assignedWorkouts = assignedWorkouts.filter(
-          (workout: any) => {
-            const match = workout.athleteId === athleteId;
-            console.log(`Comparando: workout.athleteId (${workout.athleteId}) === athleteId (${athleteId}) = ${match}`);
-            return match;
-          }
-        );
-        console.log('✅ loadWorkoutStatuses - Treinos após filtro:', assignedWorkouts.length);
-        console.log('📝 loadWorkoutStatuses - Treinos filtrados:', assignedWorkouts);
+        allWorkouts = await listAssignedWorkoutsByAthleteId(athleteId);
+      } else if (savedType === UserType.COACH && user?.id) {
+        allWorkouts = await listAssignedWorkoutsByCoachId(user.id);
       }
+    } catch (e) {
+      console.warn('Erro ao carregar treinos:', e);
     }
 
-    // PARTE 4: Se for ATLETA, mostrar APENAS os treinos atribuídos
-    // Se for TREINADOR, mostrar treinos mockados + atribuídos
-    let allWorkouts = [];
+    const finalWorkouts = allWorkouts;
     
-    if (savedType === UserType.ATHLETE) {
-      // Atleta vê apenas seus treinos atribuídos
-      allWorkouts = assignedWorkouts;
-      console.log('👤 loadWorkoutStatuses - ATLETA - Total de treinos:', allWorkouts.length);
-    } else {
-      // Treinador: carregar status dos treinos mockados primeiro (usar ref para evitar loop)
-      const updatedWorkouts = await Promise.all(
-        initialWorkoutsRef.current.map(async (workout: any) => {
-          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-          if (savedStatus) {
-            return { ...workout, status: savedStatus };
-          }
-          return workout;
-        })
-      );
-      // Combinar treinos mockados com atribuídos
-      // IMPORTANTE: assignedWorkouts já vêm com status e completedDate do AsyncStorage
-      allWorkouts = [...updatedWorkouts, ...assignedWorkouts];
-      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Total de treinos:', allWorkouts.length);
-      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Treinos atribuídos:', assignedWorkouts.length);
-      console.log('👨‍🏫 loadWorkoutStatuses - TREINADOR - Treinos concluídos:', allWorkouts.filter((w: any) => w.status === 'Concluído').length);
-    }
-
-    // PARTE 5: Carregar status dos treinos atribuídos (se houver)
-    const finalWorkouts = await Promise.all(
-      allWorkouts.map(async (workout: any) => {
-        const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-        if (savedStatus) {
-          // Se tem status salvo, usar ele
-          return { ...workout, status: savedStatus };
-        }
-        // Se o treino já tem status e completedDate (treinos atribuídos), manter
-        if (workout.status && workout.completedDate) {
-          return workout;
-        }
-        return workout;
-      })
-    );
-    
-    console.log('💾 loadWorkoutStatuses - Salvando no estado:', finalWorkouts.length, 'treinos');
-    console.log('📊 loadWorkoutStatuses - Treinos com status:', finalWorkouts.filter((w: any) => w.status === 'Concluído').length);
     setWorkouts(finalWorkouts);
-  }, []); // Removido workouts das dependências para evitar loop infinito
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1740,6 +1486,71 @@ useEffect(() => {
             </View>
           )}
 
+          {/* Atletas Mais Ativos (últimos 30 dias) */}
+          {getMostActiveAthletes().length > 0 && (
+            <View className="w-full mb-4">
+              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
+                🏅 Atletas Mais Ativos
+              </Text>
+              <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
+                Últimos 30 dias – treinos concluídos
+              </Text>
+              <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
+                <BarChart
+                  data={getMostActiveAthletes().map((athlete, index) => ({
+                    value: athlete.count,
+                    label: athlete.athleteName.length > 6
+                      ? athlete.athleteName.substring(0, 6) + '..'
+                      : athlete.athleteName,
+                    frontColor: index === 0 ? '#eab308' : index === 1 ? '#a3a3a3' : index === 2 ? '#b45309' : '#3b82f6',
+                    topLabelText: athlete.count.toString(),
+                    topLabelTextStyle: { color: theme.colors.text, fontSize: 9, fontWeight: 'bold' },
+                  }))}
+                  width={300}
+                  height={120}
+                  barWidth={28}
+                  spacing={10}
+                  hideRules
+                  xAxisThickness={1}
+                  xAxisColor={theme.colors.borderSecondary}
+                  yAxisThickness={1}
+                  yAxisColor={theme.colors.borderSecondary}
+                  yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 7 }}
+                  noOfSections={4}
+                  maxValue={Math.max(...getMostActiveAthletes().map(a => a.count)) + 2}
+                  isAnimated
+                  animationDuration={800}
+                  showGradient
+                  gradientColor="#60a5fa"
+                />
+              </View>
+              <View className="rounded-xl p-2 border" style={themeStyles.card}>
+                {getMostActiveAthletes().map((athlete, index) => (
+                  <TouchableOpacity
+                    key={athlete.athleteId}
+                    onPress={() => router.push({ pathname: '/athlete-profile', params: { athleteId: athlete.athleteId } })}
+                    activeOpacity={0.7}
+                    className="flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 border"
+                    style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundTertiary }}
+                  >
+                    <View className="flex-row items-center gap-2">
+                      <View className="w-7 h-7 rounded-full items-center justify-center" style={{ backgroundColor: index === 0 ? 'rgba(234,179,8,0.3)' : theme.colors.card }}>
+                        <Text className="font-bold text-xs" style={themeStyles.text}>{index + 1}</Text>
+                      </View>
+                      <Text className="font-semibold text-sm" style={themeStyles.text} numberOfLines={1}>
+                        {athlete.athleteName}
+                      </Text>
+                    </View>
+                    <Text className="font-bold text-sm" style={{ color: theme.colors.primary }}>
+                      {athlete.count} treino{athlete.count !== 1 ? 's' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Atividade Recente - Atletas que completaram treinos hoje */}
           {getAthletesWhoTrainedToday().length > 0 && (
             <View className="mb-8">
@@ -1868,7 +1679,7 @@ useEffect(() => {
           {currentAthleteId && (
             <View className="mb-6">
               <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-                Olá, {mockAthletes.find(a => a.id === currentAthleteId)?.name || 'Atleta'}!
+                Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
               </Text>
               <Text className="text-base" style={themeStyles.textSecondary}>
                 Acompanhe seus treinos e seu progresso

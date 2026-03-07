@@ -3,56 +3,63 @@
  * Só acessível pelo treinador (botão na Home).
  */
 
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
-const mockAthletes: { id: string; name: string }[] = [
-  { id: '1', name: 'João Silva' },
-  { id: '2', name: 'Maria Oliveira' },
-  { id: '3', name: 'Pedro Santos' },
-  { id: '4', name: 'Ana Souza' },
-  { id: '5', name: 'Carlos Ferreira' },
-  { id: '6', name: 'Laura Rodrigues' },
-  { id: '7', name: 'Rafael Oliveira' },
-  { id: '8', name: 'Camila Silva' },
-];
-
 export default function CoachCalendarScreen() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [assignedWorkouts, setAssignedWorkouts] = useState<any[]>([]);
+  const [athletesMap, setAthletesMap] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setAthletesMap({});
+      return;
+    }
+    import('@/src/services/athletes.service').then(({ listAthletesByCoachId }) =>
+      listAthletesByCoachId(user.id).then((list) => {
+        const map: Record<string, string> = {};
+        list.forEach((a) => { map[a.id] = a.name; });
+        setAthletesMap(map);
+      })
+    );
+  }, [user?.id]);
+
+  const getAthleteName = useCallback(
+    (athleteId: string) =>
+      athletesMap[athleteId] ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}`,
+    [athletesMap]
+  );
+
   const loadWorkouts = useCallback(async () => {
+    if (!user?.id) {
+      setAssignedWorkouts([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const json = await AsyncStorage.getItem('assigned_workouts');
-      const list = json ? JSON.parse(json) : [];
-      const enriched = await Promise.all(
-        list.map(async (w: any) => {
-          const savedStatus = await AsyncStorage.getItem(`workout_${w.id}_status`);
-          const status = savedStatus || w.status || 'Pendente';
-          const feedbackEmojiJson = await AsyncStorage.getItem(`workout_${w.id}_feedbackEmoji`);
-          const feedbackEmoji = feedbackEmojiJson || w.feedbackEmoji || null;
-          return { ...w, status, feedbackEmoji };
-        })
-      );
-      setAssignedWorkouts(enriched);
+      const { listAssignedWorkoutsByCoachId } = await import('@/src/services/assignedWorkouts.service');
+      const list = await listAssignedWorkoutsByCoachId(user.id);
+      setAssignedWorkouts(list);
     } catch (e) {
       console.warn('Erro ao carregar treinos:', e);
       setAssignedWorkouts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadWorkouts();
@@ -63,9 +70,6 @@ export default function CoachCalendarScreen() {
       loadWorkouts();
     }, [loadWorkouts])
   );
-
-  const getAthleteName = (athleteId: string) =>
-    mockAthletes.find((a) => a.id === athleteId)?.name || `Atleta ${athleteId}`;
 
   const workoutsByDate: Record<string, any[]> = {};
   assignedWorkouts.forEach((w: any) => {

@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { ToastProvider } from '@/components/ToastProvider';
+import { AuthProvider } from '@/src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
 
@@ -20,8 +21,7 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: 'select-user-type',
+  initialRouteName: 'index',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -126,9 +126,10 @@ function RootLayoutNavContent() {
       <ToastProvider>
         <StatusBar style={theme.mode === 'dark' ? 'light' : 'dark'} backgroundColor={theme.colors.background} />
         <Stack screenOptions={screenOptions}>
-        <Stack.Screen name="select-user-type" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="select-user-type" options={{ headerShown: false }} />
         <Stack.Screen 
           name="workout-details" 
           options={{ 
@@ -239,7 +240,9 @@ function RootLayoutNavContent() {
 function RootLayoutNav() {
   return (
     <ThemeProvider>
-      <RootLayoutNavContent />
+      <AuthProvider>
+        <RootLayoutNavContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

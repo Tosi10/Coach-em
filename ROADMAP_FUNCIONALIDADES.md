@@ -72,7 +72,7 @@
 
 ## 🔄 Opção 2: Sistema de Estatísticas e Relatórios
 
-### Status: **PRÓXIMO** 🎯
+### Status: **CONCLUÍDO** ✅
 
 ### Por que fazer isso?
 - Treinador precisa ver o progresso dos atletas de forma visual
@@ -84,37 +84,14 @@
 
 ### 📊 Fase 2.1: Dashboard de Estatísticas para o Treinador
 
-#### Etapa 2.1.1: Gráfico de Treinos Concluídos por Semana
+#### ✅ Etapa 2.1.1: Gráfico de Treinos Concluídos por Semana
 
-**O que vamos fazer:**
-- Criar uma nova tela/seção no dashboard do treinador
-- Mostrar gráfico de linha ou barras com treinos concluídos por semana
-- Agrupar dados dos últimos 4-8 semanas
-- Mostrar tendência (aumentando/diminuindo)
+**Status:** Implementado no dashboard do treinador (`app/(tabs)/index.tsx`).
 
-**Onde vamos trabalhar:**
-- `app/(tabs)/index.tsx` (dashboard do treinador)
-- Criar componente `StatisticsChart.tsx` (opcional)
-
-**Código que você vai escrever:**
-```typescript
-// Função para agrupar treinos por semana
-const getWeeklyStats = () => {
-  // Agrupar treinos concluídos por semana
-  // Retornar array com { week: 'Semana 1', count: 5 }
-};
-
-// Usar react-native-gifted-charts para criar gráfico
-<LineChart data={weeklyData} />
-```
-
-**Conceitos que você vai aprender:**
-- Agrupamento de dados por período (semana)
-- Formatação de datas
-- Criação de gráficos com `react-native-gifted-charts`
-- Processamento de arrays com `reduce` e `map`
-
-**Estimativa:** 2-3 horas
+**O que foi implementado:**
+- ✅ `getCoachWeeklyStats()` – agrupa treinos concluídos por semana (últimas 8 semanas)
+- ✅ BarChart com tendência (primeira vs última semana, "Aumentando/Diminuindo/Estável")
+- ✅ Labels de semana formatados
 
 ---
 
@@ -133,70 +110,27 @@ const getWeeklyStats = () => {
 
 ---
 
-#### Etapa 2.1.3: Treinos Mais Difíceis (Baseado no Feedback)
+#### ✅ Etapa 2.1.3: Treinos Mais Difíceis (Baseado no Feedback)
 
-**O que vamos fazer:**
-- Analisar feedback dos atletas (emoji de dificuldade)
-- Calcular média de dificuldade por treino
-- Mostrar lista dos treinos mais difíceis
-- Mostrar gráfico com distribuição de dificuldade
+**Status:** Implementado no dashboard do treinador (`app/(tabs)/index.tsx`).
 
-**Onde vamos trabalhar:**
-- `app/(tabs)/index.tsx` ou criar seção de estatísticas
-- Processar dados de `assigned_workouts` com `feedback`
-
-**Código que você vai escrever:**
-```typescript
-// Calcular dificuldade média por treino
-const getWorkoutDifficulty = (workoutName: string) => {
-  const workouts = getCompletedWorkoutsByName(workoutName);
-  const totalFeedback = workouts.reduce((sum, w) => sum + (w.feedback || 0), 0);
-  return totalFeedback / workouts.length;
-};
-
-// Mostrar gráfico de pizza ou barras
-<PieChart data={difficultyDistribution} />
-```
-
-**Conceitos que você vai aprender:**
-- Cálculo de médias
-- Agrupamento por nome de treino
-- Gráficos de pizza/distribuição
-- Análise de feedback
-
-**Estimativa:** 2 horas
+**O que foi implementado:**
+- ✅ `getWorkoutDifficulty(workoutName)` – média de feedback (1–5) por nome de treino
+- ✅ `getMostDifficultWorkouts()` – top 5 treinos mais difíceis
+- ✅ `getDifficultyDistribution()` – contagem por nível (Muito Fácil a Muito Difícil)
+- ✅ Lista dos 5 treinos mais difíceis com média e label (Muito Difícil / Difícil / etc.)
+- ✅ Gráfico de barras de distribuição de dificuldade
 
 ---
 
-#### Etapa 2.1.4: Atletas Mais Ativos
+#### ✅ Etapa 2.1.4: Atletas Mais Ativos
 
-**O que vamos fazer:**
-- Contar treinos concluídos por atleta no último mês
-- Mostrar ranking dos atletas mais ativos
-- Mostrar gráfico comparativo
-- Destacar atletas que treinaram mais
+**Status:** Implementado no dashboard do treinador (`app/(tabs)/index.tsx`).
 
-**Onde vamos trabalhar:**
-- `app/(tabs)/index.tsx` ou seção de estatísticas
-
-**Código que você vai escrever:**
-```typescript
-// Contar treinos por atleta
-const getMostActiveAthletes = () => {
-  const lastMonth = new Date();
-  lastMonth.setMonth(lastMonth.getMonth() - 1);
-  
-  // Agrupar por atleta e contar
-  // Retornar top 5-10 atletas
-};
-```
-
-**Conceitos que você vai aprender:**
-- Filtragem por data
-- Ranking e ordenação
-- Agregação de dados por atleta
-
-**Estimativa:** 1-2 horas
+**O que foi implementado:**
+- ✅ `getMostActiveAthletes()` – treinos concluídos nos últimos 30 dias por atleta, top 8
+- ✅ BarChart comparativo (ouro/prata/bronze para top 3)
+- ✅ Lista clicável com posição, nome e quantidade de treinos (leva ao perfil do atleta)
 
 ---
 
@@ -1258,6 +1192,7 @@ const Toast = ({ message, type }) => (
 10. **Etapa 5.2.2: Melhor Feedback de Ações** ✅ **CONCLUÍDO**
     - ✅ Sistema de Toast implementado
     - ✅ ToastProvider global
+
 
 11. **Etapa 5.2.3: Dark Mode Toggle** ✅ **CONCLUÍDO** (implementado anteriormente)
     - ✅ ThemeContext com modo dark e light

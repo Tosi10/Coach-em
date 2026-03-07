@@ -1,6 +1,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useToastContext } from '@/components/ToastProvider';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
     requestNotificationPermissions,
@@ -12,28 +13,21 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-const mockAthletes = [
-  { id: '1', name: 'João Silva', sport: 'Futebol', status: 'Ativo'},
-  { id: '2', name: 'Maria Oliveira', sport: 'Vôlei', status: 'Ativo'},
-  { id: '3', name: 'Pedro Santos', sport: 'Basquete', status: 'Ativo'},
-  { id: '4', name: 'Ana Souza', sport: 'Atletismo', status: 'Ativo'},
-  { id: '5', name: 'Carlos Ferreira', sport: 'Futebol', status: 'Ativo'},
-  { id: '6', name: 'Laura Rodrigues', sport: 'Vôlei', status: 'Ativo'},
-  { id: '7', name: 'Rafael Oliveira', sport: 'Basquete', status: 'Ativo'},
-  { id: '8', name: 'Camila Silva', sport: 'Atletismo', status: 'Ativo'},
-];
-
 export default function TabTwoScreen() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [refreshing, setRefreshing] = useState(false);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
+  // Atletas derivados dos treinos (Firestore) – só para COACH
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
   
   // Estados para treinos do atleta
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
@@ -90,43 +84,39 @@ export default function TabTwoScreen() {
     }
   }, [userType, currentAthleteId]);
 
+  const loadCoachAthletes = useCallback(async () => {
+    if (!user?.id) {
+      setAthletes([]);
+      return;
+    }
+    try {
+      const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
+      const list = await listAthletesByCoachId(user.id);
+      setAthletes(list.map((a) => ({ id: a.id, name: a.name })));
+    } catch (e) {
+      setAthletes([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (userType === UserType.COACH) loadCoachAthletes();
+    else setAthletes([]);
+  }, [userType, loadCoachAthletes]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userType === UserType.COACH) loadCoachAthletes();
+    }, [userType, loadCoachAthletes])
+  );
+
   const loadAthleteWorkouts = async () => {
     try {
-      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-      let allWorkouts = [];
-      
-      if (assignedWorkoutsJson) {
-        allWorkouts = JSON.parse(assignedWorkoutsJson);
+      if (!currentAthleteId) {
+        setAthleteWorkouts([]);
+        return;
       }
-
-      // Filtrar treinos deste atleta
-      const workouts = allWorkouts.filter((w: any) => w.athleteId === currentAthleteId);
-      
-      // Carregar status de cada treino
-      const workoutsWithStatus = await Promise.all(
-        workouts.map(async (workout: any) => {
-          const savedStatus = await AsyncStorage.getItem(`workout_${workout.id}_status`);
-          const status = savedStatus || workout.status || 'Pendente';
-          
-          // Buscar completedDate se existir
-          const completedDateJson = await AsyncStorage.getItem(`workout_${workout.id}_completedDate`);
-          const completedDate = completedDateJson ? completedDateJson : null;
-          
-          // Buscar feedbackEmoji: priorizar chave AsyncStorage, depois o próprio objeto do treino (assigned_workouts)
-          const feedbackEmojiJson = await AsyncStorage.getItem(`workout_${workout.id}_feedbackEmoji`);
-          const feedbackEmoji = feedbackEmojiJson || workout.feedbackEmoji || null;
-          const feedbackText = workout.feedbackText || null;
-          
-          return {
-            ...workout,
-            status,
-            completedDate,
-            feedbackEmoji,
-            feedbackText,
-          };
-        })
-      );
-
+      const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
+      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(currentAthleteId);
       setAthleteWorkouts(workoutsWithStatus);
 
       // Agendar lembretes do ATLETA (30 min antes + na hora) para treinos pendentes e futuros
@@ -171,27 +161,9 @@ export default function TabTwoScreen() {
       'warning',
       async () => {
         try {
-          const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-          let allWorkouts = [];
-          
-          if (assignedWorkoutsJson) {
-            allWorkouts = JSON.parse(assignedWorkoutsJson);
-          }
-
-          const updatedWorkouts = allWorkouts.filter((w: any) => !workoutIds.includes(w.id));
-          
-          // Também remover status salvos individualmente
-          for (const id of workoutIds) {
-            await AsyncStorage.removeItem(`workout_${id}_status`);
-            await AsyncStorage.removeItem(`workout_${id}_completedDate`);
-            await AsyncStorage.removeItem(`workout_${id}_feedbackEmoji`);
-          }
-
-          await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
-          
-          // Recarregar a lista
+          const { deleteAssignedWorkouts } = await import('@/src/services/assignedWorkouts.service');
+          await deleteAssignedWorkouts(workoutIds);
           await loadAthleteWorkouts();
-          
           showAlert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`, 'success');
         } catch (error) {
           console.error('Erro ao deletar treino:', error);
@@ -555,50 +527,57 @@ export default function TabTwoScreen() {
           Gerencie seus atletas e atribua treinos personalizados
         </Text>
 
-        {/* Contador */}
-        <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-          Total: {mockAthletes.length} atleta{mockAthletes.length !== 1 ? 's' : ''}
-        </Text>
+        {/* Contador e botão Adicionar atleta */}
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-xl font-bold" style={themeStyles.text}>
+            Total: {athletes.length} atleta{athletes.length !== 1 ? 's' : ''}
+          </Text>
+          <TouchableOpacity
+            className="rounded-xl py-2.5 px-4 flex-row items-center"
+            style={{ backgroundColor: theme.colors.primary }}
+            onPress={() => router.push('/add-athlete')}
+          >
+            <FontAwesome name="plus" size={14} color="#fff" style={{ marginRight: 8 }} />
+            <Text className="font-semibold text-sm" style={{ color: '#fff' }}>Adicionar atleta</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Lista de atletas */}
-        {mockAthletes.length === 0 ? (
+        {/* Lista de atletas (Firestore coachemAthletes) */}
+        {athletes.length === 0 ? (
           <EmptyState
             icon="users"
-            message="Você ainda não tem atletas cadastrados."
-            actionLabel="Adicionar Atleta"
-            onAction={() => {
-              // TODO: Implementar navegação para adicionar atleta
-              showToast('Funcionalidade em desenvolvimento', 'info');
-            }}
+            message="Cadastre um atleta para depois atribuir treinos a ele."
+            actionLabel="Cadastrar atleta"
+            onAction={() => router.push('/add-athlete')}
           />
         ) : (
-          mockAthletes.map((athlete) => (
-          <TouchableOpacity
-            key={athlete.id}
-            className="rounded-xl p-4 mb-3 border"
-            style={{
-              ...themeStyles.card,
-              shadowColor: theme.colors.primary,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 4,
-            }}
-            onPress={() => {
-              router.push({
-                pathname: '/athlete-profile',
-                params: { athleteId: athlete.id },
-              });
-            }}
-          >
-            <Text className="text-lg font-semibold" style={themeStyles.text}>
-              {athlete.name}
-            </Text>
-            <Text className="mt-1" style={themeStyles.textSecondary}>
-              {athlete.status}
-            </Text>
-          </TouchableOpacity>
-        ))
+          athletes.map((athlete) => (
+            <TouchableOpacity
+              key={athlete.id}
+              className="rounded-xl p-4 mb-3 border"
+              style={{
+                ...themeStyles.card,
+                shadowColor: theme.colors.primary,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+              onPress={() => {
+                router.push({
+                  pathname: '/athlete-profile',
+                  params: { athleteId: athlete.id },
+                });
+              }}
+            >
+              <Text className="text-lg font-semibold" style={themeStyles.text}>
+                {athlete.name}
+              </Text>
+              <Text className="mt-1" style={themeStyles.textSecondary}>
+                Ativo
+              </Text>
+            </TouchableOpacity>
+          ))
         )}
       </View>
     </ScrollView>

@@ -1,10 +1,11 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutCard } from '@/src/components/WorkoutCard';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { createWorkoutTemplate, listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -175,9 +176,10 @@ const mockWorkouts = [
 
 export default function WorkoutLibraryScreen() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
-  const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
+  const [allWorkouts, setAllWorkouts] = useState<typeof mockWorkouts>([]);
   const [searchText, setSearchText] = useState('');
 
   // Estados para CustomAlert
@@ -203,26 +205,23 @@ export default function WorkoutLibraryScreen() {
 
     const loadSavedWorkouts = async () => {
         try {
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts = [];
-
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
+            const coachId = user?.id;
+            if (!coachId) {
+                setAllWorkouts([]);
+                return;
             }
-
-            const combinedWorkouts = [...mockWorkouts, ...savedWorkouts];
-
-            setAllWorkouts(combinedWorkouts);
+            const templates = await listWorkoutTemplatesByCoachId(coachId);
+            setAllWorkouts(templates);
         } catch (error) {
             console.error('Erro ao carregar treinos:', error);
-            setAllWorkouts(mockWorkouts);
+            setAllWorkouts([]);
         }
     };
 
     useFocusEffect(
         useCallback(() => {
             loadSavedWorkouts();
-        }, [])
+        }, [user?.id])
     );
 
     // Função para filtrar treinos por busca
@@ -241,29 +240,18 @@ export default function WorkoutLibraryScreen() {
     // Função para duplicar treino
     const handleDuplicateWorkout = async (workout: any) => {
         try {
-            const newWorkout = {
-                ...workout,
+            const coachId = user?.id;
+            if (!coachId) {
+                showAlert('Erro', 'Você precisa estar logado para duplicar.', 'error');
+                return;
+            }
+            await createWorkoutTemplate(coachId, {
                 id: `workout_${Date.now()}`,
                 name: `${workout.name} (Cópia)`,
-                createdAt: new Date().toISOString().split('T')[0],
-            };
-
-            // Buscar treinos salvos
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts = [];
-
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
-            }
-
-            // Adicionar cópia
-            const updatedWorkouts = [...savedWorkouts, newWorkout];
-            await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
-
-            // Atualizar estado local
-            const updatedAll = [...allWorkouts, newWorkout];
-            setAllWorkouts(updatedAll);
-
+                description: workout.description,
+                blocks: workout.blocks || [],
+            });
+            loadSavedWorkouts();
             showAlert('Sucesso', 'Treino duplicado com sucesso!', 'success');
         } catch (error) {
             console.error('Erro ao duplicar treino:', error);

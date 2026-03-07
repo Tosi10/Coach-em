@@ -1,9 +1,11 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { listExercisesByCoachId } from '@/src/services/exercises.service';
+import { getWorkoutTemplateById, updateWorkoutTemplate } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -27,6 +29,7 @@ const mockExercises: Exercise[] = [
 
 export default function EditWorkoutScreen() {
     const router = useRouter();
+    const { user } = useAuthContext();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
     const { workoutId } = useLocalSearchParams();
@@ -85,40 +88,26 @@ export default function EditWorkoutScreen() {
     const [selectedExerciseType, setSelectedExerciseType] = useState<'warmup' | 'work' | 'cooldown' | null>(null);
     const [searchExerciseText, setSearchExerciseText] = useState('');
 
-    // PARTE 1: Carregar dados do treino quando a tela abrir
+    // PARTE 1: Carregar dados do treino do Firestore
     useEffect(() => {
         const loadWorkout = async () => {
             try {
-                // Buscar todos os treinos salvos
-                const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-                let savedWorkouts = [];
-
-                if (savedWorkoutsJson) {
-                    savedWorkouts = JSON.parse(savedWorkoutsJson);
-                }
-
-                // Encontrar o treino pelo ID
-                const workout = savedWorkouts.find((w: any) => w.id === workoutIdString);
+                if (!workoutIdString) return;
+                const workout = await getWorkoutTemplateById(workoutIdString);
 
                 if (workout) {
-                    // Salvar o treino original para manter dados como createdAt, createdBy
                     setOriginalWorkout(workout);
-
-                    // Preencher os campos com os dados do treino
                     setWorkoutName(workout.name || '');
                     setWorkoutDescription(workout.description || '');
 
-                    // Separar os exercícios por bloco
                     const warmUpBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.WARM_UP);
                     const workBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.WORK);
                     const coolDownBlock = workout.blocks.find((b: WorkoutBlockData) => b.blockType === WorkoutBlock.COOL_DOWN);
 
-                    // Preencher exercícios de cada bloco
                     setWarmUpExercises(warmUpBlock?.exercises || []);
                     setWorkExercises(workBlock?.exercises || []);
                     setCoolDownExercises(coolDownBlock?.exercises || []);
 
-                    // Preencher notas de cada bloco
                     setWarmUpNotes(warmUpBlock?.notes || '');
                     setWorkNotes(workBlock?.notes || '');
                     setCoolDownNotes(coolDownBlock?.notes || '');
@@ -138,25 +127,19 @@ export default function EditWorkoutScreen() {
         }
     }, [workoutIdString]);
 
-    // NOVA FUNÇÃO: Carregar exercícios do AsyncStorage
     const loadAllExercises = useCallback(async () => {
         try {
-            const savedExerciseJson = await AsyncStorage.getItem('saved_exercises');
-            let savedExercises: Exercise[] = [];
-
-            if (savedExerciseJson) {
-                savedExercises = JSON.parse(savedExerciseJson);
-            }
-
+            const coachId = user?.id;
+            const savedExercises: Exercise[] = coachId
+                ? await listExercisesByCoachId(coachId)
+                : [];
             const combined = [...mockExercises, ...savedExercises];
             setAllExercises(combined);
-
-            console.log('✅ Exercícios carregados no edit:', combined.length);
         } catch (error) {
-            console.error('❌ Erro ao carregar exercícios:', error);
+            console.error('Erro ao carregar exercícios:', error);
             setAllExercises(mockExercises);
         }
-    }, []);
+    }, [user?.id]);
 
     // Carregar exercícios quando a tela abrir
     useEffect(() => {
@@ -312,23 +295,6 @@ export default function EditWorkoutScreen() {
         // Descrição é opcional, não precisa validar
 
         try {
-            // Buscar todos os treinos salvos
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts = [];
-
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
-            }
-
-            // Encontrar o índice do treino a ser atualizado
-            const workoutIndex = savedWorkouts.findIndex((w: any) => w.id === workoutIdString);
-
-            if (workoutIndex === -1) {
-                showAlert('Erro', 'Treino não encontrado.', 'error');
-                return;
-            }
-
-            // Criar os blocos atualizados
             const blocks: WorkoutBlockData[] = [
                 {
                     blockType: WorkoutBlock.WARM_UP,
@@ -347,23 +313,11 @@ export default function EditWorkoutScreen() {
                 },
             ];
 
-            // Criar objeto atualizado (mantém ID, createdAt, createdBy)
-            const updatedWorkout = {
-                ...originalWorkout, // Mantém dados originais
+            await updateWorkoutTemplate(workoutIdString!, {
                 name: workoutName.trim(),
                 description: workoutDescription.trim(),
-                blocks: blocks,
-                updatedAt: new Date().toISOString(), // Atualiza data de modificação
-            };
-
-            // Substituir o treino antigo pelo atualizado
-            savedWorkouts[workoutIndex] = updatedWorkout;
-
-            // Salvar de volta no AsyncStorage
-            await AsyncStorage.setItem(
-                'workout_templates',
-                JSON.stringify(savedWorkouts)
-            );
+                blocks,
+            });
 
             showAlert('Sucesso', 'Treino atualizado com sucesso!', 'success', () => {
                 router.back();

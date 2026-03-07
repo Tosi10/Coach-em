@@ -282,54 +282,53 @@ export default function WorkoutDetailsScreen() {
     const loadWorkoutData = async () => {
       try {
         setLoading(true);
-
-        const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-        const assignedWorkouts = assignedWorkoutsJson
-        ?JSON.parse(assignedWorkoutsJson)
-        : [];
-
-        const found = assignedWorkouts.find((w: any) => w.id === workoutId);
-        if(!found) {
+        const { getAssignedWorkoutById } = await import('@/src/services/assignedWorkouts.service');
+        const found = await getAssignedWorkoutById(workoutId);
+        if (!found) {
           showAlert('Erro', 'Treino não encontrado', 'error', () => router.back());
           return;
         }
 
         setAssignedWorkout(found);
 
-        // Se o treino já tem blocks salvos, usar diretamente
         if (found.blocks && found.blocks.length > 0) {
+          const blockTypes = ['WARM_UP', 'WORK', 'COOL_DOWN'] as const;
+          const blocks = found.blocks.map((b: { blockType?: string; exercises?: unknown[] }, i: number) => ({
+            ...b,
+            blockType: b.blockType ?? blockTypes[Math.min(i, 2)],
+            exercises: b.exercises ?? [],
+          }));
           setWorkoutTemplate({
             id: found.workoutTemplateId || found.id,
             name: found.name,
-            blocks: found.blocks,
+            blocks,
           });
         } else {
-          // Caso contrário, buscar do template (compatibilidade com treinos antigos)
-          const mockTemplates = getMockWorkoutTemplates();
-          let template = mockTemplates.find((t: any) => t.id === found.workoutTemplateId);
-
-          // Se não encontrou nos mockados, buscar no AsyncStorage
+          const { getWorkoutTemplateById } = await import('@/src/services/workoutTemplates.service');
+          let template = await getWorkoutTemplateById(found.workoutTemplateId);
+          if (!template) {
+            const mockTemplates = getMockWorkoutTemplates();
+            template = mockTemplates.find((t: any) => t.id === found.workoutTemplateId) || null;
+          }
           if (!template) {
             const savedTemplatesJson = await AsyncStorage.getItem('workout_templates');
             if (savedTemplatesJson) {
               const savedTemplates = JSON.parse(savedTemplatesJson);
-              template = savedTemplates.find((t: any) => t.id === found.workoutTemplateId);
+              template = savedTemplates.find((t: any) => t.id === found.workoutTemplateId) || null;
             }
           }
-
-          if(template) {
+          if (template) {
             setWorkoutTemplate(template);
           }
         }
-
       } catch (error) {
         console.error('Erro ao carregar treino:', error);
         showAlert('Erro', 'Não foi possível carregar o treino', 'error');
       } finally {
         setLoading(false);
       }
-     };
-      loadWorkoutData();
+    };
+    loadWorkoutData();
   }, [workoutId]);
 
   // Função para calcular porcentagem de conclusão
@@ -820,36 +819,17 @@ export default function WorkoutDetailsScreen() {
         );
       }
       
-      // 2. Buscar todos os treinos atribuídos
-      const assignedWorkoutsJson = await AsyncStorage.getItem('assigned_workouts');
-      const assignedWorkouts = assignedWorkoutsJson 
-        ? JSON.parse(assignedWorkoutsJson) 
-        : [];
-      
-      // 3. Encontrar e atualizar o treino específico
-      const updatedWorkouts = assignedWorkouts.map((w: any) => {
-        if (w.id === workoutId) {
-          return {
-            ...w,
-            status: 'Concluído',
-            completedDate: new Date().toISOString(),
-            feedback: selectedFeedback,
-            feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
-            feedbackText: feedbackText.trim() || undefined, // Observação do atleta (opcional)
-          };
-        }
-        return w;
+      // 2. Atualizar no Firestore
+      const { updateAssignedWorkout } = await import('@/src/services/assignedWorkouts.service');
+      await updateAssignedWorkout(workoutId, {
+        status: 'Concluído',
+        completedDate: new Date().toISOString(),
+        feedback: selectedFeedback,
+        feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
+        feedbackText: feedbackText.trim() || undefined,
       });
-      
-      // 4. Salvar de volta no AsyncStorage
-      await AsyncStorage.setItem('assigned_workouts', JSON.stringify(updatedWorkouts));
-      // Persistir feedback em chaves separadas para listas que leem por treino
-      await AsyncStorage.setItem(`workout_${workoutId}_feedbackEmoji`, feedbackEmojis[selectedFeedback - 1].emoji);
-      if (feedbackText.trim()) {
-        await AsyncStorage.setItem(`workout_${workoutId}_feedbackText`, feedbackText.trim());
-      }
-      
-      // 5. Atualizar o estado local
+
+      // 3. Atualizar o estado local
       setAssignedWorkout({
         ...assignedWorkout,
         status: 'Concluído',
@@ -1381,9 +1361,61 @@ export default function WorkoutDetailsScreen() {
                         )}
                       </View>
                     )}
+
+                    {/* Timer de Duração (para exercícios do bloco principal com duração, ex: Corrida Leve) */}
+                    {(() => {
+                      const blockType = workoutTemplate?.blocks[currentBlockIndex]?.blockType;
+                      const durationSec = exercise.duration ?? (exercise.exercise?.duration ? Number(exercise.exercise.duration) : 0);
+                      const showWorkDurationTimer = blockType === 'WORK' && durationSec > 0;
+                      if (!showWorkDurationTimer) return null;
+                      return (
+                        <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                          <Text className="font-semibold mb-3" style={themeStyles.text}>⏱️ Timer de Duração</Text>
+                          {isRunningDuration ? (
+                            <View className="items-center">
+                              <Text className="text-4xl font-bold mb-2" style={{ color: theme.colors.primary }}>
+                                {formatTime(durationTime)}
+                              </Text>
+                              <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
+                                de {formatTime(durationTotal)}
+                              </Text>
+                              <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
+                                <View 
+                                  className="h-2 rounded-full"
+                                  style={{ 
+                                    backgroundColor: theme.colors.primary,
+                                    width: `${(durationTime / durationTotal) * 100}%` 
+                                  }}
+                                />
+                              </View>
+                              <TouchableOpacity
+                                onPress={stopDurationTimer}
+                                className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
+                              >
+                                <Text className="text-red-400 font-semibold">Parar Timer</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              onPress={() => startDurationTimer(durationSec)}
+                              className="rounded-lg px-4 py-3 items-center"
+                              style={{
+                                backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+                                borderWidth: 1,
+                                borderColor: theme.colors.primary + '50',
+                              }}
+                            >
+                              <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                                Iniciar ({Math.floor(durationSec / 60)}min)
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })()}
                     
-                    {/* Registro de Peso/Carga (para exercícios com séries e repetições) */}
-                    {exercise.sets && exercise.reps && assignedWorkout.status === 'Pendente' && (
+                    {/* Registro de Peso/Carga (disponível em qualquer exercício com treino pendente) */}
+                    {assignedWorkout.status === 'Pendente' && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
                         <Text className="font-semibold mb-3" style={themeStyles.text}>💪 Registrar Peso/Carga</Text>
                         

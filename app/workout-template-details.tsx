@@ -8,10 +8,10 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { deleteWorkoutTemplate, getWorkoutTemplateById } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -189,7 +189,7 @@ export default function WorkoutTemplateDetailsScreen() {
     // Garantir que workoutId seja sempre string
     const workoutIdString = Array.isArray(workoutId) ? workoutId[0] : workoutId;
     
-    const [allWorkouts, setAllWorkouts] = useState(mockWorkouts);
+    const [allWorkouts, setAllWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Estados para CustomAlert
@@ -213,34 +213,22 @@ export default function WorkoutTemplateDetailsScreen() {
         setAlertVisible(true);
     };
 
-    // Função para carregar treinos salvos do AsyncStorage
-useEffect(() => {
-    const loadSavedWorkouts = async () => {
-        try {
-            // PARTE 1: Buscar treinos salvos do AsyncStorage
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts = [];
-            
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
+    // Carregar template do Firestore pelo ID
+    useEffect(() => {
+        const loadWorkout = async () => {
+            try {
+                if (!workoutIdString) return;
+                const workout = await getWorkoutTemplateById(workoutIdString);
+                setAllWorkouts(workout ? [workout] : []);
+            } catch (error) {
+                console.error('Erro ao carregar treino:', error);
+                setAllWorkouts([]);
+            } finally {
+                setLoading(false);
             }
-
-            // PARTE 2: Combinar treinos mockados com os salvos
-            const combinedWorkouts = [...mockWorkouts, ...savedWorkouts];
-
-            // PARTE 3: Atualizar o estado
-            setAllWorkouts(combinedWorkouts);
-        } catch (error) {
-            console.error('Erro ao carregar treinos:', error);
-            // Se der erro, mantém apenas os mockados
-            setAllWorkouts(mockWorkouts);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    loadSavedWorkouts();
-}, []);
+        };
+        loadWorkout();
+    }, [workoutIdString]);
 
     // Mostrar loading enquanto carrega os treinos
     if (loading) {
@@ -276,28 +264,12 @@ useEffect(() => {
 
      const confirmDeleteWorkout = async () => {
         try {
-            const savedWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let savedWorkouts = [];
-
-            if (savedWorkoutsJson) {
-                savedWorkouts = JSON.parse(savedWorkoutsJson);
-            }
-
-            const updatedWorkouts = savedWorkouts.filter(
-                (w:any) => w.id !== workoutIdString
-            );
-
-            await AsyncStorage.setItem(
-                'workout_templates',
-                JSON.stringify(updatedWorkouts)
-            );
-
-            // Mostrar alerta de sucesso
+            if (!workoutIdString) return;
+            await deleteWorkoutTemplate(workoutIdString);
             showAlert('Sucesso', 'Treino deletado com sucesso!', 'success', () => {
                 router.back();
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Erro ao deletar treino:', error);
             showAlert('Erro', 'Não foi possível deletar o treino.', 'error');
         }

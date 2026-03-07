@@ -13,11 +13,13 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { listExercisesByCoachId } from '@/src/services/exercises.service';
+import { createWorkoutTemplate } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -43,6 +45,7 @@ const mockExercises: Exercise[] = [
 
 export default function CreateWorkoutScreen() {
     const router = useRouter();
+    const { user } = useAuthContext();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
 
@@ -86,24 +89,17 @@ export default function CreateWorkoutScreen() {
 
     const loadAllExercises = useCallback(async () => {
         try {
-            const savedExerciseJson = await AsyncStorage.getItem('saved_exercises');
-            let savedExercises: Exercise[] = [];
-
-            if (savedExerciseJson) {
-                savedExercises = JSON.parse(savedExerciseJson);
-            }
-
+            const coachId = user?.id;
+            const savedExercises: Exercise[] = coachId
+                ? await listExercisesByCoachId(coachId)
+                : [];
             const combined = [...mockExercises, ...savedExercises];
-
             setAllExercises(combined);
-
-            console.log('Exercícios carregados:', combined.length);
         } catch (error) {
             console.error('Erro ao carregar exercícios:', error);
-
             setAllExercises(mockExercises);
         }
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         loadAllExercises();
@@ -229,15 +225,17 @@ export default function CreateWorkoutScreen() {
         };
 
         try {
-            const existingWorkoutsJson = await AsyncStorage.getItem('workout_templates');
-            let existingWorkouts = [];
-
-            if (existingWorkoutsJson) {
-                existingWorkouts = JSON.parse(existingWorkoutsJson);
+            const coachId = user?.id;
+            if (!coachId) {
+                showAlert('Erro', 'Você precisa estar logado para criar um treino.', 'error');
+                return;
             }
-
-            const updatedWorkouts = [...existingWorkouts, newWorkout];
-            await AsyncStorage.setItem('workout_templates', JSON.stringify(updatedWorkouts));
+            await createWorkoutTemplate(coachId, {
+                id: newWorkout.id,
+                name: newWorkout.name,
+                description: newWorkout.description,
+                blocks: newWorkout.blocks,
+            });
 
             showAlert(
                 'Treino Criado!',

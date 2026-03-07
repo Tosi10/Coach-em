@@ -1,9 +1,10 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { createExercise as createExerciseInFirestore } from '@/src/services/exercises.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 
 export default function CreateExerciseScreen() {
     const router = useRouter();
+    const { user } = useAuthContext();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
 
@@ -83,38 +85,33 @@ export default function CreateExerciseScreen() {
         }
 
         const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
-        const newExercise: Record<string, unknown> = {
+        const coachId = user?.id || 'anonymous';
+        const payload: Parameters<typeof createExerciseInFirestore>[1] = {
           id: exerciseId,
           name: name.trim(),
           description: description.trim(),
-          difficulty: difficulty,
-          muscleGroups: muscleGroups,
+          difficulty,
+          muscleGroups,
           equipment: equipment.length > 0 ? equipment : ['Nenhum'],
           duration: duration ? parseInt(duration, 10) : undefined,
-          createdBy: 'coach1',
           isGlobal: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         };
 
         try {
             if (videoUri) {
               setUploadingVideo(true);
               const videoURL = await uploadExerciseVideo(videoUri, exerciseId);
-              if (videoURL) newExercise.videoURL = videoURL;
+              if (videoURL) payload.videoURL = videoURL;
               setUploadingVideo(false);
             }
 
-            const existingExerciseJson = await AsyncStorage.getItem('saved_exercises');
-            const existingExercises = existingExerciseJson ? JSON.parse(existingExerciseJson) : [];
-            const updatedExercises = [...existingExercises, newExercise];
-            await AsyncStorage.setItem('saved_exercises', JSON.stringify(updatedExercises));
+            await createExerciseInFirestore(coachId, payload);
 
             showAlert(
                 'Exercício criado!',
-                `O exercício "${newExercise.name}" foi criado com sucesso.`,
+                `O exercício "${payload.name}" foi criado com sucesso.`,
                 'success',
-                () => router.back()
+                () => setTimeout(() => router.back(), 0)
             );
         } catch (error) {
             setUploadingVideo(false);
