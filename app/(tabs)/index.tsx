@@ -6,7 +6,6 @@
  */
 
 import { EmptyState } from '@/components/EmptyState';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -18,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 
 
@@ -1007,21 +1006,22 @@ export default function HomeScreen() {
         - primary-400/500 = Laranja vibrante como accent
       */}
       
-      <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-4xl font-bold" style={{ color: theme.colors.text }}>
-          Coach<Text className="text-primary-400">'em</Text>
-        </Text>
-        <ThemeToggle />
+      <View className="items-center mb-0">
+        <Image
+          source={require('../../assets/images/coachem.png')}
+          style={{ width: 480, height: 192 }}
+          resizeMode="contain"
+        />
       </View>
       {userType === UserType.COACH && (
-        <Text className="text-center mb-6 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary }}>
+        <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -40 }}>
           Bem vindo Rodrigo ao seu app de gestão esportiva.
         </Text>
       )}
 
       {userType === UserType.COACH ? (
         //Dashboard do Treinador - Tema Escuro Estilo Zeus
-        <View className="w-full mt-8">
+        <View className="w-full mt-3">
 
           {/* Panorama Semanal - Cards de Estatísticas (altura reduzida) */}
           <View className="mb-4">
@@ -1670,10 +1670,10 @@ export default function HomeScreen() {
         </View>
       ) : userType === UserType.ATHLETE ? (
         //Dashboard do Atleta - Tema Escuro Estilo Zeus (Profissional)
-        <View className="w-full mt-8">
+        <View className="w-full mt-3">
           {/* Saudação Personalizada */}
           {currentAthleteId && (
-            <View className="mb-6">
+            <View className="mb-6" style={{ marginTop: -35 }}>
               <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
                 Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
               </Text>

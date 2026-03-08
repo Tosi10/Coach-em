@@ -4,35 +4,34 @@
  * Tela de login do Coach'em – design com logo, card e gradiente.
  */
 
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { useAuth } from '@/src/hooks/useAuth';
+import { UserType } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useAuth } from '@/src/hooks/useAuth';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { getThemeStyles } from '@/src/utils/themeStyles';
-import { UserType } from '@/src/types';
 
-const GRADIENT_ORANGE = ['#f97316', '#ea580c'];
-const GRADIENT_ORANGE_SOFT = ['rgba(249, 115, 22, 0.15)', 'rgba(234, 88, 12, 0.05)'];
+const GRADIENT_ORANGE: readonly [string, string] = ['#f97316', '#ea580c'];
 
 export default function LoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
-  const { signIn, signInDev, loading, error } = useAuth();
+  const { signIn, loading, error } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,13 +55,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleDevLogin = async () => {
-    if (!signInDev) return;
-    signInDev();
-    await AsyncStorage.setItem('userType', UserType.COACH);
-    router.replace('/(tabs)');
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -74,25 +66,14 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo / Brand */}
+        {/* Logo / Brand – imagem coachem2.png */}
         <View className="pt-14 pb-8 px-6 items-center">
-          <LinearGradient
-            colors={theme.mode === 'dark' ? GRADIENT_ORANGE_SOFT : ['rgba(251, 146, 60, 0.25)', 'rgba(249, 115, 22, 0.08)']}
-            style={{
-              width: 96,
-              height: 96,
-              borderRadius: 48,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <FontAwesome name="heartbeat" size={40} color={theme.colors.primary} />
-          </LinearGradient>
-          <Text className="text-3xl font-bold tracking-tight" style={themeStyles.text}>
-            Coach'em
-          </Text>
-          <Text className="text-base mt-1.5 text-center max-w-[260px]" style={{ color: theme.colors.textSecondary }}>
+          <Image
+            source={require('../../assets/images/coachem.png')}
+            style={{ width: 672, height: 269, marginTop: 70, marginBottom: 0 }}
+            resizeMode="contain"
+          />
+          <Text className="text-base text-center max-w-[260px]" style={{ color: theme.colors.textSecondary, marginTop: -80 }}>
             Gestão de Performance Esportiva
           </Text>
         </View>
@@ -195,20 +176,6 @@ export default function LoginScreen() {
                 Não tem uma conta? <Text className="font-semibold">Registre-se</Text>
               </Text>
             </TouchableOpacity>
-
-            {signInDev ? (
-              <TouchableOpacity
-                onPress={handleDevLogin}
-                disabled={loading}
-                className="mt-6 py-3 rounded-xl border border-dashed"
-                style={{ borderColor: theme.colors.border }}
-                activeOpacity={0.7}
-              >
-                <Text className="text-center text-sm" style={{ color: theme.colors.textTertiary }}>
-                  Usar app sem login (desenvolvimento)
-                </Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
         </View>
       </ScrollView>
