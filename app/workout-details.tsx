@@ -1414,56 +1414,62 @@ export default function WorkoutDetailsScreen() {
                       );
                     })()}
                     
-                    {/* Registro de Peso/Carga (disponível em qualquer exercício com treino pendente) */}
-                    {assignedWorkout.status === 'Pendente' && (
-                      <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                        <Text className="font-semibold mb-3" style={themeStyles.text}>💪 Registrar Peso/Carga</Text>
-                        
-                        {/* Mostrar último peso registrado */}
-                        {savedWeights[exerciseUniqueId] && (
-                          <View className="mb-3 p-3 rounded-lg" style={themeStyles.cardSecondary}>
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Último peso registrado</Text>
-                            <Text className="font-bold text-xl" style={themeStyles.text}>
-                              {savedWeights[exerciseUniqueId]} kg
-                            </Text>
+                    {/* Registro de Peso/Carga: só para exercícios que fazem sentido (força, com aparelho). Oculta para corrida, alongamento, aquecimento, desaquecimento, descanso. */}
+                    {(() => {
+                      const exerciseName = (exercise?.exercise?.name ?? '').toLowerCase();
+                      const blockType = workoutTemplate?.blocks[currentBlockIndex ?? 0]?.blockType ?? '';
+                      const noLoadKeywords = ['corrida', 'alongamento', 'aquecimento', 'desaquecimento', 'caminhada', 'esteira', 'stretch', 'descanso'];
+                      const isNoLoadExercise = noLoadKeywords.some(kw => exerciseName.includes(kw)) || blockType === 'WARM_UP' || blockType === 'COOL_DOWN';
+                      const showWeightLoad = assignedWorkout.status === 'Pendente' && !isNoLoadExercise;
+                      if (!showWeightLoad) return null;
+                      return (
+                        <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                          <Text className="font-semibold mb-3" style={themeStyles.text}>💪 Registrar Peso/Carga</Text>
+                          
+                          {savedWeights[exerciseUniqueId] && (
+                            <View className="mb-3 p-3 rounded-lg" style={themeStyles.cardSecondary}>
+                              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Último peso registrado</Text>
+                              <Text className="font-bold text-xl" style={themeStyles.text}>
+                                {savedWeights[exerciseUniqueId]} kg
+                              </Text>
+                            </View>
+                          )}
+                          
+                          <View className="flex-row gap-2 items-center">
+                            <TextInput
+                              value={exerciseWeight}
+                              onChangeText={setExerciseWeight}
+                              placeholder="Peso em kg"
+                              placeholderTextColor={theme.colors.textTertiary}
+                              keyboardType="numeric"
+                              className="flex-1 border rounded-lg px-4 py-3"
+                              style={{ 
+                                backgroundColor: theme.colors.backgroundTertiary,
+                                borderColor: theme.colors.border,
+                                color: theme.colors.text,
+                              }}
+                            />
+                            <Text style={themeStyles.textSecondary}>kg</Text>
                           </View>
-                        )}
-                        
-                        {/* Input para registrar novo peso */}
-                        <View className="flex-row gap-2 items-center">
-                          <TextInput
-                            value={exerciseWeight}
-                            onChangeText={setExerciseWeight}
-                            placeholder="Peso em kg"
-                            placeholderTextColor={theme.colors.textTertiary}
-                            keyboardType="numeric"
-                            className="flex-1 border rounded-lg px-4 py-3"
-                            style={{ 
-                              backgroundColor: theme.colors.backgroundTertiary,
-                              borderColor: theme.colors.border,
-                              color: theme.colors.text,
+                          
+                          <TouchableOpacity
+                            onPress={() => {
+                              const weight = parseFloat(exerciseWeight);
+                              if (isNaN(weight) || weight <= 0) {
+                                showAlert('Atenção', 'Por favor, digite um peso válido', 'warning');
+                                return;
+                              }
+                              saveExerciseWeight(exerciseUniqueId, weight, workoutId as string);
                             }}
-                          />
-                          <Text style={themeStyles.textSecondary}>kg</Text>
+                            className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center mt-3"
+                          >
+                            <Text className="text-primary-400 font-semibold">
+                              Salvar Peso
+                            </Text>
+                          </TouchableOpacity>
                         </View>
-                        
-                        <TouchableOpacity
-                          onPress={() => {
-                            const weight = parseFloat(exerciseWeight);
-                            if (isNaN(weight) || weight <= 0) {
-                              showAlert('Atenção', 'Por favor, digite um peso válido', 'warning');
-                              return;
-                            }
-                            saveExerciseWeight(exerciseUniqueId, weight, workoutId as string);
-                          }}
-                          className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center mt-3"
-                        >
-                          <Text className="text-primary-400 font-semibold">
-                            Salvar Peso
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                      );
+                    })()}
                     
                     {/* Botão Marcar como Concluído */}
                     {assignedWorkout.status === 'Pendente' && (

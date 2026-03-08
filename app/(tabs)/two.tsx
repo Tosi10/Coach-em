@@ -82,7 +82,7 @@ export default function TabTwoScreen() {
     if (userType === UserType.ATHLETE && currentAthleteId) {
       loadAthleteWorkouts();
     }
-  }, [userType, currentAthleteId]);
+  }, [userType, currentAthleteId, loadAthleteWorkouts]);
 
   const loadCoachAthletes = useCallback(async () => {
     if (!user?.id) {
@@ -103,13 +103,7 @@ export default function TabTwoScreen() {
     else setAthletes([]);
   }, [userType, loadCoachAthletes]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (userType === UserType.COACH) loadCoachAthletes();
-    }, [userType, loadCoachAthletes])
-  );
-
-  const loadAthleteWorkouts = async () => {
+  const loadAthleteWorkouts = useCallback(async () => {
     try {
       if (!currentAthleteId) {
         setAthleteWorkouts([]);
@@ -147,7 +141,14 @@ export default function TabTwoScreen() {
     } catch (error) {
       console.error('Erro ao carregar treinos do atleta:', error);
     }
-  };
+  }, [currentAthleteId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userType === UserType.COACH) loadCoachAthletes();
+      if (userType === UserType.ATHLETE && currentAthleteId) loadAthleteWorkouts();
+    }, [userType, currentAthleteId, loadCoachAthletes, loadAthleteWorkouts])
+  );
 
   const handleDeleteWorkout = async (workoutIds: string[], isGroup: boolean) => {
     const workoutCount = workoutIds.length;
@@ -193,12 +194,18 @@ export default function TabTwoScreen() {
 
   // Se for ATLETA, mostrar treinos
   if (userType === UserType.ATHLETE) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Separar treinos concluídos dos pendentes
-    const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído');
-    const pendingWorkouts = athleteWorkouts.filter((w: any) => w.status !== 'Concluído');
+    const now = Date.now();
+    const isPastScheduled = (w: any) => {
+      if (!w.date) return false;
+      const [y, mo, d] = w.date.split('-').map(Number);
+      const h = w.scheduledTime ? parseInt(w.scheduledTime.split(':')[0], 10) : 0;
+      const min = w.scheduledTime ? parseInt(w.scheduledTime.split(':')[1], 10) : 0;
+      const scheduledAt = new Date(y, mo - 1, d, h, min, 0, 0).getTime();
+      return scheduledAt < now;
+    };
+    // Histórico: concluídos OU data/hora já passou. Próximos: pendentes E data/hora ainda não passou.
+    const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído' || isPastScheduled(w));
+    const pendingWorkouts = athleteWorkouts.filter((w: any) => w.status !== 'Concluído' && !isPastScheduled(w));
     
     // Determinar quais treinos mostrar baseado na sub-tab
     let workoutsToDisplay: any[] = [];
@@ -340,7 +347,7 @@ export default function TabTwoScreen() {
           {/* Lista de treinos */}
           {workoutsToDisplay.length === 0 ? (
             <EmptyState
-              icon="dumbbell"
+              icon="heartbeat"
               message={workoutSubTab === 'historico' 
                 ? "Você ainda não concluiu nenhum treino."
                 : "Você não tem treinos agendados."}

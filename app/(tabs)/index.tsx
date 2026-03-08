@@ -1101,8 +1101,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             className="border-2 rounded-xl flex-row items-center justify-center py-3 px-4 mt-5 mb-5"
             style={{
-              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.15)' : 'rgba(251, 146, 60, 0.1)',
-              borderColor: theme.colors.primary + '50',
+              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
+              borderColor: theme.colors.primary + '60',
             }}
             onPress={() => router.push('/coach-calendar')}
             activeOpacity={0.7}
@@ -1113,21 +1113,19 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Botões principais - Design Colorido Transparente (estilo AgendaApp) */}
+          {/* Botões principais - mesmo estilo dos cards Atividade Recente: borda fina + sombra verde */}
           <View className="flex-row gap-5 mb-8">
-            {/* Botão Biblioteca de Exercícios - Laranja */}
+            {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
-              className="border-2 rounded-3xl flex-1 items-center justify-center py-6"
+              className="rounded-xl flex-1 items-center justify-center py-6 border"
               style={{ 
-                backgroundColor: theme.mode === 'dark' 
-                  ? 'rgba(251, 146, 60, 0.25)' // Laranja transparente no modo escuro
-                  : '#fb923c30', // Laranja transparente no modo claro (30 = ~19% opacidade)
-                borderColor: theme.colors.primary + '60',
-                shadowColor: 'transparent',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                elevation: 0,
+                ...themeStyles.card,
+                borderColor: '#10b981',
+                shadowColor: '#10b981',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 4,
                 overflow: 'hidden',
               }}
               onPress={() => router.push('/exercises-library')}
@@ -1136,30 +1134,28 @@ export default function HomeScreen() {
               <FontAwesome 
                 name="book" 
                 size={40} 
-                color={theme.colors.primary} 
+                color={theme.colors.text} 
                 style={{ marginBottom: 16 }}
               />
               <Text 
                 className="font-bold text-center text-base tracking-tight"
-                style={{ color: theme.colors.primary }}
+                style={themeStyles.text}
               >
                 Biblioteca de Exercícios
               </Text>
             </TouchableOpacity>
 
-            {/* Botão Meus Treinos - Laranja */}
+            {/* Botão Meus Treinos */}
             <TouchableOpacity 
-              className="border-2 rounded-3xl flex-1 items-center justify-center py-6"
+              className="rounded-xl flex-1 items-center justify-center py-6 border"
               style={{ 
-                backgroundColor: theme.mode === 'dark' 
-                  ? 'rgba(251, 146, 60, 0.25)' // Laranja transparente no modo escuro
-                  : '#fb923c30', // Laranja transparente no modo claro (30 = ~19% opacidade)
-                borderColor: theme.colors.primary + '60',
-                shadowColor: 'transparent',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                elevation: 0,
+                ...themeStyles.card,
+                borderColor: '#10b981',
+                shadowColor: '#10b981',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 4,
                 overflow: 'hidden',
               }}
               onPress={() => router.push('/workouts-library')}
@@ -1168,12 +1164,12 @@ export default function HomeScreen() {
               <FontAwesome 
                 name="trophy" 
                 size={40} 
-                color={theme.colors.primary} 
+                color={theme.colors.text} 
                 style={{ marginBottom: 16 }}
               />
               <Text 
                 className="font-bold text-center text-base tracking-tight"
-                style={{ color: theme.colors.primary }}
+                style={themeStyles.text}
               >
                 Meus Treinos
               </Text>

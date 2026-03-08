@@ -154,7 +154,7 @@ export async function getAssignedWorkoutById(id: string): Promise<AssignedWorkou
 }
 
 /**
- * Atualiza um treino atribuído (ex.: status Concluído, feedback).
+ * Atualiza um treino atribuído (status, feedback ou conteúdo: nome, descrição, blocos).
  */
 export async function updateAssignedWorkout(
   id: string,
@@ -164,6 +164,9 @@ export async function updateAssignedWorkout(
     feedback?: number;
     feedbackEmoji?: string;
     feedbackText?: string;
+    name?: string;
+    description?: string;
+    blocks?: any[];
   }
 ): Promise<void> {
   const ref = doc(db, COLLECTION, id);
@@ -173,6 +176,9 @@ export async function updateAssignedWorkout(
   if (data.feedback !== undefined) updates.feedback = data.feedback;
   if (data.feedbackEmoji !== undefined) updates.feedbackEmoji = data.feedbackEmoji;
   if (data.feedbackText !== undefined) updates.feedbackText = data.feedbackText;
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.blocks !== undefined) updates.blocks = removeUndefined(data.blocks);
   if (Object.keys(updates).length === 0) return;
   await updateDoc(ref, updates);
 }

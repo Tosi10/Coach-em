@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -25,16 +25,6 @@ export function ThemeToggle() {
           size={20}
           color={theme.colors.primary}
         />
-        <Text
-          style={[
-            styles.text,
-            {
-              color: theme.colors.textSecondary,
-            },
-          ]}
-        >
-          {isDark ? 'Modo Escuro' : 'Modo Claro'}
-        </Text>
       </View>
       <View
         style={[
@@ -68,16 +58,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    minWidth: 140,
+    minWidth: 80,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  text: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   toggle: {
     width: 44,

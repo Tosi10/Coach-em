@@ -3,6 +3,9 @@
  *
  * Atletas cadastrados pelo treinador. Cada documento tem coachId para filtrar.
  * Use o id do documento como athleteId ao atribuir treinos.
+ *
+ * createAthleteWithLogin: chama a Cloud Function para criar conta (Auth + users + coachemAthletes).
+ * O atleta consegue fazer login com o email e a senha provisória.
  */
 
 import {
@@ -18,7 +21,8 @@ import {
   DocumentSnapshot,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase.config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from './firebase.config';
 
 const COLLECTION = 'coachemAthletes';
 
@@ -94,6 +98,50 @@ export async function createAthlete(
   const ref = await addDoc(collection(db, COLLECTION), payload);
   const created = await getDoc(ref);
   return docToAthlete(created);
+}
+
+export interface CreateAthleteWithLoginData {
+  displayName: string;
+  email: string;
+  temporaryPassword: string;
+  sport?: string;
+}
+
+/**
+ * Cria atleta com conta de login (email + senha provisória) via Cloud Function.
+ * O atleta fica vinculado ao treinador e pode fazer login no app.
+ * Retorna o athleteId (uid do Auth) para uso em atribuição de treinos.
+ */
+export async function createAthleteWithLogin(
+  data: CreateAthleteWithLoginData
+): Promise<{ athleteId: string }> {
+  const createAthleteByCoach = httpsCallable<
+    CreateAthleteWithLoginData,
+    { data: { athleteId: string } }
+  >(functions, 'createAthleteByCoach');
+
+  try {
+    const res = await createAthleteByCoach({
+      displayName: data.displayName.trim(),
+      email: data.email.trim().toLowerCase(),
+      temporaryPassword: data.temporaryPassword,
+      sport: data.sport?.trim(),
+    });
+    const result = res.data as { athleteId: string };
+    if (!result?.athleteId) throw new Error('Resposta inválida da função.');
+    return { athleteId: result.athleteId };
+  } catch (err: any) {
+    const code = err?.code ?? err?.details?.code;
+    const msg = err?.message ?? err?.details?.message ?? '';
+    if (code === 'unauthenticated') throw new Error('É preciso estar logado.');
+    if (code === 'permission-denied') throw new Error('Apenas treinadores podem cadastrar atletas com login.');
+    if (code === 'already-exists') throw new Error('Já existe uma conta com este email.');
+    if (code === 'invalid-argument') throw new Error(msg || 'Dados inválidos.');
+    if (msg.includes('email-already-exists') || msg.includes('already in use')) {
+      throw new Error('Já existe uma conta com este email.');
+    }
+    throw new Error(msg || 'Não foi possível criar o atleta. Verifique se a Cloud Function está publicada.');
+  }
 }
 
 export async function updateAthlete(

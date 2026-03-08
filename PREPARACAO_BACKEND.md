@@ -1,5 +1,7 @@
 # Preparação para o Backend – Coach'em
 
+**Projeto Firebase ativo:** **futeba-96395** (db futeba). O app e as Cloud Functions devem usar este projeto.
+
 Este documento descreve o que deixamos pronto para quando você criar a conta empresarial e o banco de dados. Assim que tiver o projeto e o DB, basta configurar as variáveis e conectar.
 
 ---

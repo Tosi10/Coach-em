@@ -14,8 +14,9 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
@@ -71,6 +72,27 @@ export default function AthleteProfileScreen() {
       setAlertVisible(true);
   };
 
+  const loadAthleteWorkouts = useCallback(async () => {
+    try {
+      if (!athleteIdString) {
+        setAthleteWorkouts([]);
+        return;
+      }
+      const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
+      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString);
+      setAthleteWorkouts(workoutsWithStatus);
+
+      const today = new Date().toISOString().split('T')[0];
+      const trainedToday = workoutsWithStatus.some((w: any) => {
+        const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
+        return w.status === 'Concluído' && completedDate === today;
+      });
+      setHasTrainedToday(trainedToday);
+    } catch (error) {
+      console.error('Erro ao carregar treinos do atleta:', error);
+    }
+  }, [athleteIdString]);
+
   useEffect(() => {
     if (!athleteIdString) return;
     const load = async () => {
@@ -95,28 +117,14 @@ export default function AthleteProfileScreen() {
     load();
     loadAthleteWorkouts();
     loadWeightHistory();
-  }, [athleteIdString]);
+  }, [athleteIdString, loadAthleteWorkouts]);
 
-  const loadAthleteWorkouts = async () => {
-    try {
-      if (!athleteIdString) {
-        setAthleteWorkouts([]);
-        return;
-      }
-      const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
-      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString);
-      setAthleteWorkouts(workoutsWithStatus);
-
-      const today = new Date().toISOString().split('T')[0];
-      const trainedToday = workoutsWithStatus.some((w: any) => {
-        const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
-        return w.status === 'Concluído' && completedDate === today;
-      });
-      setHasTrainedToday(trainedToday);
-    } catch (error) {
-      console.error('Erro ao carregar treinos do atleta:', error);
-    }
-  };
+  // Recarregar treinos ao voltar da tela de editar treino atribuído
+  useFocusEffect(
+    useCallback(() => {
+      loadAthleteWorkouts();
+    }, [loadAthleteWorkouts])
+  );
 
   // Carregar histórico de peso do atleta
   const loadWeightHistory = async () => {
@@ -835,8 +843,26 @@ export default function AthleteProfileScreen() {
                                           Pendente
                                         </Text>
                                       </View>
-                                      
-                                      {/* Botão de deletar - menor, abaixo do badge */}
+                                      {/* Botão Editar - treino atribuído (ex.: atleta com dor, ajustar exercícios) */}
+                                      <TouchableOpacity
+                                        className="flex-row items-center border rounded-lg py-1.5 px-2.5 mb-2"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
+                                          borderColor: '#10b981' + '50',
+                                        }}
+                                        onPress={() => {
+                                          router.push({
+                                            pathname: '/edit-assigned-workout',
+                                            params: { assignedWorkoutId: sortedGroupWorkouts[0].id },
+                                          });
+                                        }}
+                                      >
+                                        <FontAwesome name="pencil" size={12} color="#10b981" />
+                                        <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
+                                          Editar
+                                        </Text>
+                                      </TouchableOpacity>
+                                      {/* Botão de deletar */}
                                       <TouchableOpacity
                                         className="flex-row items-center border rounded-lg py-1.5 px-2.5"
                                         style={{
@@ -896,8 +922,26 @@ export default function AthleteProfileScreen() {
                                           {item.workout.status}
                                         </Text>
                                       </View>
-                                      
-                                      {/* Botão de deletar - menor, abaixo do badge */}
+                                      {/* Botão Editar - treino atribuído (ajustar exercícios para o atleta) */}
+                                      <TouchableOpacity
+                                        className="flex-row items-center border rounded-lg py-1.5 px-2.5 mb-2"
+                                        style={{
+                                          backgroundColor: theme.mode === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
+                                          borderColor: '#10b981' + '50',
+                                        }}
+                                        onPress={() => {
+                                          router.push({
+                                            pathname: '/edit-assigned-workout',
+                                            params: { assignedWorkoutId: item.workout.id },
+                                          });
+                                        }}
+                                      >
+                                        <FontAwesome name="pencil" size={12} color="#10b981" />
+                                        <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
+                                          Editar
+                                        </Text>
+                                      </TouchableOpacity>
+                                      {/* Botão de deletar */}
                                       <TouchableOpacity
                                         className="flex-row items-center border rounded-lg py-1.5 px-2.5"
                                         style={{
