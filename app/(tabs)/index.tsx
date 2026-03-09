@@ -6,6 +6,7 @@
  */
 
 import { EmptyState } from '@/components/EmptyState';
+import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -38,6 +39,7 @@ export default function HomeScreen() {
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Estados para gráfico de evolução de peso (atleta)
   const [weightHistory, setWeightHistory] = useState<any[]>([]);
@@ -85,6 +87,21 @@ export default function HomeScreen() {
     };
     loadUserTypeAndWorkouts();
   }, [user?.id]);
+
+  // Onboarding simples: mostra apenas na primeira vez após login
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const seen = await AsyncStorage.getItem('hasSeenOnboarding_v1');
+        if (!seen) {
+          setShowOnboarding(true);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar onboarding:', error);
+      }
+    };
+    checkOnboarding();
+  }, []);
 
   const loadAthletesList = useCallback(async () => {
     if (!user?.id) {
@@ -999,6 +1016,20 @@ export default function HomeScreen() {
       }
     >
     <View className="flex-1 px-2 pt-12 pb-20" style={{ backgroundColor: theme.colors.background }}>
+      {/* Onboarding / tour rápido */}
+      <OnboardingModal
+        visible={showOnboarding}
+        onClose={async () => {
+          setShowOnboarding(false);
+          try {
+            await AsyncStorage.setItem('hasSeenOnboarding_v1', 'true');
+          } catch (error) {
+            console.error('Erro ao salvar flag de onboarding:', error);
+          }
+        }}
+        userType={userType}
+      />
+
       {/* 
         TEMA ESCURO ESTILO ZEUS:
         - bg-dark-950 = Fundo preto quase absoluto (#0a0a0a)

@@ -1,4 +1,5 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { WorkoutCard } from '@/src/components/WorkoutCard';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -264,6 +265,11 @@ export default function WorkoutLibraryScreen() {
     return (
         <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
+                <FirstTimeTip
+                  storageKey="tutorial_workouts_library_v1"
+                  title="Biblioteca de Treinos"
+                  description="Aqui você gerencia seus treinos-modelo (templates). Use os botões para criar novos treinos, duplicar e editar antes de atribuir para seus atletas."
+                />
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
                   className="mb-6 flex-row items-center"

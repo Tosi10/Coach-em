@@ -1,4 +1,5 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service';
@@ -558,6 +559,11 @@ const ALL_DAY_TIMES = getAllDayTimes();
             <>
             <ScrollView className="flex-1" style={themeStyles.bg}>
                 <View className="px-6 pt-20 pb-20">
+                    <FirstTimeTip
+                      storageKey="tutorial_assign_workout_v1"
+                      title="Atribuir treino para o atleta"
+                      description="Escolha um atleta (se necessário), selecione um treino da sua biblioteca, defina datas únicas ou recorrentes e confirme para criar os treinos atribuídos."
+                    />
                     {/* Header com botão voltar melhorado */}
                     <TouchableOpacity 
                         className="mb-6 flex-row items-center"

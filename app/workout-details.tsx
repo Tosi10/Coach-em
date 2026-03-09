@@ -8,6 +8,7 @@
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 import { CustomAlert } from '@/components/CustomAlert';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
+import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlockData } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -865,6 +866,11 @@ export default function WorkoutDetailsScreen() {
   return (
     <ScrollView className="flex-1" style={themeStyles.bg}>
       <View className="px-6 pt-20 pb-20">
+        <FirstTimeTip
+          storageKey="tutorial_workout_details_v1"
+          title="Como usar o treino"
+          description="Passe pelos blocos do treino, toque nos exercícios para ver detalhes e vá marcando o que concluir. No final, envie seu feedback para o treinador saber como foi a sessão."
+        />
         {/* Header com botão voltar melhorado */}
         <TouchableOpacity
           className="mb-6 flex-row items-center"
