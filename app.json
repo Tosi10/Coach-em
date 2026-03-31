@@ -4,28 +4,34 @@
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/Coach'em (1).png",
+    "icon": "./assets/images/IconeTreina2.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/Coach'em (1).png",
+      "image": "./assets/images/treinaLogo2.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
     "ios": {
+      "bundleIdentifier": "com.vision10.coachem",
+      "buildNumber": "1.0.1",
       "supportsTablet": true,
       "splash": {
         "backgroundColor": "#0a0a0a"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.coachem.app",
+      "versionCode": 1,
       "splash": {
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Coach'em (1).png",
+        "foregroundImage": "./assets/images/IconeTreina2.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -33,12 +39,15 @@
       "navigationBar": {
         "backgroundColor": "#0a0a0a",
         "barStyle": "light-content"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/Coach'em (1).png"
+      "favicon": "./assets/images/IconeTreina2.png"
     },
     "plugins": [
       "expo-router",
@@ -53,7 +62,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0a0a",
-          "image": "./assets/images/Coach'em (1).png",
+          "image": "./assets/images/treinaLogo2.png",
           "imageWidth": 280,
           "resizeMode": "contain"
         }

@@ -20,6 +20,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase.config';
 import { User, UserType, Coach, Athlete } from '@/src/types';
+import { FirebaseError } from 'firebase/app';
 
 /**
  * Interface para dados de registro
@@ -46,6 +47,57 @@ export interface SignUpData {
 export interface SignInData {
   email: string;
   password: string;
+}
+
+function formatAuthError(error: unknown, fallbackPrefix: string): Error {
+  if (!(error instanceof FirebaseError)) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return new Error(`${fallbackPrefix}: ${msg}`);
+  }
+
+  const map: Record<string, string> = {
+    'auth/invalid-credential': 'Email ou senha inválidos.',
+    'auth/user-not-found': 'Usuário não encontrado.',
+    'auth/wrong-password': 'Senha incorreta.',
+    'auth/invalid-email': 'Email inválido.',
+    'auth/too-many-requests': 'Muitas tentativas. Tente novamente em alguns minutos.',
+    'auth/network-request-failed': 'Falha de rede. Verifique sua conexão.',
+    'permission-denied': 'Sem permissão para acessar os dados do perfil.',
+  };
+
+  const friendly = map[error.code] ?? error.message;
+  return new Error(`${fallbackPrefix}: ${friendly}`);
+}
+
+function toAppUser(firebaseUser: FirebaseUser, userData: any): User {
+  return {
+    id: firebaseUser.uid,
+    ...userData,
+    createdAt: userData.createdAt?.toDate?.() || new Date(),
+    updatedAt: userData.updatedAt?.toDate?.() || new Date(),
+  } as User;
+}
+
+async function ensureProfileForExistingAuthUser(firebaseUser: FirebaseUser): Promise<User> {
+  const userRef = doc(db, 'users', firebaseUser.uid);
+  const now = serverTimestamp() as any;
+
+  // Perfil mínimo para não bloquear login em APK quando Auth existe e o doc não foi criado.
+  // userType padrão como ATHLETE para reduzir privilégios por padrão.
+  const fallbackProfile: Omit<Athlete, 'id'> = {
+    email: firebaseUser.email ?? '',
+    displayName: firebaseUser.displayName ?? 'Usuário',
+    userType: UserType.ATHLETE,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await setDoc(userRef, fallbackProfile, { merge: true });
+  const createdDoc = await getDoc(userRef);
+  if (!createdDoc.exists()) {
+    throw new Error('Não foi possível criar o perfil do usuário.');
+  }
+  return toAppUser(firebaseUser, createdDoc.data());
 }
 
 /**
@@ -106,9 +158,8 @@ export async function signUp(data: SignUpData): Promise<User> {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as User;
-  } catch (error: any) {
-    // TypeScript permite tipar o error como 'any' para acessar .code e .message
-    throw new Error(`Erro ao criar conta: ${error.message}`);
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao criar conta');
   }
 }
 
@@ -132,19 +183,12 @@ export async function signIn(data: SignInData): Promise<User> {
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
     
     if (!userDoc.exists()) {
-      throw new Error('Perfil do usuário não encontrado');
+      return await ensureProfileForExistingAuthUser(firebaseUser);
     }
 
-    const userData = userDoc.data();
-    
-    return {
-      id: firebaseUser.uid,
-      ...userData,
-      createdAt: userData.createdAt?.toDate?.() || new Date(),
-      updatedAt: userData.updatedAt?.toDate?.() || new Date(),
-    } as User;
-  } catch (error: any) {
-    throw new Error(`Erro ao fazer login: ${error.message}`);
+    return toAppUser(firebaseUser, userDoc.data());
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao fazer login');
   }
 }
 
@@ -154,8 +198,8 @@ export async function signIn(data: SignInData): Promise<User> {
 export async function logout(): Promise<void> {
   try {
     await signOut(auth);
-  } catch (error: any) {
-    throw new Error(`Erro ao fazer logout: ${error.message}`);
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao fazer logout');
   }
 }
 
@@ -179,16 +223,9 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
 
-    const userData = userDoc.data();
-    
-    return {
-      id: firebaseUser.uid,
-      ...userData,
-      createdAt: userData.createdAt?.toDate?.() || new Date(),
-      updatedAt: userData.updatedAt?.toDate?.() || new Date(),
-    } as User;
-  } catch (error: any) {
-    throw new Error(`Erro ao buscar usuário: ${error.message}`);
+    return toAppUser(firebaseUser, userDoc.data());
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao buscar usuário');
   }
 }
 

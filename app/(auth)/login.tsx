@@ -9,6 +9,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -35,6 +36,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -66,11 +68,11 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo / Brand – imagem coachem2.png */}
+        {/* Logo / Brand */}
         <View className="pt-14 pb-8 px-6 items-center">
           <Image
-            source={require('../../assets/images/coachem.png')}
-            style={{ width: 672, height: 269, marginTop: 70, marginBottom: 0 }}
+            source={require('../../assets/images/treinaLogo2.png')}
+            style={{ width: 420, height: 180, marginTop: 50, marginBottom: 90 }}
             resizeMode="contain"
           />
           <Text className="text-base text-center max-w-[260px]" style={{ color: theme.colors.textSecondary, marginTop: -80 }}>
@@ -115,20 +117,38 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
               Senha
             </Text>
-            <TextInput
-              className="w-full border rounded-xl px-4 py-3.5 mb-6 text-base"
-              style={{
-                backgroundColor: theme.colors.background,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              }}
-              placeholder="••••••••"
-              placeholderTextColor={theme.colors.textTertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View className="mb-6" style={{ position: 'relative' }}>
+              <TextInput
+                className="w-full border rounded-xl px-4 py-3.5 pr-10 text-base"
+                style={{
+                  backgroundColor: theme.colors.background,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                }}
+                placeholder="••••••••"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                activeOpacity={0.7}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  marginTop: -10,
+                }}
+              >
+                <FontAwesome
+                  name={showPassword ? 'eye-slash' : 'eye'}
+                  size={18}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
 
             {error ? (
               <View className="mb-4 rounded-lg py-3 px-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>

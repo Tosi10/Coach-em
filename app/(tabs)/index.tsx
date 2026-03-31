@@ -16,6 +16,7 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -133,17 +134,22 @@ export default function HomeScreen() {
     if (userType !== UserType.ATHLETE || !currentAthleteId) return;
     
     try {
-      const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
-      if (!weightHistoryJson) {
+      const { listExerciseWeightHistoryByAthlete } = await import('@/src/services/exerciseWeightHistory.service');
+      let athleteHistory = await listExerciseWeightHistoryByAthlete(currentAthleteId);
+      if (athleteHistory.length === 0) {
+        // Compatibilidade com histórico legado salvo localmente.
+        const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
+        const allHistory = weightHistoryJson ? JSON.parse(weightHistoryJson) : [];
+        athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
+          (r: any) => r.athleteId === currentAthleteId
+        );
+      }
+      if (athleteHistory.length === 0) {
         setWeightHistory([]);
         setAvailableExercises([]);
+        setSelectedExercise(null);
         return;
       }
-
-      const allHistory = JSON.parse(weightHistoryJson);
-      const athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
-        (r: any) => r.athleteId === currentAthleteId
-      );
       
       // Agrupar por exercício para criar lista de exercícios disponíveis
       const exercisesMap = new Map<string, string>();
@@ -1039,7 +1045,7 @@ export default function HomeScreen() {
       
       <View className="items-center mb-0">
         <Image
-          source={require('../../assets/images/coachem.png')}
+          source={require('../../assets/images/treinaLogo2.png')}
           style={{ width: 480, height: 192 }}
           resizeMode="contain"
         />
@@ -1056,12 +1062,19 @@ export default function HomeScreen() {
 
           {/* Panorama Semanal - Cards de Estatísticas (altura reduzida) */}
           <View className="mb-4">
-            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-              Panorama Semanal
-            </Text>
+            <View className="flex-row items-center mb-4">
+              <Image
+                source={require('../../assets/images/PanoramaSemanal.png')}
+                style={{ width: 36, height: 36 }}
+                resizeMode="contain"
+              />
+              <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
+                Panorama Semanal
+              </Text>
+            </View>
             <View className="flex-row gap-3">
               {/* Card: Ativos Hoje */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#fb923c',
@@ -1071,19 +1084,23 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-1">
-                  <FontAwesome name="users" size={16} color="#fb923c" />
+                <View className="h-8 items-center justify-center mb-1">
+                  <Image
+                    source={require('../../assets/images/AtivosHoje.png')}
+                    style={{ width: 28, height: 28 }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().athletesToday}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Ativos Hoje
                 </Text>
               </View>
 
               {/* Card: Treinos Concluídos */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#10b981',
@@ -1093,19 +1110,23 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-1">
-                  <FontAwesome name="check-circle" size={16} color="#10b981" />
+                <View className="h-8 items-center justify-center mb-1">
+                  <Image
+                    source={require('../../assets/images/IconeWorkoutComplete.png')}
+                    style={{ width: 32, height: 32 }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().completedToday}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Treinos Concluídos
                 </Text>
               </View>
 
               {/* Card: Pendentes */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border"
+              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#f59e0b',
@@ -1115,13 +1136,17 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-1">
-                  <FontAwesome name="clock-o" size={16} color="#f59e0b" />
+                <View className="h-8 items-center justify-center mb-1">
+                  <Image
+                    source={require('../../assets/images/Pendentes.png')}
+                    style={{ width: 28, height: 28 }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {getWeeklyStats().pendingWorkouts}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Pendentes
                 </Text>
               </View>
@@ -1130,89 +1155,149 @@ export default function HomeScreen() {
 
           {/* Botão Ver Agenda (Calendário do treinador) - espaçamento equilibrado com os quadrados e os botões */}
           <TouchableOpacity
-            className="border-2 rounded-xl flex-row items-center justify-center py-3 px-4 mt-5 mb-5"
+            className="rounded-xl mt-5 mb-5"
             style={{
-              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
-              borderColor: theme.colors.primary + '60',
+              borderWidth: 1,
+              borderColor: 'rgba(251, 146, 60, 0.65)',
+              shadowColor: '#fb923c',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 6,
+              elevation: 5,
+              overflow: 'hidden',
             }}
             onPress={() => router.push('/coach-calendar')}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <FontAwesome name="calendar" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-            <Text className="font-semibold text-base" style={{ color: theme.colors.primary }}>
-              Ver minha agenda
-            </Text>
+            <LinearGradient
+              colors={
+                theme.mode === 'dark'
+                  ? ['rgba(251,146,60,0.24)', 'rgba(251,146,60,0.12)']
+                  : ['rgba(251,146,60,0.18)', 'rgba(251,146,60,0.08)']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              <View className="flex-row items-center">
+                <View
+                  className="rounded-full items-center justify-center mr-3"
+                  style={{
+                    width: 30,
+                    height: 30,
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.28)' : 'rgba(251, 146, 60, 0.18)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(251,146,60,0.55)',
+                  }}
+                >
+                  <FontAwesome name="calendar" size={16} color={theme.colors.primary} />
+                </View>
+                <Text className="font-bold text-base" style={{ color: theme.colors.primary }}>
+                  Ver minha agenda
+                </Text>
+              </View>
+              <FontAwesome name="chevron-right" size={14} color={theme.colors.primary} />
+            </LinearGradient>
           </TouchableOpacity>
 
-          {/* Botões principais - mesmo estilo dos cards Atividade Recente: borda fina + sombra verde */}
+          {/* Botões principais - estilo premium da marca Treina+ */}
           <View className="flex-row gap-5 mb-8">
             {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
-              className="rounded-xl flex-1 items-center justify-center py-6 border"
+              className="rounded-xl flex-1 border"
               style={{ 
                 ...themeStyles.card,
-                borderColor: '#10b981',
-                shadowColor: '#10b981',
+                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
+                backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.01)' : theme.colors.card,
+                shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
+                shadowOpacity: 0.22,
+                shadowRadius: 6,
                 elevation: 4,
                 overflow: 'hidden',
               }}
               onPress={() => router.push('/exercises-library')}
               activeOpacity={0.7}
             >
-              <FontAwesome 
-                name="book" 
-                size={40} 
-                color={theme.colors.text} 
-                style={{ marginBottom: 16 }}
-              />
-              <Text 
-                className="font-bold text-center text-base tracking-tight"
-                style={themeStyles.text}
+              <LinearGradient
+                colors={
+                  theme.mode === 'dark'
+                    ? ['rgba(251,146,60,0.12)', 'rgba(251,146,60,0.02)']
+                    : ['rgba(251,146,60,0.10)', 'rgba(251,146,60,0.03)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
               >
-                Biblioteca de Exercícios
-              </Text>
+                <Image
+                  source={require('../../assets/images/BibliotecaDeExercicios.png')}
+                  style={{ width: 84, height: 84, marginBottom: 12 }}
+                  resizeMode="contain"
+                />
+                <Text 
+                  className="font-bold text-center text-base tracking-tight"
+                  style={themeStyles.text}
+                >
+                  Biblioteca de Exercícios
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Botão Meus Treinos */}
             <TouchableOpacity 
-              className="rounded-xl flex-1 items-center justify-center py-6 border"
+              className="rounded-xl flex-1 border"
               style={{ 
                 ...themeStyles.card,
-                borderColor: '#10b981',
-                shadowColor: '#10b981',
+                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
+                backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.01)' : theme.colors.card,
+                shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
+                shadowOpacity: 0.22,
+                shadowRadius: 6,
                 elevation: 4,
                 overflow: 'hidden',
               }}
               onPress={() => router.push('/workouts-library')}
               activeOpacity={0.7}
             >
-              <FontAwesome 
-                name="trophy" 
-                size={40} 
-                color={theme.colors.text} 
-                style={{ marginBottom: 16 }}
-              />
-              <Text 
-                className="font-bold text-center text-base tracking-tight"
-                style={themeStyles.text}
+              <LinearGradient
+                colors={
+                  theme.mode === 'dark'
+                    ? ['rgba(251,146,60,0.12)', 'rgba(251,146,60,0.02)']
+                    : ['rgba(251,146,60,0.10)', 'rgba(251,146,60,0.03)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
               >
-                Meus Treinos
-              </Text>
+                <Image
+                  source={require('../../assets/images/MeusTreinos1.png')}
+                  style={{ width: 84, height: 84, marginBottom: 12 }}
+                  resizeMode="contain"
+                />
+                <Text 
+                  className="font-bold text-center text-base tracking-tight"
+                  style={themeStyles.text}
+                >
+                  Meus Treinos
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
           {/* Gráfico de Treinos Concluídos por Semana */}
           {getCoachWeeklyStats().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold mb-3" style={themeStyles.text}>
-                📊 Treinos Concluídos por Semana
-              </Text>
+              <View className="flex-row items-center mb-3">
+                <Image
+                  source={require('../../assets/images/IconeWorkoutComplete.png')}
+                  style={{ width: 36, height: 36 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
+                  Treinos Concluídos por Semana
+                </Text>
+              </View>
               
               <View className="rounded-xl p-3 mb-3 border" style={themeStyles.card}>
                 <BarChart
@@ -1320,9 +1405,16 @@ export default function HomeScreen() {
           {/* Taxa de Aderência dos Atletas */}
           {getAllAthletesAdherence().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
-                📈 Taxa de Aderência dos Atletas
-              </Text>
+              <View className="flex-row items-center mb-2">
+                <Image
+                  source={require('../../assets/images/IconeTaxadeaderencia.png')}
+                  style={{ width: 36, height: 36 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
+                  Taxa de Aderência dos Atletas
+                </Text>
+              </View>
               
               {/* Gráfico de Barras */}
               <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
@@ -1423,9 +1515,16 @@ export default function HomeScreen() {
           {/* Treinos Mais Difíceis (Baseado no Feedback) */}
           {getMostDifficultWorkouts().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
-                💪 Treinos Mais Difíceis
-              </Text>
+              <View className="flex-row items-center mb-2">
+                <Image
+                  source={require('../../assets/images/iconetreinosmaisdificeis.png')}
+                  style={{ width: 36, height: 36 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
+                  Treinos Mais Difíceis
+                </Text>
+              </View>
               
               {/* Lista dos 5 Treinos Mais Difíceis */}
               <View className="rounded-xl p-2 mb-2 border" style={themeStyles.card}>
@@ -1516,9 +1615,16 @@ export default function HomeScreen() {
           {/* Atletas Mais Ativos (últimos 30 dias) */}
           {getMostActiveAthletes().length > 0 && (
             <View className="w-full mb-4">
-              <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
-                🏅 Atletas Mais Ativos
-              </Text>
+              <View className="flex-row items-center mb-2">
+                <Image
+                  source={require('../../assets/images/atletasmaisativos.png')}
+                  style={{ width: 36, height: 36 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
+                  Atletas Mais Ativos
+                </Text>
+              </View>
               <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
                 Últimos 30 dias – treinos concluídos
               </Text>
