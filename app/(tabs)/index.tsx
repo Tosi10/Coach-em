@@ -37,6 +37,13 @@ export default function HomeScreen() {
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
+  const feedbackIcons: Record<number, any> = {
+    1: require('../../assets/images/FeedbackMuitoFacil.png'),
+    2: require('../../assets/images/FeedbackFacil.png'),
+    3: require('../../assets/images/FeedbackModerado.png'),
+    4: require('../../assets/images/FeedbackDificil.png'),
+    5: require('../../assets/images/FeedbackMuitoDificil.png'),
+  };
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -1074,7 +1081,8 @@ export default function HomeScreen() {
             </View>
             <View className="flex-row gap-3">
               {/* Card: Ativos Hoje */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
+              <View
+                className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#fb923c',
@@ -1084,10 +1092,19 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="h-8 items-center justify-center mb-1">
+                <View
+                  className="items-center justify-center mb-1.5 rounded-full"
+                  style={{
+                    width: 46,
+                    height: 46,
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(14, 165, 233, 0.14)' : 'rgba(14, 165, 233, 0.08)',
+                    borderWidth: 1,
+                    borderColor: theme.mode === 'dark' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(14, 165, 233, 0.2)',
+                  }}
+                >
                   <Image
                     source={require('../../assets/images/AtivosHoje.png')}
-                    style={{ width: 28, height: 28 }}
+                    style={{ width: 36, height: 36 }}
                     resizeMode="contain"
                   />
                 </View>
@@ -1100,7 +1117,8 @@ export default function HomeScreen() {
               </View>
 
               {/* Card: Treinos Concluídos */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
+              <View
+                className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#10b981',
@@ -1110,10 +1128,19 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="h-8 items-center justify-center mb-1">
+                <View
+                  className="items-center justify-center mb-1.5 rounded-full"
+                  style={{
+                    width: 46,
+                    height: 46,
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.08)',
+                    borderWidth: 1,
+                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.2)',
+                  }}
+                >
                   <Image
                     source={require('../../assets/images/IconeWorkoutComplete.png')}
-                    style={{ width: 32, height: 32 }}
+                    style={{ width: 36, height: 36 }}
                     resizeMode="contain"
                   />
                 </View>
@@ -1126,7 +1153,8 @@ export default function HomeScreen() {
               </View>
 
               {/* Card: Pendentes */}
-              <View className="flex-1 rounded-xl py-2.5 px-3 border items-center"
+              <View
+                className="flex-1 rounded-xl py-2.5 px-3 border items-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#f59e0b',
@@ -1136,10 +1164,19 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="h-8 items-center justify-center mb-1">
+                <View
+                  className="items-center justify-center mb-1.5 rounded-full"
+                  style={{
+                    width: 46,
+                    height: 46,
+                    backgroundColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.08)',
+                    borderWidth: 1,
+                    borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(245, 158, 11, 0.2)',
+                  }}
+                >
                   <Image
                     source={require('../../assets/images/Pendentes.png')}
-                    style={{ width: 28, height: 28 }}
+                    style={{ width: 36, height: 36 }}
                     resizeMode="contain"
                   />
                 </View>
@@ -1728,10 +1765,18 @@ export default function HomeScreen() {
                       <Text className="font-semibold flex-1" style={themeStyles.text}>
                         {activity.athleteName} finalizou o '{activity.workoutName}'
                       </Text>
-                      {activity.feedbackEmoji && (
-                        <Text className="text-2xl ml-2">
-                          {activity.feedbackEmoji}
-                        </Text>
+                      {(activity.feedback || activity.feedbackEmoji) && (
+                        activity.feedback ? (
+                          <Image
+                            source={feedbackIcons[Math.max(1, Math.min(5, Number(activity.feedback)))]}
+                            style={{ width: 26, height: 26, marginLeft: 8 }}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-2xl ml-2">
+                            {activity.feedbackEmoji}
+                          </Text>
+                        )
                       )}
                     </View>
                     <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -1827,7 +1872,7 @@ export default function HomeScreen() {
             </Text>
             <View className="flex-row gap-3">
               {/* Card: Treinos Esta Semana */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-3 px-3 border items-center justify-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#fb923c',
@@ -1837,19 +1882,23 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="calendar" size={18} color="#fb923c" />
+                <View className="items-center justify-center mb-0">
+                  <Image
+                    source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
+                    style={{ width: 52, height: 52 }}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
                   {getAthleteStats().thisWeekPending + getAthleteStats().thisWeekCompleted}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Esta Semana
                 </Text>
               </View>
 
               {/* Card: Concluídos */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-3 px-3 border items-center justify-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#10b981',
@@ -1859,19 +1908,23 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="check-circle" size={18} color="#10b981" />
+                <View className="items-center justify-center mb-0">
+                  <Image
+                    source={require('../../assets/images/IconeWorkoutComplete.png')}
+                    style={{ width: 52, height: 52 }}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
                   {getAthleteStats().totalCompleted}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Concluídos
                 </Text>
               </View>
 
               {/* Card: Sequência */}
-              <View className="flex-1 rounded-xl p-4 border"
+              <View className="flex-1 rounded-xl py-3 px-3 border items-center justify-center"
                 style={{
                   ...themeStyles.card,
                   shadowColor: '#f59e0b',
@@ -1881,16 +1934,20 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View className="flex-row items-center mb-2">
-                  <FontAwesome name="fire" size={18} color="#f59e0b" />
+                <View className="items-center justify-center mb-0">
+                  <Image
+                    source={require('../../assets/images/Sequencia.png')}
+                    style={{ width: 52, height: 52 }}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
+                <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
                   {getAthleteStats().streak}
                 </Text>
-                <Text className="text-xs" style={themeStyles.textSecondary}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Sequência
                 </Text>
-                <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
+                <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
                   Dias consecutivos
                 </Text>
               </View>
@@ -1970,9 +2027,16 @@ export default function HomeScreen() {
           {/* Gráfico de Frequência de Treinos */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                📊 Frequência de Treinos
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/IconeTaxadeaderencia.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Frequência de Treinos
+                </Text>
+              </View>
               
               {getWeeklyFrequency().length > 0 ? (
                 <>
@@ -2071,9 +2135,16 @@ export default function HomeScreen() {
           {/* Gráfico de Evolução de Peso/Carga */}
           {availableExercises.length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                📈 Evolução de Peso/Carga
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/AtletaProfileEProgress.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Evolução de Peso/Carga
+                </Text>
+              </View>
               
               {/* Seletor de Exercício */}
               <View className="mb-4">
@@ -2228,80 +2299,101 @@ export default function HomeScreen() {
           {/* Gráfico de Média de Dificuldade dos Treinos */}
           {getCompletedWorkouts().some((w: any) => w.feedback) && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                📊 Média de Dificuldade dos Treinos
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/iconetreinosmaisdificeis.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Média de Dificuldade dos Treinos
+                </Text>
+              </View>
               
               {getDifficultyTrend().length > 0 ? (
                 <>
-                  <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
-                    <LineChart
-                      data={getDifficultyTrend().map((week) => ({
-                        value: week.average,
-                        label: week.label,
-                      }))}
-                      width={280}
-                      height={140}
-                      color="#f59e0b"
-                      thickness={3}
-                      curved
-                      areaChart
-                      startFillColor="#f59e0b"
-                      endFillColor="#f59e0b"
-                      startOpacity={0.3}
-                      endOpacity={0.05}
-                      spacing={getDifficultyTrend().length > 1 ? Math.max(60, 280 / (getDifficultyTrend().length - 1)) : 60}
-                      initialSpacing={0}
-                      noOfSections={4}
-                      maxValue={5}
-                      yAxisColor={theme.colors.borderSecondary}
-                      xAxisColor={theme.colors.borderSecondary}
-                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
-                      hideDataPoints={false}
-                      dataPointsColor="#f59e0b"
-                      dataPointsRadius={6}
-                      dataPointsWidth={6}
-                      dataPointsHeight={6}
-                      textShiftY={-2}
-                      textShiftX={-5}
-                      textFontSize={10}
-                      hideRules={false}
-                      rulesColor={theme.colors.border}
-                      rulesType="solid"
-                      yAxisTextNumberOfLines={1}
-                      showVerticalLines={false}
-                      xAxisLabelsVerticalShift={10}
-                      xAxisLabelTexts={getDifficultyTrend().map((week) => week.label)}
-                      pointerConfig={{
-                        pointer1Color: '#f59e0b',
-                        pointerStripUptoDataPoint: true,
-                        pointerStripColor: '#f59e0b',
-                        pointerStripWidth: 2,
-                        activatePointersOnLongPress: true,
-                        hidePointer1: false,
-                        autoAdjustPointerLabelPosition: true,
-                        pointerLabelComponent: (items: any) => {
-                          return (
-                            <View
-                              style={{
-                                height: 40,
-                                width: 60,
-                                backgroundColor: '#f59e0b',
-                                borderRadius: 8,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
-                                {items[0].value.toFixed(1)}
-                              </Text>
-                            </View>
-                          );
-                        },
-                      }}
-                    />
-                  </View>
+                  {getDifficultyTrend().length === 1 ? (
+                    <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
+                      <View className="items-center justify-center py-4">
+                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média atual</Text>
+                        <Text className="text-4xl font-bold" style={{ color: '#f59e0b' }}>
+                          {getDifficultyTrend()[0].average.toFixed(1)}
+                        </Text>
+                        <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
+                          {getDifficultyTrend()[0].label} • dados insuficientes para tendência
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
+                      <LineChart
+                        data={getDifficultyTrend().map((week) => ({
+                          value: week.average,
+                          label: week.label,
+                        }))}
+                        width={280}
+                        height={140}
+                        color="#f59e0b"
+                        thickness={3}
+                        curved
+                        areaChart
+                        startFillColor="#f59e0b"
+                        endFillColor="#f59e0b"
+                        startOpacity={0.3}
+                        endOpacity={0.05}
+                        spacing={Math.max(60, 280 / (getDifficultyTrend().length - 1))}
+                        initialSpacing={0}
+                        noOfSections={4}
+                        maxValue={5}
+                        yAxisColor={theme.colors.borderSecondary}
+                        xAxisColor={theme.colors.borderSecondary}
+                        yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                        xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                        hideDataPoints={false}
+                        dataPointsColor="#f59e0b"
+                        dataPointsRadius={6}
+                        dataPointsWidth={6}
+                        dataPointsHeight={6}
+                        textShiftY={-2}
+                        textShiftX={-5}
+                        textFontSize={10}
+                        hideRules={false}
+                        rulesColor={theme.colors.border}
+                        rulesType="solid"
+                        yAxisTextNumberOfLines={1}
+                        showVerticalLines={false}
+                        xAxisLabelsVerticalShift={10}
+                        xAxisLabelTexts={getDifficultyTrend().map((week) => week.label)}
+                        pointerConfig={{
+                          pointer1Color: '#f59e0b',
+                          pointerStripUptoDataPoint: true,
+                          pointerStripColor: '#f59e0b',
+                          pointerStripWidth: 2,
+                          activatePointersOnLongPress: true,
+                          hidePointer1: false,
+                          autoAdjustPointerLabelPosition: true,
+                          pointerLabelComponent: (items: any) => {
+                            return (
+                              <View
+                                style={{
+                                  height: 40,
+                                  width: 60,
+                                  backgroundColor: '#f59e0b',
+                                  borderRadius: 8,
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
+                                  {items[0].value.toFixed(1)}
+                                </Text>
+                              </View>
+                            );
+                          },
+                        }}
+                      />
+                    </View>
+                  )}
 
                   {/* Análise de Tendência */}
                   {getDifficultyTrendAnalysis() && (
@@ -2403,9 +2495,16 @@ export default function HomeScreen() {
           {/* Seção de Conquistas e Recordes */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                🏆 Conquistas e Recordes
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/atletasmaisativos.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Conquistas e Recordes
+                </Text>
+              </View>
               
               <View className="flex-row gap-3 flex-wrap">
                 {/* Card: Maior Sequência */}
@@ -2422,7 +2521,11 @@ export default function HomeScreen() {
                     }}
                   >
                     <View className="flex-row items-center mb-2">
-                      <FontAwesome name="fire" size={20} color="#f59e0b" />
+                      <Image
+                        source={require('../../assets/images/Sequencia.png')}
+                        style={{ width: 28, height: 28 }}
+                        resizeMode="contain"
+                      />
                       <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Maior Sequência</Text>
                     </View>
                     <Text className="text-3xl font-bold mb-1" style={{ color: '#f59e0b' }}>
@@ -2458,7 +2561,11 @@ export default function HomeScreen() {
                     }}
                   >
                     <View className="flex-row items-center mb-2">
-                      <FontAwesome name="calendar-check-o" size={20} color="#fb923c" />
+                      <Image
+                        source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
+                        style={{ width: 28, height: 28 }}
+                        resizeMode="contain"
+                      />
                       <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Semana</Text>
                     </View>
                     <Text className="text-3xl font-bold mb-1" style={{ color: theme.colors.primary }}>
@@ -2487,7 +2594,11 @@ export default function HomeScreen() {
                     }}
                   >
                     <View className="flex-row items-center mb-2">
-                      <FontAwesome name="trophy" size={20} color="#10b981" />
+                      <Image
+                        source={require('../../assets/images/atletasmaisativos.png')}
+                        style={{ width: 28, height: 28 }}
+                        resizeMode="contain"
+                      />
                       <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Mês</Text>
                     </View>
                     <Text className="text-3xl font-bold mb-1" style={{ color: '#10b981' }}>
@@ -2562,9 +2673,16 @@ export default function HomeScreen() {
           {/* Treinos Concluídos (últimos 5) */}
           {getCompletedWorkouts().length > 0 && (
             <View className="w-full">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                ✅ Concluídos Recentes
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/IconeWorkoutComplete.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Concluídos Recentes
+                </Text>
+              </View>
               
               {getCompletedWorkouts()
                 .sort((a: any, b: any) => {
@@ -2619,10 +2737,18 @@ export default function HomeScreen() {
                           {workout.status}
                         </Text>
                       </View>
-                      {workout.feedbackEmoji && (
-                        <Text className="text-2xl">
-                          {workout.feedbackEmoji}
-                        </Text>
+                      {(workout.feedback || workout.feedbackEmoji) && (
+                        workout.feedback ? (
+                          <Image
+                            source={feedbackIcons[Math.max(1, Math.min(5, Number(workout.feedback)))]}
+                            style={{ width: 30, height: 30 }}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-2xl">
+                            {workout.feedbackEmoji}
+                          </Text>
+                        )
                       )}
                     </View>
                   </View>

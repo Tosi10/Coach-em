@@ -1,8 +1,11 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getExerciseById, updateExercise } from '@/src/services/exercises.service';
+import { uploadExerciseVideo } from '@/src/services/storage.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { ResizeMode, Video } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -26,6 +29,10 @@ export default function EditExerciseScreen() {
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
     const [loading, setLoading] = useState(true);
+    const [videoUri, setVideoUri] = useState<string | null>(null);
+    const [existingVideoURL, setExistingVideoURL] = useState<string | null>(null);
+    const [removeStoredVideo, setRemoveStoredVideo] = useState(false);
+    const [uploadingVideo, setUploadingVideo] = useState(false);
 
     // Estados para CustomAlert
     const [alertVisible, setAlertVisible] = useState(false);
@@ -60,6 +67,9 @@ export default function EditExerciseScreen() {
                     setMuscleGroups(exercise.muscleGroups || []);
                     setEquipment(exercise.equipment || []);
                     setDuration(exercise.duration ? exercise.duration.toString() : '');
+                    setExistingVideoURL(exercise.videoURL || null);
+                    setVideoUri(null);
+                    setRemoveStoredVideo(false);
                 } else {
                     showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
                 }
@@ -72,6 +82,31 @@ export default function EditExerciseScreen() {
         };
         if (exerciseIdString) loadExercise();
     }, [exerciseIdString]);
+
+    const pickVideo = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            showAlert('Permissão necessária', 'Precisamos acessar sua galeria para escolher um vídeo.', 'warning');
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['videos'],
+            allowsEditing: true,
+            quality: 0.8,
+            videoMaxDuration: 60,
+        });
+        if (!result.canceled && result.assets[0]) {
+            setVideoUri(result.assets[0].uri);
+            setRemoveStoredVideo(false);
+        }
+    };
+
+    const clearPendingVideo = () => setVideoUri(null);
+
+    const markRemoveStoredVideo = () => {
+        setRemoveStoredVideo(true);
+        setExistingVideoURL(null);
+    };
 
     // PARTE 2: Função para salvar as alterações
     const handleUpdateExercise = async () => {
@@ -92,15 +127,40 @@ export default function EditExerciseScreen() {
         }
       
         try {
-            await updateExercise(exerciseIdString!, {
+            const patch: Parameters<typeof updateExercise>[1] = {
                 name: name.trim(),
                 description: description.trim(),
                 difficulty,
                 muscleGroups,
                 equipment: equipment.length > 0 ? equipment : ['Nenhum'],
                 duration: duration ? parseInt(duration, 10) : undefined,
-            });
-            showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => setTimeout(() => router.back(), 0));
+            };
+
+            let newVideoUploadFailed = false;
+            if (videoUri) {
+                setUploadingVideo(true);
+                const url = await uploadExerciseVideo(videoUri, exerciseIdString!);
+                setUploadingVideo(false);
+                if (url) {
+                    patch.videoURL = url;
+                } else {
+                    newVideoUploadFailed = true;
+                }
+            } else if (removeStoredVideo) {
+                patch.videoURL = null;
+            }
+
+            await updateExercise(exerciseIdString!, patch);
+            if (newVideoUploadFailed) {
+                showAlert(
+                    'Salvo com aviso',
+                    'Alterações salvas, mas o novo vídeo não foi enviado. Verifique o Firebase Storage e tente substituir o vídeo de novo.',
+                    'warning',
+                    () => setTimeout(() => router.back(), 0)
+                );
+            } else {
+                showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => setTimeout(() => router.back(), 0));
+            }
         } catch (error) {
             console.error('Erro ao atualizar exercício:', error);
             showAlert('Erro', 'Não foi possível atualizar o exercício.', 'error');
@@ -329,7 +389,7 @@ export default function EditExerciseScreen() {
                 </View>
 
                 {/* Duração */}
-                <View className="mb-6">
+                <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
                         Duração (segundos)
                     </Text>
@@ -348,18 +408,74 @@ export default function EditExerciseScreen() {
                     />
                 </View>
 
+                {/* Vídeo (salvo no Firebase Storage; URL em coachemExercises) */}
+                <View className="mb-6">
+                    <Text className="font-semibold mb-2" style={themeStyles.text}>
+                        Vídeo do exercício (opcional)
+                    </Text>
+                    <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
+                        O atleta vê este vídeo ao abrir o exercício no treino. Troque ou remova quando quiser.
+                    </Text>
+                    {existingVideoURL && !videoUri && !removeStoredVideo && (
+                        <View className="rounded-xl overflow-hidden mb-3 border" style={{ borderColor: theme.colors.border }}>
+                            <Video
+                                source={{ uri: existingVideoURL }}
+                                style={{ width: '100%', height: 180 }}
+                                useNativeControls
+                                resizeMode={ResizeMode.CONTAIN}
+                                shouldPlay={false}
+                            />
+                        </View>
+                    )}
+                    {!videoUri ? (
+                        <TouchableOpacity
+                            className="flex-row items-center justify-center rounded-lg py-3 px-4 border-2 border-dashed mb-2"
+                            style={{
+                                borderColor: theme.colors.primary + '80',
+                                backgroundColor: theme.mode === 'dark' ? theme.colors.primary + '15' : theme.colors.primary + '10',
+                            }}
+                            onPress={pickVideo}
+                            disabled={uploadingVideo}
+                        >
+                            <FontAwesome name="video-camera" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                            <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                                {uploadingVideo ? 'Enviando vídeo...' : existingVideoURL && !removeStoredVideo ? 'Substituir vídeo' : 'Selecionar vídeo'}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View className="flex-row items-center rounded-lg py-3 px-4 border mb-2" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+                            <FontAwesome name="check-circle" size={20} color="#10b981" style={{ marginRight: 8 }} />
+                            <Text className="flex-1 font-medium" style={themeStyles.text} numberOfLines={1}>
+                                Novo vídeo selecionado
+                            </Text>
+                            <TouchableOpacity onPress={clearPendingVideo} className="rounded-full px-3 py-1" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
+                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>Cancelar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    {existingVideoURL && !videoUri && !removeStoredVideo && (
+                        <TouchableOpacity onPress={markRemoveStoredVideo} className="py-2">
+                            <Text className="text-center text-sm" style={{ color: '#ef4444' }}>
+                                Remover vídeo salvo
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
                 {/* Botão Salvar */}
                 <TouchableOpacity
                     className="rounded-lg py-4 px-6"
                     style={{
                       backgroundColor: theme.colors.primary,
+                      shadowOpacity: uploadingVideo ? 0.15 : 0.3,
                       shadowColor: theme.colors.primary,
                       shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
                       shadowRadius: 8,
                       elevation: 6,
+                      opacity: uploadingVideo ? 0.7 : 1,
                     }}
                     onPress={handleUpdateExercise}
+                    disabled={uploadingVideo}
                 >
                     <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
                         💾 Salvar Alterações

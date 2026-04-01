@@ -7,6 +7,7 @@
 
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -19,7 +20,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase.config';
-import type { Exercise } from '@/src/types';
+import type { Exercise, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 
 const COLLECTION = 'coachemExercises';
 
@@ -81,6 +82,50 @@ export async function getExerciseById(id: string): Promise<Exercise | null> {
 }
 
 /**
+ * Mescla cada `exerciseId` com o documento atual em `coachemExercises`.
+ * Treinos atribuídos guardam uma cópia dos blocos; assim o vídeo e demais campos
+ * passam a refletir a biblioteca mesmo se o template estava desatualizado.
+ */
+export async function enrichWorkoutBlocksWithLatestExercises(
+  blocks: WorkoutBlockData[]
+): Promise<WorkoutBlockData[]> {
+  if (!blocks?.length) return blocks;
+  const ids = new Set<string>();
+  for (const b of blocks) {
+    for (const we of b.exercises || []) {
+      if (we?.exerciseId) ids.add(we.exerciseId);
+    }
+  }
+  if (ids.size === 0) return blocks;
+
+  const cache = new Map<string, Exercise | null>();
+  await Promise.all(
+    [...ids].map(async (id) => {
+      try {
+        cache.set(id, await getExerciseById(id));
+      } catch {
+        cache.set(id, null);
+      }
+    })
+  );
+
+  return blocks.map((block) => ({
+    ...block,
+    exercises: (block.exercises || []).map((we: WorkoutExercise) => {
+      const latest = cache.get(we.exerciseId);
+      if (!latest) return we;
+      return {
+        ...we,
+        exercise: {
+          ...(we.exercise || {}),
+          ...latest,
+        },
+      };
+    }),
+  }));
+}
+
+/**
  * Cria um exercício no Firestore (coleção coachemExercises).
  * O id pode ser passado ou será o id do documento.
  */
@@ -116,17 +161,24 @@ export async function createExercise(
 
 /**
  * Atualiza um exercício existente.
+ * Passe `videoURL: null` para remover o vídeo do documento (deleteField).
  */
 export async function updateExercise(
   id: string,
-  data: Partial<Omit<Exercise, 'id' | 'createdBy' | 'createdAt'>>
+  data: Partial<Omit<Exercise, 'id' | 'createdBy' | 'createdAt'>> & { videoURL?: string | null }
 ): Promise<void> {
   const ref = doc(db, COLLECTION, id);
-  const payload = removeUndefined({
-    ...data,
+  const { videoURL, ...rest } = data;
+  const payload: Record<string, unknown> = removeUndefined({
+    ...rest,
     updatedAt: new Date().toISOString(),
   });
-  await updateDoc(ref, payload);
+  if (videoURL === null) {
+    payload.videoURL = deleteField();
+  } else if (videoURL !== undefined) {
+    payload.videoURL = videoURL;
+  }
+  await updateDoc(ref, payload as { [x: string]: unknown });
 }
 
 /**

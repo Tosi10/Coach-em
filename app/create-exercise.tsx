@@ -98,21 +98,35 @@ export default function CreateExerciseScreen() {
         };
 
         try {
+            let videoUploadFailed = false;
             if (videoUri) {
               setUploadingVideo(true);
               const videoURL = await uploadExerciseVideo(videoUri, exerciseId);
-              if (videoURL) payload.videoURL = videoURL;
               setUploadingVideo(false);
+              if (videoURL) {
+                payload.videoURL = videoURL;
+              } else {
+                videoUploadFailed = true;
+              }
             }
 
             await createExerciseInFirestore(coachId, payload);
 
-            showAlert(
+            if (videoUploadFailed) {
+              showAlert(
+                'Exercício criado',
+                `O exercício "${payload.name}" foi salvo, mas o vídeo não foi enviado. Verifique Firebase Storage (regras, bucket EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).`,
+                'warning',
+                () => setTimeout(() => router.back(), 0)
+              );
+            } else {
+              showAlert(
                 'Exercício criado!',
                 `O exercício "${payload.name}" foi criado com sucesso.`,
                 'success',
                 () => setTimeout(() => router.back(), 0)
-            );
+              );
+            }
         } catch (error) {
             setUploadingVideo(false);
             console.error('Erro ao salvar exercício:', error);

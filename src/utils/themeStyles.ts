@@ -14,9 +14,9 @@ export function getThemeStyles(colors: ThemeColors) {
     bgCard: { backgroundColor: colors.card },
     
     // Text
-    text: { color: colors.text },
-    textSecondary: { color: colors.textSecondary },
-    textTertiary: { color: colors.textTertiary },
+    text: { color: colors.text, fontFamily: 'Manrope_500Medium' },
+    textSecondary: { color: colors.textSecondary, fontFamily: 'Manrope_400Regular' },
+    textTertiary: { color: colors.textTertiary, fontFamily: 'Manrope_400Regular' },
     
     // Borders
     border: { borderColor: colors.border },

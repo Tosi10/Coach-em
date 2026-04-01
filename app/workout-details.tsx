@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ResizeMode, Video } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
+import { Animated, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -269,13 +269,13 @@ export default function WorkoutDetailsScreen() {
     }
   }, [assignedWorkout?.status, pulseAnim]);
   
-  // Emojis de feedback (5 níveis: muito fácil até muito difícil)
-  const feedbackEmojis = [
-    { level: 1, emoji: '😊', label: 'Muito Fácil', color: '#10b981' },
-    { level: 2, emoji: '🙂', label: 'Fácil', color: '#22c55e' },
-    { level: 3, emoji: '😐', label: 'Normal', color: '#f59e0b' },
-    { level: 4, emoji: '😓', label: 'Difícil', color: '#f97316' },
-    { level: 5, emoji: '😰', label: 'Muito Difícil', color: '#ef4444' },
+  // Feedback com ícones próprios (substituindo emojis do sistema)
+  const feedbackLevels = [
+    { level: 1, emoji: '😊', label: 'Muito Fácil', color: '#10b981', icon: require('../assets/images/FeedbackMuitoFacil.png') },
+    { level: 2, emoji: '🙂', label: 'Fácil', color: '#22c55e', icon: require('../assets/images/FeedbackFacil.png') },
+    { level: 3, emoji: '😐', label: 'Normal', color: '#f59e0b', icon: require('../assets/images/FeedbackModerado.png') },
+    { level: 4, emoji: '😓', label: 'Difícil', color: '#f97316', icon: require('../assets/images/FeedbackDificil.png') },
+    { level: 5, emoji: '😰', label: 'Muito Difícil', color: '#ef4444', icon: require('../assets/images/FeedbackMuitoDificil.png') },
   ];
 
 
@@ -292,6 +292,8 @@ export default function WorkoutDetailsScreen() {
 
         setAssignedWorkout(found);
 
+        const { enrichWorkoutBlocksWithLatestExercises } = await import('@/src/services/exercises.service');
+
         if (found.blocks && found.blocks.length > 0) {
           const blockTypes = ['WARM_UP', 'WORK', 'COOL_DOWN'] as const;
           const blocks = found.blocks.map((b: { blockType?: string; exercises?: unknown[] }, i: number) => ({
@@ -299,10 +301,11 @@ export default function WorkoutDetailsScreen() {
             blockType: b.blockType ?? blockTypes[Math.min(i, 2)],
             exercises: b.exercises ?? [],
           }));
+          const enriched = await enrichWorkoutBlocksWithLatestExercises(blocks as any);
           setWorkoutTemplate({
             id: found.workoutTemplateId || found.id,
             name: found.name,
-            blocks,
+            blocks: enriched,
           });
         } else {
           const { getWorkoutTemplateById } = await import('@/src/services/workoutTemplates.service');
@@ -319,7 +322,8 @@ export default function WorkoutDetailsScreen() {
             }
           }
           if (template) {
-            setWorkoutTemplate(template);
+            const enriched = await enrichWorkoutBlocksWithLatestExercises((template.blocks || []) as any);
+            setWorkoutTemplate({ ...template, blocks: enriched });
           }
         }
       } catch (error) {
@@ -652,6 +656,23 @@ export default function WorkoutDetailsScreen() {
   // Função para salvar peso usado no exercício
   const saveExerciseWeight = useCallback(async (exerciseId: string, weight: number, workoutId: string) => {
     try {
+      const athleteId = assignedWorkout?.athleteId;
+      if (!athleteId) {
+        showAlert('Erro', 'Não foi possível identificar o atleta para salvar a evolução', 'error');
+        return;
+      }
+
+      const { addExerciseWeightRecord } = await import('@/src/services/exerciseWeightHistory.service');
+      await addExerciseWeightRecord({
+        athleteId,
+        workoutId,
+        exerciseId,
+        exerciseName: getCurrentExercise()?.exercise?.name || 'Exercício',
+        weight,
+        date: new Date().toISOString(),
+      });
+
+      // Compatibilidade temporária com dados locais já existentes.
       // Buscar histórico existente
       const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
       const weightHistory = weightHistoryJson ? JSON.parse(weightHistoryJson) : [];
@@ -664,7 +685,7 @@ export default function WorkoutDetailsScreen() {
         weight: weight,
         date: new Date().toISOString(),
         workoutId: workoutId,
-        athleteId: assignedWorkout?.athleteId || 'current', // ID do atleta atual
+        athleteId,
       };
       
       // Adicionar ao histórico
@@ -700,20 +721,33 @@ export default function WorkoutDetailsScreen() {
       const exerciseId = exercise.exerciseId || `block_${currentBlockIndex}_ex_${currentExerciseIndex}`;
       
       try {
+        const athleteId = assignedWorkout?.athleteId;
+        if (!athleteId) return;
+
+        const { getLatestExerciseWeightForAthlete } = await import('@/src/services/exerciseWeightHistory.service');
+        const lastRecord = await getLatestExerciseWeightForAthlete(athleteId, exerciseId);
+
+        if (lastRecord) {
+          setSavedWeights(prev => ({
+            ...prev,
+            [exerciseId]: lastRecord.weight,
+          }));
+          return;
+        }
+
+        // Fallback para histórico local legado.
         const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
-        if (weightHistoryJson) {
-          const weightHistory = JSON.parse(weightHistoryJson);
-          // Buscar último peso registrado para este exercício
-          const lastRecord = weightHistory
-            .filter((r: any) => r.exerciseId === exerciseId)
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-          
-          if (lastRecord) {
-            setSavedWeights(prev => ({
-              ...prev,
-              [exerciseId]: lastRecord.weight,
-            }));
-          }
+        if (!weightHistoryJson) return;
+        const weightHistory = JSON.parse(weightHistoryJson);
+        const localLastRecord = weightHistory
+          .filter((r: any) => r.exerciseId === exerciseId && r.athleteId === athleteId)
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+        if (localLastRecord) {
+          setSavedWeights(prev => ({
+            ...prev,
+            [exerciseId]: localLastRecord.weight,
+          }));
         }
       } catch (error) {
         console.error('Erro ao carregar peso salvo:', error);
@@ -721,7 +755,7 @@ export default function WorkoutDetailsScreen() {
     };
     
     loadSavedWeight();
-  }, [showExerciseModal, currentBlockIndex, currentExerciseIndex, getCurrentExercise]);
+  }, [showExerciseModal, currentBlockIndex, currentExerciseIndex, getCurrentExercise, assignedWorkout?.athleteId]);
 
 
 
@@ -826,7 +860,7 @@ export default function WorkoutDetailsScreen() {
         status: 'Concluído',
         completedDate: new Date().toISOString(),
         feedback: selectedFeedback,
-        feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
+        feedbackEmoji: feedbackLevels[selectedFeedback - 1].emoji,
         feedbackText: feedbackText.trim() || undefined,
       });
 
@@ -836,7 +870,7 @@ export default function WorkoutDetailsScreen() {
         status: 'Concluído',
         completedDate: new Date().toISOString(),
         feedback: selectedFeedback,
-        feedbackEmoji: feedbackEmojis[selectedFeedback - 1].emoji,
+        feedbackEmoji: feedbackLevels[selectedFeedback - 1].emoji,
         feedbackText: feedbackText.trim() || undefined,
       });
       
@@ -980,16 +1014,24 @@ export default function WorkoutDetailsScreen() {
           </View>
 
           {/* Seu feedback (emoji + observação) - visível para o atleta no próprio treino */}
-          {assignedWorkout.status === 'Concluído' && (assignedWorkout.feedbackEmoji || assignedWorkout.feedbackText) && (
+          {assignedWorkout.status === 'Concluído' && (assignedWorkout.feedback || assignedWorkout.feedbackEmoji || assignedWorkout.feedbackText) && (
             <View className="mt-4 rounded-xl p-4 border" style={themeStyles.card}>
               <Text className="font-semibold mb-2" style={themeStyles.text}>
                 Seu feedback
               </Text>
               <View className="flex-row flex-wrap items-center gap-2 mb-2">
-                {assignedWorkout.feedbackEmoji && (
-                  <Text className="text-2xl" style={{ lineHeight: 32 }}>
-                    {assignedWorkout.feedbackEmoji}
-                  </Text>
+                {(assignedWorkout.feedback || assignedWorkout.feedbackEmoji) && (
+                  assignedWorkout.feedback ? (
+                    <Image
+                      source={feedbackLevels[Math.max(0, Math.min(4, Number(assignedWorkout.feedback) - 1))].icon}
+                      style={{ width: 34, height: 34 }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text className="text-2xl" style={{ lineHeight: 32 }}>
+                      {assignedWorkout.feedbackEmoji}
+                    </Text>
+                  )
                 )}
                 {assignedWorkout.completedDate && (
                   <Text className="text-sm" style={themeStyles.textTertiary}>
@@ -1015,16 +1057,28 @@ export default function WorkoutDetailsScreen() {
             
             {workoutTemplate.blocks.map((block: WorkoutBlockData, blockIndex: number) => {
               const blockNames: Record<string, string> = {
-                'WARM_UP': '🔥 Aquecimento',
-                'WORK': '💪 Trabalho Principal',
-                'COOL_DOWN': '🧘 Desaquecimento',
+                WARM_UP: 'Aquecimento',
+                WORK: 'Trabalho Principal',
+                COOL_DOWN: 'Finalização',
+              };
+              const blockIcons: Record<string, any> = {
+                WARM_UP: require('../assets/images/IconeAquecimento.png'),
+                WORK: require('../assets/images/IconeTrabalhoPrincipal.png'),
+                COOL_DOWN: require('../assets/images/IconeFinalizacao.png'),
               };
               
               return (
                 <View key={blockIndex} className="mb-6">
-                  <Text className="text-xl font-semibold mb-3" style={themeStyles.text}>
-                    {blockNames[block.blockType] || block.blockType}
-                  </Text>
+                  <View className="flex-row items-center mb-3">
+                    <Image
+                      source={blockIcons[block.blockType]}
+                      style={{ width: 48, height: 48, marginRight: 10 }}
+                      resizeMode="contain"
+                    />
+                    <Text className="text-xl font-semibold" style={themeStyles.text}>
+                      {blockNames[block.blockType] || block.blockType}
+                    </Text>
+                  </View>
                   
                   {block.exercises.map((exercise: any, exerciseIndex: number) => {
                     // Criar ID único para este exercício
@@ -1155,8 +1209,15 @@ export default function WorkoutDetailsScreen() {
               animationType="slide"
               onRequestClose={() => setShowExerciseModal(false)}
             >
-              <View className="flex-1 bg-black/80 justify-center items-center p-6">
-                <View className="rounded-3xl w-full max-w-md border" style={{...themeStyles.card, maxHeight: '85%'}}>
+              <View className="flex-1 bg-black/80 justify-center items-center p-3">
+                <View
+                  className="rounded-3xl w-full max-w-md border"
+                  style={{
+                    ...themeStyles.card,
+                    maxHeight: '94%',
+                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.22)',
+                  }}
+                >
                   {/* Header do Modal */}
                   <View className="flex-row items-center justify-between mb-4 px-6 pt-6">
                     <TouchableOpacity
@@ -1184,7 +1245,7 @@ export default function WorkoutDetailsScreen() {
                   
                   {/* Detalhes do Exercício */}
                   <ScrollView 
-                    style={{ maxHeight: 500 }}
+                    style={{ flexGrow: 0 }}
                     contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={true}
@@ -1595,7 +1656,7 @@ export default function WorkoutDetailsScreen() {
 
               {/* Grid de emojis */}
               <View className="flex-row flex-wrap justify-center gap-4 mb-4">
-                {feedbackEmojis.map((feedback) => (
+                {feedbackLevels.map((feedback) => (
                   <TouchableOpacity
                     key={feedback.level}
                     className="items-center justify-center w-20 h-20 rounded-2xl border-2"
@@ -1616,7 +1677,11 @@ export default function WorkoutDetailsScreen() {
                     }}
                     onPress={() => setSelectedFeedback(feedback.level)}
                   >
-                    <Text className="text-4xl mb-1">{feedback.emoji}</Text>
+                    <Image
+                      source={feedback.icon}
+                      style={{ width: 44, height: 44, marginBottom: 4 }}
+                      resizeMode="contain"
+                    />
                     <Text className="text-xs font-semibold" style={{
                       color: selectedFeedback === feedback.level ? theme.colors.text : theme.colors.textTertiary
                     }}>
