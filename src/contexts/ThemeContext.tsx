@@ -117,10 +117,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       try {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
         if (savedTheme === 'light' || savedTheme === 'dark') {
+          // Se o usuário já escolheu um tema antes, respeitar a escolha
           setThemeMode(savedTheme);
         } else {
-          // Se não há preferência salva, usar sistema
-          setThemeMode(systemColorScheme === 'dark' ? 'dark' : 'light');
+          // Se não há preferência salva, forçar tema escuro como padrão
+          setThemeMode('dark');
         }
       } catch (error) {
         console.error('Erro ao carregar tema:', error);

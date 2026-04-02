@@ -11,6 +11,7 @@ import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlockData } from '@/src/types';
+import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1020,19 +1021,26 @@ export default function WorkoutDetailsScreen() {
                 Seu feedback
               </Text>
               <View className="flex-row flex-wrap items-center gap-2 mb-2">
-                {(assignedWorkout.feedback || assignedWorkout.feedbackEmoji) && (
-                  assignedWorkout.feedback ? (
-                    <Image
-                      source={feedbackLevels[Math.max(0, Math.min(4, Number(assignedWorkout.feedback) - 1))].icon}
-                      style={{ width: 34, height: 34 }}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Text className="text-2xl" style={{ lineHeight: 32 }}>
-                      {assignedWorkout.feedbackEmoji}
-                    </Text>
-                  )
-                )}
+                {(() => {
+                  const level = getFeedbackLevel(assignedWorkout.feedback, assignedWorkout.feedbackEmoji);
+                  if (level != null) {
+                    return (
+                      <Image
+                        source={feedbackLevels[level - 1].icon}
+                        style={{ width: 48, height: 48 }}
+                        resizeMode="contain"
+                      />
+                    );
+                  }
+                  if (assignedWorkout.feedbackEmoji) {
+                    return (
+                      <Text className="text-4xl" style={{ lineHeight: 48 }}>
+                        {assignedWorkout.feedbackEmoji}
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
                 {assignedWorkout.completedDate && (
                   <Text className="text-sm" style={themeStyles.textTertiary}>
                     {new Date(assignedWorkout.completedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}

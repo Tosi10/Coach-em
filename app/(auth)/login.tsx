@@ -28,10 +28,17 @@ import {
 
 const GRADIENT_ORANGE: readonly [string, string] = ['#f97316', '#ea580c'];
 
+/** 1px real (1.5 costuma arredondar para 2 no Android). Contraste um pouco maior para compensar. */
+const INPUT_BORDER_WIDTH = 1;
+const inputBorderColor = (isDark: boolean) =>
+  isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
+
 export default function LoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
+  const isDark = theme.mode === 'dark';
+  const fieldBorder = inputBorderColor(isDark);
   const { signIn, loading, error } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -59,13 +66,15 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={0}
       className="flex-1"
       style={themeStyles.bg}
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         {/* Logo / Brand */}
@@ -99,10 +108,11 @@ export default function LoginScreen() {
               Email
             </Text>
             <TextInput
-              className="w-full border rounded-xl px-4 py-3.5 mb-4 text-base"
+              className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
               style={{
                 backgroundColor: theme.colors.background,
-                borderColor: theme.colors.border,
+                borderWidth: INPUT_BORDER_WIDTH,
+                borderColor: fieldBorder,
                 color: theme.colors.text,
               }}
               placeholder="seu@email.com"
@@ -119,10 +129,11 @@ export default function LoginScreen() {
             </Text>
             <View className="mb-6" style={{ position: 'relative' }}>
               <TextInput
-                className="w-full border rounded-xl px-4 py-3.5 pr-10 text-base"
+                className="w-full rounded-xl px-4 py-3.5 pr-10 text-base"
                 style={{
                   backgroundColor: theme.colors.background,
-                  borderColor: theme.colors.border,
+                  borderWidth: INPUT_BORDER_WIDTH,
+                  borderColor: fieldBorder,
                   color: theme.colors.text,
                 }}
                 placeholder="••••••••"

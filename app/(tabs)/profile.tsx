@@ -14,7 +14,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -58,11 +58,15 @@ export default function ProfileScreen() {
               className="w-14 h-14 rounded-full items-center justify-center"
               style={{ backgroundColor: theme.colors.primary + '25' }}
             >
-              <FontAwesome
-                name={isCoach ? 'user' : 'heartbeat'}
-                size={26}
-                color={theme.colors.primary}
-              />
+              {isCoach ? (
+                <FontAwesome name="user" size={26} color={theme.colors.primary} />
+              ) : (
+                <Image
+                  source={require('../../assets/images/Coracao.png')}
+                  style={{ width: 38, height: 38 }}
+                  resizeMode="contain"
+                />
+              )}
             </View>
             <View className="ml-4 flex-1">
               <Text className="text-lg font-semibold" style={themeStyles.text}>

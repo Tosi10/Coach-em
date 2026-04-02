@@ -54,14 +54,13 @@ if (getApps().length === 0) {
 // Inicializar Auth com persistência AsyncStorage para React Native
 let auth: Auth;
 try {
-  // Tentar obter instância existente ou criar nova com persistência
-  auth = getAuth(app);
-  // Se já existe, não precisa fazer nada
-} catch {
-  // Se não existe, inicializar com persistência AsyncStorage
+  // Em React Native, inicializar explicitamente com AsyncStorage para persistir sessão.
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(ReactNativeAsyncStorage)
   });
+} catch {
+  // Quando já foi inicializado (ex.: hot reload), reutilizar instância existente.
+  auth = getAuth(app);
 }
 
 export { auth };

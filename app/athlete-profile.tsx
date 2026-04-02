@@ -10,14 +10,16 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { EmptyState } from '@/components/EmptyState';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 
@@ -129,17 +131,23 @@ export default function AthleteProfileScreen() {
   // Carregar histórico de peso do atleta
   const loadWeightHistory = async () => {
     try {
-      const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
-      if (!weightHistoryJson) {
+      if (!athleteIdString) {
         setWeightHistory([]);
         setAvailableExercises([]);
+        setSelectedExercise(null);
         return;
       }
 
-      const allHistory = JSON.parse(weightHistoryJson);
-      const athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
-        (r: any) => r.athleteId === athleteIdString
-      );
+      const { listExerciseWeightHistoryByAthlete } = await import('@/src/services/exerciseWeightHistory.service');
+      let athleteHistory = await listExerciseWeightHistoryByAthlete(athleteIdString);
+      if (athleteHistory.length === 0) {
+        // Compatibilidade com histórico legado salvo localmente.
+        const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
+        const allHistory = weightHistoryJson ? JSON.parse(weightHistoryJson) : [];
+        athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
+          (r: any) => r.athleteId === athleteIdString
+        );
+      }
 
       if (athleteHistory.length === 0) {
         setAvailableExercises([]);
@@ -513,7 +521,7 @@ export default function AthleteProfileScreen() {
                 )}
               </>
             ) : (
-              <View className="rounded-xl p-8 items-center border" style={themeStyles.card}>
+              <View className="rounded-xl p-8 items-center border mb-4" style={themeStyles.card}>
                 <Text className="text-center mb-2" style={themeStyles.textSecondary}>
                   Nenhum exercício com registro de peso ainda.
                 </Text>
@@ -526,22 +534,30 @@ export default function AthleteProfileScreen() {
             {/* Último Feedback - dados reais dos treinos concluídos */}
             {(() => {
               const workoutsWithFeedback = athleteWorkouts
-                .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji))
+                .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji || w.feedback != null))
                 .sort((a: any, b: any) => new Date(b.completedDate || b.date).getTime() - new Date(a.completedDate || a.date).getTime());
               const lastFeedback = workoutsWithFeedback[0];
               if (!lastFeedback) return null;
               const dateStr = lastFeedback.completedDate || lastFeedback.date;
               const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-              const feedbackMessage = lastFeedback.feedbackText || (lastFeedback.feedbackEmoji ? `Sentiu: ${lastFeedback.feedbackEmoji}` : '');
-              if (!feedbackMessage) return null;
+              const label = getFeedbackLabel(lastFeedback.feedback, lastFeedback.feedbackEmoji);
+              const feedbackMessage =
+                lastFeedback.feedbackText || (label ? `Sentiu: ${label}` : '');
+              const feedbackIconSrc = getFeedbackIconSource(lastFeedback.feedback, lastFeedback.feedbackEmoji);
+              if (!feedbackMessage && !feedbackIconSrc) return null;
               return (
                 <View className="rounded-xl p-4 border mb-4" style={themeStyles.card}>
                   <Text className="font-semibold mb-3" style={themeStyles.text}>
                     Último Feedback
                   </Text>
-                  <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
-                    {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
-                  </Text>
+                  <View className="flex-row items-start gap-2">
+                    {feedbackIconSrc ? (
+                      <Image source={feedbackIconSrc} style={{ width: 28, height: 28 }} resizeMode="contain" />
+                    ) : null}
+                    <Text className="text-sm leading-5 flex-1" style={themeStyles.textSecondary}>
+                      {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
+                    </Text>
+                  </View>
                 </View>
               );
             })()}
@@ -628,7 +644,9 @@ export default function AthleteProfileScreen() {
                             </Text>
                           </View>
                         ) : (
-                          workoutsToDisplay.map((workout: any) => (
+                          workoutsToDisplay.map((workout: any) => {
+                            const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
+                            return (
                             <View
                               key={workout.id}
                               className="border rounded-xl p-4 mb-3"
@@ -637,9 +655,9 @@ export default function AthleteProfileScreen() {
                                 borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
                               }}
                             >
-                              <View className="flex-row justify-between items-start">
+                              <View className="flex-row items-center gap-2">
                                 <TouchableOpacity
-                                  className="flex-1"
+                                  className="flex-1 min-w-0 pr-1"
                                   onPress={() => {
                                     router.push({
                                       pathname: '/workout-details',
@@ -647,7 +665,7 @@ export default function AthleteProfileScreen() {
                                     });
                                   }}
                                 >
-                                  <View className="flex-1">
+                                  <View>
                                     <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                                       {workout.name}
                                     </Text>
@@ -661,9 +679,24 @@ export default function AthleteProfileScreen() {
                                     )}
                                   </View>
                                 </TouchableOpacity>
-                                
-                                <View className="items-end">
-                                  <View className="border px-3 py-1 rounded-full mb-2"
+
+                                {feedbackIconSrc ? (
+                                  <View
+                                    className="justify-center items-center shrink-0"
+                                    style={{ width: 64 }}
+                                    pointerEvents="none"
+                                  >
+                                    <Image
+                                      source={feedbackIconSrc}
+                                      style={{ width: 52, height: 52 }}
+                                      resizeMode="contain"
+                                    />
+                                  </View>
+                                ) : null}
+
+                                <View className="items-end justify-center" style={{ gap: 10 }}>
+                                  <View
+                                    className="border px-3 py-1 rounded-full"
                                     style={{
                                       backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
                                       borderColor: '#10b981' + '50',
@@ -673,15 +706,6 @@ export default function AthleteProfileScreen() {
                                       {workout.status}
                                     </Text>
                                   </View>
-                                  
-                                  {/* Emoji de feedback */}
-                                  {workout.feedbackEmoji && (
-                                    <Text className="text-2xl mb-2">
-                                      {workout.feedbackEmoji}
-                                    </Text>
-                                  )}
-                                  
-                                  {/* Botão de deletar - menor, abaixo do badge */}
                                   <TouchableOpacity
                                     className="flex-row items-center border rounded-lg py-1.5 px-2.5"
                                     style={{
@@ -700,7 +724,8 @@ export default function AthleteProfileScreen() {
                                 </View>
                               </View>
                             </View>
-                          ))
+                            );
+                          })
                         )}
                         
                         {hasMore && (
@@ -784,10 +809,11 @@ export default function AthleteProfileScreen() {
                     return (
                       <>
                         {workoutsToDisplay.length === 0 ? (
-                          <View className="rounded-xl p-6 border" style={themeStyles.card}>
-                            <Text className="text-center" style={themeStyles.textSecondary}>
-                              Nenhum treino pendente
-                            </Text>
+                          <View className="rounded-xl border overflow-hidden" style={themeStyles.card}>
+                            <EmptyState
+                              imageSource={require('../assets/images/Coracao.png')}
+                              message="Não há treinos agendados."
+                            />
                           </View>
                         ) : (
                           workoutsToDisplay.map((item: any, index: number) => {

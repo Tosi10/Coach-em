@@ -5,12 +5,13 @@
 
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 export default function CoachCalendarScreen() {
@@ -155,6 +156,7 @@ export default function CoachCalendarScreen() {
         ) : (
           dayWorkouts.map((w: any) => {
             const isCompleted = w.status === 'Concluído';
+            const feedbackIconSrc = getFeedbackIconSource(w.feedback, w.feedbackEmoji);
             return (
               <TouchableOpacity
                 key={w.id}
@@ -190,8 +192,8 @@ export default function CoachCalendarScreen() {
                         {isCompleted ? 'Concluído' : 'Pendente'}
                       </Text>
                     </View>
-                    {isCompleted && w.feedbackEmoji && (
-                      <Text style={{ fontSize: 16 }}>{w.feedbackEmoji}</Text>
+                    {isCompleted && feedbackIconSrc && (
+                      <Image source={feedbackIconSrc} style={{ width: 22, height: 22 }} resizeMode="contain" />
                     )}
                   </View>
                 </View>

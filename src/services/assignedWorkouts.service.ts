@@ -19,9 +19,26 @@ import {
   Timestamp,
   DocumentSnapshot,
 } from 'firebase/firestore';
+import { parseFeedbackLevelFromFirestore } from '@/src/utils/feedbackIcons';
 import { db } from './firebase.config';
 
 const COLLECTION = 'coachemAssignedWorkouts';
+
+function normalizeWorkoutStatus(rawStatus: unknown): string {
+  const value = String(rawStatus ?? '').trim().toLowerCase();
+  if (!value) return 'Pendente';
+
+  // Normaliza variacoes antigas/inconsistentes para manter os graficos corretos.
+  if (value === 'concluído' || value === 'concluido' || value === 'completed' || value === 'done') {
+    return 'Concluído';
+  }
+  if (value === 'pendente' || value === 'pending') {
+    return 'Pendente';
+  }
+
+  // Mantem o valor original para nao perder estados futuros/customizados.
+  return String(rawStatus);
+}
 
 function removeUndefined<T>(obj: T): T {
   if (obj === undefined || obj === null) return obj;
@@ -82,7 +99,7 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
     scheduledDate: data.scheduledDate,
     date: data.date,
     scheduledTime: data.scheduledTime,
-    status: data.status || 'Pendente',
+    status: normalizeWorkoutStatus(data.status),
     coach: data.coach,
     dayOfWeek: data.dayOfWeek,
     isToday: data.isToday,
@@ -92,7 +109,10 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
     isRecurring: data.isRecurring,
     recurrenceGroupId: data.recurrenceGroupId ?? null,
     completedDate,
-    feedback: data.feedback,
+    feedback: (() => {
+      const v = parseFeedbackLevelFromFirestore(data.feedback);
+      return v === null ? undefined : v;
+    })(),
     feedbackEmoji: data.feedbackEmoji,
     feedbackText: data.feedbackText,
   };

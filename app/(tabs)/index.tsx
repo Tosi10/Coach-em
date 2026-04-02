@@ -12,18 +12,29 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
 import { UserType } from '@/src/types';
+import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 
-
-
+function formatWeekLabel(weekStart: Date): string {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const startDay = weekStart.getDate();
+  const startMonth = weekStart.getMonth() + 1;
+  const endDay = weekEnd.getDate();
+  const endMonth = weekEnd.getMonth() + 1;
+  if (startMonth === endMonth) {
+    return `${startDay}/${startMonth}`;
+  }
+  return `${startDay}/${startMonth} - ${endDay}/${endMonth}`;
+}
 
 /**
  * O QUE É ISSO?
@@ -37,13 +48,6 @@ export default function HomeScreen() {
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
-  const feedbackIcons: Record<number, any> = {
-    1: require('../../assets/images/FeedbackMuitoFacil.png'),
-    2: require('../../assets/images/FeedbackFacil.png'),
-    3: require('../../assets/images/FeedbackModerado.png'),
-    4: require('../../assets/images/FeedbackDificil.png'),
-    5: require('../../assets/images/FeedbackMuitoDificil.png'),
-  };
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -199,134 +203,28 @@ export default function HomeScreen() {
     }
   }, [userType, currentAthleteId, selectedExercise, loadWeightHistory]); // Mantém vazio, mas vamos usar useFocusEffect também
 
-  const getTodayWorkouts = () => {
-    return workouts.filter(w => w.isToday && w.status === 'Pendente');
-  };
+  const todayWorkouts = useMemo(
+    () => workouts.filter((w) => w.isToday && w.status === 'Pendente'),
+    [workouts]
+  );
 
-  const getThisWeekWorkouts =() => {
-    return workouts.filter(w => 
-      w.isThisWeek &&
-      w.status === 'Pendente' &&
-      !w.isToday
-    );
-  };
+  const completedWorkouts = useMemo(
+    () => workouts.filter((w: any) => w.status === 'Concluído'),
+    [workouts]
+  );
 
-  const getCompletedWorkouts =() => {
-    return workouts.filter(w =>w.status === 'Concluído');
-  };
-
-  // Funções auxiliares para o Dashboard do Atleta
-  const getAthleteStats = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const thisWeekStart = new Date();
-    thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay()); // Domingo da semana
-    thisWeekStart.setHours(0, 0, 0, 0);
-    
-    const thisWeekWorkouts = workouts.filter((w: any) => {
-      const workoutDate = new Date(w.date);
-      return workoutDate >= thisWeekStart && w.status === 'Pendente';
-    });
-
-    const completedThisWeek = workouts.filter((w: any) => {
-      if (w.status !== 'Concluído') return false;
-      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
-      return completedDate >= thisWeekStart;
-    });
-
-    const totalCompleted = workouts.filter((w: any) => w.status === 'Concluído').length;
-
-    // Calcular sequência (dias consecutivos com treino concluído)
-    const sortedCompleted = [...workouts]
-      .filter((w: any) => w.status === 'Concluído')
-      .sort((a: any, b: any) => {
-        const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-        const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
-        return dateB - dateA;
-      });
-
-    let streak = 0;
-    let currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-    
-    for (let i = 0; i < sortedCompleted.length; i++) {
-      const workout = sortedCompleted[i] as any;
-      const workoutDate = workout.completedDate 
-        ? new Date(workout.completedDate)
-        : new Date(workout.date);
-      workoutDate.setHours(0, 0, 0, 0);
-      
-      const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysDiff === streak) {
-        streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return {
-      thisWeekPending: thisWeekWorkouts.length,
-      thisWeekCompleted: completedThisWeek.length,
-      totalCompleted,
-      streak,
-    };
-  };
-
-  const getUpcomingWorkouts = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Calcular fim da semana (domingo)
-    const endOfWeek = new Date(today);
-    const daysUntilSunday = 7 - today.getDay(); // 0 = domingo
-    endOfWeek.setDate(today.getDate() + daysUntilSunday);
-    endOfWeek.setHours(23, 59, 59, 999);
-    
-    return workouts
-      .filter((w: any) => {
-        if (w.status !== 'Pendente') return false;
-        const workoutDate = new Date(w.date);
-        workoutDate.setHours(0, 0, 0, 0);
-        // Apenas treinos da semana atual (até domingo)
-        return workoutDate >= today && workoutDate <= endOfWeek;
-      })
-      .sort((a: any, b: any) => {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      });
-  };
-
-  // Função para agrupar treinos concluídos por semana
-  const getWeeklyFrequency = () => {
-    const completedWorkouts = getCompletedWorkouts();
-    
-    if (completedWorkouts.length === 0) {
-      return [];
-    }
-
-    // Criar um mapa para agrupar por semana
+  const weeklyFrequency = useMemo(() => {
+    if (completedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number>();
-    
     completedWorkouts.forEach((workout: any) => {
-      // Usar completedDate se existir, senão usar date
-      const workoutDate = workout.completedDate 
-        ? new Date(workout.completedDate)
-        : new Date(workout.date);
-      
-      // Calcular início da semana (domingo)
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
       const weekStart = new Date(workoutDate);
-      const dayOfWeek = weekStart.getDay(); // 0 = domingo
+      const dayOfWeek = weekStart.getDay();
       weekStart.setDate(weekStart.getDate() - dayOfWeek);
       weekStart.setHours(0, 0, 0, 0);
-      
-      // Criar chave única para a semana (formato: YYYY-MM-DD)
       const weekKey = weekStart.toISOString().split('T')[0];
-      
-      // Incrementar contador da semana
       weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
     });
-
-    // Converter mapa para array e ordenar por data
     const weeklyData = Array.from(weeklyMap.entries())
       .map(([weekStart, count]) => ({
         weekStart: new Date(weekStart),
@@ -334,95 +232,22 @@ export default function HomeScreen() {
         label: formatWeekLabel(new Date(weekStart)),
       }))
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-
-    // Pegar apenas as últimas 8 semanas para não sobrecarregar o gráfico
     return weeklyData.slice(-8);
-  };
+  }, [completedWorkouts]);
 
-  // Função auxiliar para formatar label da semana
-  const formatWeekLabel = (weekStart: Date) => {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    
-    const startDay = weekStart.getDate();
-    const startMonth = weekStart.getMonth() + 1;
-    const endDay = weekEnd.getDate();
-    const endMonth = weekEnd.getMonth() + 1;
-    
-    // Se for a mesma semana, mostrar apenas uma data
-    if (startMonth === endMonth) {
-      return `${startDay}/${startMonth}`;
-    }
-    
-    return `${startDay}/${startMonth} - ${endDay}/${endMonth}`;
-  };
-
-  // Função para calcular média de treinos por semana
-  const getAveragePerWeek = () => {
-    const weeklyData = getWeeklyFrequency();
-    if (weeklyData.length === 0) return '0';
-    
-    const total = weeklyData.reduce((sum, week) => sum + week.count, 0);
-    return (total / weeklyData.length).toFixed(1);
-  };
-
-  // Função para comparar semana atual com anterior
-  const getWeekComparison = () => {
-    const weeklyData = getWeeklyFrequency();
-    if (weeklyData.length < 2) return null;
-
-    const currentWeek = weeklyData[weeklyData.length - 1];
-    const previousWeek = weeklyData[weeklyData.length - 2];
-
-    return {
-      current: currentWeek.count,
-      previous: previousWeek.count,
-      difference: currentWeek.count - previousWeek.count,
-      percentage: previousWeek.count > 0 
-        ? (((currentWeek.count - previousWeek.count) / previousWeek.count) * 100).toFixed(0)
-        : '0',
-    };
-  };
-
-  // Função para calcular média de dificuldade por semana
-  const getDifficultyTrend = () => {
-    const completedWorkouts = getCompletedWorkouts();
-    
-    if (completedWorkouts.length === 0) {
-      return [];
-    }
-
-    // Criar um mapa para agrupar feedbacks por semana
+  const difficultyTrend = useMemo(() => {
+    if (completedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number[]>();
-    
     completedWorkouts.forEach((workout: any) => {
-      // Só processar treinos com feedback
-      if (!workout.feedback || workout.feedback < 1 || workout.feedback > 5) {
-        return;
-      }
-
-      // Usar completedDate se existir, senão usar date
-      const workoutDate = workout.completedDate 
-        ? new Date(workout.completedDate)
-        : new Date(workout.date);
-      
-      // Calcular início da semana (domingo)
+      if (!workout.feedback || workout.feedback < 1 || workout.feedback > 5) return;
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
       const weekStart = new Date(workoutDate);
-      const dayOfWeek = weekStart.getDay(); // 0 = domingo
-      weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       weekStart.setHours(0, 0, 0, 0);
-      
-      // Criar chave única para a semana (formato: YYYY-MM-DD)
       const weekKey = weekStart.toISOString().split('T')[0];
-      
-      // Adicionar feedback ao array da semana
-      if (!weeklyMap.has(weekKey)) {
-        weeklyMap.set(weekKey, []);
-      }
+      if (!weeklyMap.has(weekKey)) weeklyMap.set(weekKey, []);
       weeklyMap.get(weekKey)!.push(workout.feedback);
     });
-
-    // Calcular média de cada semana e converter para array
     const weeklyData = Array.from(weeklyMap.entries())
       .map(([weekStart, feedbacks]) => {
         const average = feedbacks.reduce((sum, f) => sum + f, 0) / feedbacks.length;
@@ -434,44 +259,118 @@ export default function HomeScreen() {
         };
       })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-
-    // Pegar apenas as últimas 8 semanas
     return weeklyData.slice(-8);
-  };
+  }, [completedWorkouts]);
 
-  // Função para identificar tendência de dificuldade
-  const getDifficultyTrendAnalysis = () => {
-    const trendData = getDifficultyTrend();
-    if (trendData.length < 2) return null;
-
-    const firstWeek = trendData[0];
-    const lastWeek = trendData[trendData.length - 1];
+  const difficultyTrendAnalysis = useMemo(() => {
+    if (difficultyTrend.length < 2) return null;
+    const firstWeek = difficultyTrend[0];
+    const lastWeek = difficultyTrend[difficultyTrend.length - 1];
     const difference = lastWeek.average - firstWeek.average;
-
-    // Determinar se está melhorando (diminuindo dificuldade) ou piorando (aumentando)
-    // Menor número = mais fácil = melhorando
-    // Maior número = mais difícil = piorando
     const isImproving = difference < 0;
     const trend = Math.abs(difference) < 0.1 ? 'stable' : (isImproving ? 'improving' : 'declining');
-
     return {
       firstAverage: firstWeek.average,
       lastAverage: lastWeek.average,
       difference: parseFloat(difference.toFixed(2)),
-      trend, // 'improving', 'declining', 'stable'
+      trend,
       isImproving,
     };
+  }, [difficultyTrend]);
+
+  const upcomingWorkouts = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(today);
+    const daysUntilSunday = 7 - today.getDay();
+    endOfWeek.setDate(today.getDate() + daysUntilSunday);
+    endOfWeek.setHours(23, 59, 59, 999);
+    return workouts
+      .filter((w: any) => {
+        if (w.status !== 'Pendente') return false;
+        const workoutDate = new Date(w.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        return workoutDate >= today && workoutDate <= endOfWeek;
+      })
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [workouts]);
+
+  const athleteStats = useMemo(() => {
+    const thisWeekStart = new Date();
+    thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const thisWeekWorkouts = workouts.filter((w: any) => {
+      const workoutDate = new Date(w.date);
+      return workoutDate >= thisWeekStart && w.status === 'Pendente';
+    });
+    const completedThisWeek = workouts.filter((w: any) => {
+      if (w.status !== 'Concluído') return false;
+      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+      return completedDate >= thisWeekStart;
+    });
+    const totalCompleted = workouts.filter((w: any) => w.status === 'Concluído').length;
+    const sortedCompleted = [...workouts]
+      .filter((w: any) => w.status === 'Concluído')
+      .sort((a: any, b: any) => {
+        const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
+        const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+        return dateB - dateA;
+      });
+    let streak = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    for (let i = 0; i < sortedCompleted.length; i++) {
+      const workout = sortedCompleted[i] as any;
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
+      workoutDate.setHours(0, 0, 0, 0);
+      const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff === streak) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return {
+      thisWeekPending: thisWeekWorkouts.length,
+      thisWeekCompleted: completedThisWeek.length,
+      totalCompleted,
+      streak,
+    };
+  }, [workouts]);
+
+  const averagePerWeekDisplay = useMemo(() => {
+    if (weeklyFrequency.length === 0) return '0';
+    const total = weeklyFrequency.reduce((sum, week) => sum + week.count, 0);
+    return (total / weeklyFrequency.length).toFixed(1);
+  }, [weeklyFrequency]);
+
+  const weekComparison = useMemo(() => {
+    if (weeklyFrequency.length < 2) return null;
+    const currentWeek = weeklyFrequency[weeklyFrequency.length - 1];
+    const previousWeek = weeklyFrequency[weeklyFrequency.length - 2];
+    return {
+      current: currentWeek.count,
+      previous: previousWeek.count,
+      difference: currentWeek.count - previousWeek.count,
+      percentage:
+        previousWeek.count > 0
+          ? (((currentWeek.count - previousWeek.count) / previousWeek.count) * 100).toFixed(0)
+          : '0',
+    };
+  }, [weeklyFrequency]);
+
+  /** Ícone de dificuldade (1–5) a partir da média decimal (arredondada) */
+  const feedbackIconForAverage = (average: number) => {
+    const level = Math.max(1, Math.min(5, Math.round(average)));
+    return getFeedbackIconSource(level, null);
   };
 
-  // Função para calcular maior sequência de dias consecutivos (record)
-  const getMaxStreak = () => {
-    const completedWorkouts = getCompletedWorkouts();
-    
+  const maxStreakData = useMemo(() => {
     if (completedWorkouts.length === 0) {
       return { maxStreak: 0, currentStreak: 0 };
     }
 
-    // Ordenar treinos por data de conclusão
     const sortedWorkouts = [...completedWorkouts]
       .map((w: any) => {
         const date = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
@@ -541,103 +440,58 @@ export default function HomeScreen() {
       maxStreak,
       currentStreak: streakCount,
     };
-  };
+  }, [completedWorkouts]);
 
-  // Função para encontrar semana com mais treinos
-  const getBestWeek = () => {
-    const weeklyData = getWeeklyFrequency();
-    
-    if (weeklyData.length === 0) {
-      return null;
-    }
-
-    // Encontrar semana com mais treinos
-    const bestWeek = weeklyData.reduce((best, week) => 
-      week.count > best.count ? week : best
-    );
-
+  const bestWeekData = useMemo(() => {
+    if (weeklyFrequency.length === 0) return null;
+    const bestWeek = weeklyFrequency.reduce((best, week) => (week.count > best.count ? week : best));
     return {
       count: bestWeek.count,
       label: bestWeek.label,
       weekStart: bestWeek.weekStart,
     };
-  };
+  }, [weeklyFrequency]);
 
-  // Função para encontrar mês com mais treinos
-  const getBestMonth = (): { count: number; label: string; monthKey: string } | null => {
-    const completedWorkouts = getCompletedWorkouts();
-    
-    if (completedWorkouts.length === 0) {
-      return null;
-    }
-
-    // Criar mapa para agrupar por mês
+  const bestMonthData = useMemo((): { count: number; label: string; monthKey: string } | null => {
+    if (completedWorkouts.length === 0) return null;
     const monthlyMap = new Map<string, number>();
-    
     completedWorkouts.forEach((workout: any) => {
-      const workoutDate = workout.completedDate 
-        ? new Date(workout.completedDate)
-        : new Date(workout.date);
-      
-      // Criar chave única para o mês (formato: YYYY-MM)
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
       const monthKey = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth() + 1).padStart(2, '0')}`;
-      
       monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
     });
-
-    // Encontrar mês com mais treinos
     let bestMonth: { count: number; label: string; monthKey: string } | null = null;
     let maxCount = 0;
-
     monthlyMap.forEach((count, monthKey) => {
       if (count > maxCount) {
         maxCount = count;
         const [year, month] = monthKey.split('-');
-        const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const monthNames = [
+          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+        ];
         bestMonth = {
           count,
-          label: `${monthNames[parseInt(month) - 1]} ${year}`,
+          label: `${monthNames[parseInt(month, 10) - 1]} ${year}`,
           monthKey,
         };
       }
     });
-
     return bestMonth;
-  };
+  }, [completedWorkouts]);
 
-  // Função para agrupar treinos concluídos por semana (para o Treinador - todos os atletas)
-  const getCoachWeeklyStats = () => {
-    // Buscar todos os treinos concluídos (de todos os atletas)
+  const coachWeeklyStats = useMemo(() => {
     const allCompletedWorkouts = workouts.filter((w: any) => w.status === 'Concluído');
-    
-    if (allCompletedWorkouts.length === 0) {
-      return [];
-    }
-
-    // Criar um mapa para agrupar por semana
+    if (allCompletedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number>();
-    
     allCompletedWorkouts.forEach((workout: any) => {
-      // Usar completedDate se existir, senão usar date
-      const workoutDate = workout.completedDate 
-        ? new Date(workout.completedDate)
-        : new Date(workout.date);
-      
-      // Calcular início da semana (domingo)
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
       const weekStart = new Date(workoutDate);
-      const dayOfWeek = weekStart.getDay(); // 0 = domingo
-      weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       weekStart.setHours(0, 0, 0, 0);
-      
-      // Criar chave única para a semana (formato: YYYY-MM-DD)
       const weekKey = weekStart.toISOString().split('T')[0];
-      
-      // Incrementar contador da semana
       weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
     });
-
-    // Converter mapa para array e ordenar por data
     const weeklyData = Array.from(weeklyMap.entries())
       .map(([weekStart, count]) => ({
         weekStart: new Date(weekStart),
@@ -645,31 +499,24 @@ export default function HomeScreen() {
         label: formatWeekLabel(new Date(weekStart)),
       }))
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-
-    // Pegar apenas as últimas 8 semanas
     return weeklyData.slice(-8);
-  };
+  }, [workouts]);
 
-  // Função para calcular tendência de treinos concluídos (para o Treinador)
-  const getCoachWeeklyTrend = () => {
-    const weeklyData = getCoachWeeklyStats();
-    if (weeklyData.length < 2) return null;
-
-    const firstWeek = weeklyData[0];
-    const lastWeek = weeklyData[weeklyData.length - 1];
+  const coachWeeklyTrend = useMemo(() => {
+    if (coachWeeklyStats.length < 2) return null;
+    const firstWeek = coachWeeklyStats[0];
+    const lastWeek = coachWeeklyStats[coachWeeklyStats.length - 1];
     const difference = lastWeek.count - firstWeek.count;
-
     const isIncreasing = difference > 0;
     const trend = Math.abs(difference) < 1 ? 'stable' : (isIncreasing ? 'increasing' : 'decreasing');
-
     return {
       firstCount: firstWeek.count,
       lastCount: lastWeek.count,
       difference,
-      trend, // 'increasing', 'decreasing', 'stable'
+      trend,
       isIncreasing,
     };
-  };
+  }, [coachWeeklyStats]);
 
   // Função para calcular taxa de aderência de um atleta
   const calculateAdherenceRate = (athleteId: string) => {
@@ -698,10 +545,9 @@ export default function HomeScreen() {
     };
   };
 
-  // Função para obter taxa de aderência de todos os atletas (derivados dos treinos)
-  const getAllAthletesAdherence = () => {
+  const allAthletesAdherence = useMemo(() => {
     const athletes = getAthletesFromWorkouts();
-    const adherenceData = athletes
+    return athletes
       .map((athlete) => {
         const adherence = calculateAdherenceRate(athlete.id);
         if (!adherence) return null;
@@ -709,8 +555,7 @@ export default function HomeScreen() {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.rate - a.rate);
-    return adherenceData;
-  };
+  }, [workouts, athletesList]);
 
   // Função para calcular dificuldade média por treino (baseado no feedback)
   const getWorkoutDifficulty = (workoutName: string) => {
@@ -740,9 +585,7 @@ export default function HomeScreen() {
       };
   };
 
-  // Função para obter lista dos treinos mais difíceis
-  const getMostDifficultWorkouts = () => {
-    // Pegar todos os nomes únicos de treinos concluídos com feedback
+  const mostDifficultWorkoutsList = useMemo(() => {
     const workoutNames = new Set<string>();
     workouts.forEach((w: any) => {
       const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
@@ -750,119 +593,83 @@ export default function HomeScreen() {
         workoutNames.add(w.name);
       }
     });
-
-    // Calcular dificuldade média para cada treino
-    const difficultyData = Array.from(workoutNames)
+    return Array.from(workoutNames)
       .map((workoutName) => getWorkoutDifficulty(workoutName))
       .filter((item): item is NonNullable<typeof item> => item !== null)
-      .sort((a, b) => b.averageDifficulty - a.averageDifficulty) // Ordenar por mais difícil primeiro
-      .slice(0, 5); // Pegar apenas os 5 mais difíceis
+      .sort((a, b) => b.averageDifficulty - a.averageDifficulty)
+      .slice(0, 5);
+  }, [workouts]);
 
-    return difficultyData;
-  };
-
-  // Função para obter distribuição de dificuldade (para gráfico)
-  const getDifficultyDistribution = () => {
-    const completedWorkouts = workouts.filter((w: any) => {
+  const difficultyDistributionChart = useMemo(() => {
+    const withFeedback = workouts.filter((w: any) => {
       const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
-      return w.status === 'Concluído' && 
-        hasFeedback && 
-        (w as any).feedback >= 1 && 
-        (w as any).feedback <= 5;
+      return (
+        w.status === 'Concluído' &&
+        hasFeedback &&
+        (w as any).feedback >= 1 &&
+        (w as any).feedback <= 5
+      );
     });
-
-    if (completedWorkouts.length === 0) {
-      return [];
-    }
-
-    // Contar quantos treinos em cada nível de dificuldade
-    const distribution = {
-      1: 0, // Muito Fácil
-      2: 0, // Fácil
-      3: 0, // Normal
-      4: 0, // Difícil
-      5: 0, // Muito Difícil
-    };
-
-    completedWorkouts.forEach((w: any) => {
+    if (withFeedback.length === 0) return [];
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    withFeedback.forEach((w: any) => {
       const feedback = (w as any).feedback as number;
       if (feedback >= 1 && feedback <= 5) {
         distribution[feedback as keyof typeof distribution]++;
       }
     });
-
-    // Converter para array para o gráfico
     return [
       { label: 'Muito Fácil', value: distribution[1], color: '#10b981' },
       { label: 'Fácil', value: distribution[2], color: '#22c55e' },
       { label: 'Normal', value: distribution[3], color: '#f59e0b' },
       { label: 'Difícil', value: distribution[4], color: '#f97316' },
       { label: 'Muito Difícil', value: distribution[5], color: '#ef4444' },
-    ].filter(item => item.value > 0); // Remover níveis sem treinos
-  };
+    ].filter((item) => item.value > 0);
+  }, [workouts]);
 
-  // Funções auxiliares para o Dashboard do Treinador
-  const getTodayCompletedWorkouts = () => {
+  const todayCompletedForCoach = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     return workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
-      // Verificar se foi concluído hoje pela data ou completedDate
       const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
       return completedDate === today;
     });
-  };
+  }, [workouts]);
 
-  const getAthletesWhoTrainedToday = () => {
-    // Buscar treinos concluídos nas últimas 24 horas
+  const athletesWhoTrainedTodayList = useMemo(() => {
     const recentCompleted = workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
       const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
-      // Últimas 24 horas
       const hoursAgo = (new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60);
       return hoursAgo <= 24;
     });
-    
-    // Criar lista de atividades individuais (não agrupadas por atleta)
-    // Garantir keys únicas mesmo se houver treinos com IDs duplicados
     const seenIds = new Set<string>();
     const athletes = getAthletesFromWorkouts();
     const activities = recentCompleted.map((w: any, index: number) => {
       const athleteId = w.athleteId || w.coach;
-      const athlete = athletes.find(a => a.id === athleteId);
-      
-      // Criar ID único: usar workout.id + completedAt timestamp + índice para garantir unicidade absoluta
-      const completedTimestamp = w.completedDate 
-        ? new Date(w.completedDate).getTime() 
-        : new Date(w.date).getTime();
-      
-      // ID base
+      const athlete = athletes.find((a) => a.id === athleteId);
+      const completedTimestamp = w.completedDate ? new Date(w.completedDate).getTime() : new Date(w.date).getTime();
       let baseId = `${w.id}_${completedTimestamp}`;
-      
-      // Se já existe, adicionar índice e timestamp adicional
       let uniqueId = baseId;
       let counter = 0;
       while (seenIds.has(uniqueId)) {
         counter++;
         uniqueId = `${baseId}_${counter}_${Date.now()}_${index}`;
       }
-      
       seenIds.add(uniqueId);
-      
       return {
         id: uniqueId,
-        athleteId: athleteId,
+        athleteId,
         athleteName: athlete?.name || `Atleta ${athleteId}`,
         workoutName: w.name,
         completedAt: w.completedDate || new Date().toISOString(),
         feedbackEmoji: w.feedbackEmoji || null,
       };
     });
-    
-    // Ordenar por timestamp mais recente primeiro
-    return activities.sort((a: any, b: any) => 
-      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    return activities.sort(
+      (a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
     );
-  };
+  }, [workouts, athletesList]);
 
   const getTimeAgo = (completedDate: string) => {
     if (!completedDate) return 'há alguns minutos';
@@ -878,16 +685,12 @@ export default function HomeScreen() {
     return `há ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
   };
 
-  const getAthletesNeedingAttention = () => {
+  const athletesNeedingAttentionList = useMemo(() => {
     const athletes = getAthletesFromWorkouts();
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    fiveDaysAgo.setHours(0, 0, 0, 0);
-
     return athletes
       .map((athlete) => {
-        const athleteWorkouts = workouts.filter((w: any) =>
-          (w.athleteId || w.coach) === athlete.id && w.status === 'Concluído'
+        const athleteWorkouts = workouts.filter(
+          (w: any) => (w.athleteId || w.coach) === athlete.id && w.status === 'Concluído'
         );
         const lastCompleted = athleteWorkouts.sort((a: any, b: any) => {
           const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
@@ -907,10 +710,9 @@ export default function HomeScreen() {
       })
       .filter(Boolean)
       .sort((a: any, b: any) => b.daysSinceLastWorkout - a.daysSinceLastWorkout);
-  };
+  }, [workouts, athletesList]);
 
-  // Atletas mais ativos: ranking por treinos concluídos no último mês
-  const getMostActiveAthletes = () => {
+  const mostActiveAthletesList = useMemo(() => {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     oneMonthAgo.setHours(0, 0, 0, 0);
@@ -931,32 +733,21 @@ export default function HomeScreen() {
     return Array.from(byAthlete.entries())
       .map(([athleteId, count]) => ({
         athleteId,
-        athleteName: athletes.find(a => a.id === athleteId)?.name || `Atleta ${athleteId}`,
+        athleteName: athletes.find((a) => a.id === athleteId)?.name || `Atleta ${athleteId}`,
         count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  };
+  }, [workouts, athletesList]);
 
-  // Estatísticas para o Panorama Semanal
-  const getWeeklyStats = () => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Atletas únicos que treinaram hoje
-    const athletesToday = getAthletesWhoTrainedToday().length;
-    
-    // Treinos concluídos hoje
-    const completedToday = getTodayCompletedWorkouts().length;
-    
-    // Treinos pendentes (todos os status Pendente)
-    const pendingWorkouts = workouts.filter((w: any) => w.status === 'Pendente').length;
-    
-    return {
-      athletesToday,
-      completedToday,
-      pendingWorkouts,
-    };
-  };
+  const weeklyStatsCoach = useMemo(
+    () => ({
+      athletesToday: athletesWhoTrainedTodayList.length,
+      completedToday: todayCompletedForCoach.length,
+      pendingWorkouts: workouts.filter((w: any) => w.status === 'Pendente').length,
+    }),
+    [athletesWhoTrainedTodayList, todayCompletedForCoach, workouts]
+  );
 
   const loadWorkoutStatuses = useCallback(async () => {
     const savedType = await AsyncStorage.getItem('userType');
@@ -1109,7 +900,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  {getWeeklyStats().athletesToday}
+                  {weeklyStatsCoach.athletesToday}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Ativos Hoje
@@ -1145,7 +936,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  {getWeeklyStats().completedToday}
+                  {weeklyStatsCoach.completedToday}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Treinos Concluídos
@@ -1181,7 +972,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  {getWeeklyStats().pendingWorkouts}
+                  {weeklyStatsCoach.pendingWorkouts}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Pendentes
@@ -1323,7 +1114,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Gráfico de Treinos Concluídos por Semana */}
-          {getCoachWeeklyStats().length > 0 && (
+          {coachWeeklyStats.length > 0 && (
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-3">
                 <Image
@@ -1338,7 +1129,7 @@ export default function HomeScreen() {
               
               <View className="rounded-xl p-3 mb-3 border" style={themeStyles.card}>
                 <BarChart
-                  data={getCoachWeeklyStats().map((week) => ({
+                  data={coachWeeklyStats.map((week) => ({
                     value: week.count,
                     label: week.label,
                     frontColor: '#3b82f6',
@@ -1357,7 +1148,7 @@ export default function HomeScreen() {
                   yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                   xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
                   noOfSections={4}
-                  maxValue={Math.max(...getCoachWeeklyStats().map(w => w.count)) + 2}
+                  maxValue={Math.max(...coachWeeklyStats.map(w => w.count)) + 2}
                   isAnimated
                   animationDuration={800}
                   showGradient
@@ -1366,27 +1157,27 @@ export default function HomeScreen() {
               </View>
 
               {/* Análise de Tendência */}
-              {getCoachWeeklyTrend() && (
+              {coachWeeklyTrend && (
                 <View className="rounded-xl p-3 border" style={themeStyles.card}>
                   <View className="flex-row justify-between items-center">
                     <View className="flex-1">
                       <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Primeira semana</Text>
                       <Text className="font-bold text-lg" style={themeStyles.text}>
-                        {getCoachWeeklyTrend()?.firstCount} treinos
+                        {coachWeeklyTrend?.firstCount} treinos
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-center">
                       <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Última semana</Text>
                       <Text className="font-bold text-lg" style={themeStyles.text}>
-                        {getCoachWeeklyTrend()?.lastCount} treinos
+                        {coachWeeklyTrend?.lastCount} treinos
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-end">
                       <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Tendência</Text>
                       <View className="flex-row items-center gap-1.5">
-                        {getCoachWeeklyTrend()?.trend === 'increasing' && (
+                        {coachWeeklyTrend?.trend === 'increasing' && (
                           <>
                             <FontAwesome name="arrow-up" size={14} color="#10b981" />
                             <Text className="font-bold text-base" style={{ color: '#10b981' }}>
@@ -1394,7 +1185,7 @@ export default function HomeScreen() {
                             </Text>
                           </>
                         )}
-                        {getCoachWeeklyTrend()?.trend === 'decreasing' && (
+                        {coachWeeklyTrend?.trend === 'decreasing' && (
                           <>
                             <FontAwesome name="arrow-down" size={14} color="#ef4444" />
                             <Text className="font-bold text-base" style={{ color: '#ef4444' }}>
@@ -1402,7 +1193,7 @@ export default function HomeScreen() {
                             </Text>
                           </>
                         )}
-                        {getCoachWeeklyTrend()?.trend === 'stable' && (
+                        {coachWeeklyTrend?.trend === 'stable' && (
                           <>
                             <FontAwesome name="minus" size={14} color={theme.colors.textTertiary} />
                             <Text className="font-bold text-base" style={themeStyles.textTertiary}>
@@ -1412,12 +1203,12 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <Text className="text-[10px] mt-0.5" style={{
-                        color: getCoachWeeklyTrend()?.trend === 'increasing' ? '#10b981' :
-                               getCoachWeeklyTrend()?.trend === 'decreasing' ? '#ef4444' :
+                        color: coachWeeklyTrend?.trend === 'increasing' ? '#10b981' :
+                               coachWeeklyTrend?.trend === 'decreasing' ? '#ef4444' :
                                theme.colors.textTertiary
                       }}>
                         {(() => {
-                          const trend = getCoachWeeklyTrend();
+                          const trend = coachWeeklyTrend;
                           if (trend?.difference !== undefined && trend.difference !== 0) {
                             return (
                               <>
@@ -1440,7 +1231,7 @@ export default function HomeScreen() {
           )}
 
           {/* Taxa de Aderência dos Atletas */}
-          {getAllAthletesAdherence().length > 0 && (
+          {allAthletesAdherence.length > 0 && (
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
@@ -1456,7 +1247,7 @@ export default function HomeScreen() {
               {/* Gráfico de Barras */}
               <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
                 <BarChart
-                  data={getAllAthletesAdherence().map((athlete) => ({
+                  data={allAthletesAdherence.map((athlete) => ({
                     value: athlete.rate,
                     label: athlete.athleteName.length > 8 
                       ? athlete.athleteName.substring(0, 8) + '...' 
@@ -1493,7 +1284,7 @@ export default function HomeScreen() {
               <View className="rounded-xl p-2 border" style={themeStyles.card}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View className="flex-row gap-2">
-                    {getAllAthletesAdherence().map((athlete) => (
+                    {allAthletesAdherence.map((athlete) => (
                       <TouchableOpacity
                         key={athlete.athleteId}
                         onPress={() => {
@@ -1550,7 +1341,7 @@ export default function HomeScreen() {
           )}
 
           {/* Treinos Mais Difíceis (Baseado no Feedback) */}
-          {getMostDifficultWorkouts().length > 0 && (
+          {mostDifficultWorkoutsList.length > 0 && (
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
@@ -1565,7 +1356,7 @@ export default function HomeScreen() {
               
               {/* Lista dos 5 Treinos Mais Difíceis */}
               <View className="rounded-xl p-2 mb-2 border" style={themeStyles.card}>
-                {getMostDifficultWorkouts().map((workout, index) => (
+                {mostDifficultWorkoutsList.map((workout, index) => (
                   <View
                     key={`${workout.workoutName}_${index}`}
                     className="flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 border"
@@ -1619,18 +1410,18 @@ export default function HomeScreen() {
               </View>
 
               {/* Gráfico de Distribuição de Dificuldade */}
-              {getDifficultyDistribution().length > 0 && (
+              {difficultyDistributionChart.length > 0 && (
                 <View className="rounded-xl p-2 border" style={themeStyles.card}>
                   <Text className="text-xs mb-2 text-center" style={themeStyles.textSecondary}>
                     Distribuição de Dificuldade
                   </Text>
                   <View className="flex-row gap-1.5 items-end justify-center">
-                    {getDifficultyDistribution().map((item, index) => (
+                    {difficultyDistributionChart.map((item, index) => (
                       <View key={item.label} className="items-center flex-1">
                         <View
                           className="w-full rounded-t"
                           style={{
-                            height: (item.value / Math.max(...getDifficultyDistribution().map(d => d.value))) * 60,
+                            height: (item.value / Math.max(...difficultyDistributionChart.map(d => d.value))) * 60,
                             backgroundColor: item.color,
                             minHeight: 8,
                           }}
@@ -1650,7 +1441,7 @@ export default function HomeScreen() {
           )}
 
           {/* Atletas Mais Ativos (últimos 30 dias) */}
-          {getMostActiveAthletes().length > 0 && (
+          {mostActiveAthletesList.length > 0 && (
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
@@ -1667,7 +1458,7 @@ export default function HomeScreen() {
               </Text>
               <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
                 <BarChart
-                  data={getMostActiveAthletes().map((athlete, index) => ({
+                  data={mostActiveAthletesList.map((athlete, index) => ({
                     value: athlete.count,
                     label: athlete.athleteName.length > 6
                       ? athlete.athleteName.substring(0, 6) + '..'
@@ -1688,7 +1479,7 @@ export default function HomeScreen() {
                   yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
                   xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 7 }}
                   noOfSections={4}
-                  maxValue={Math.max(...getMostActiveAthletes().map(a => a.count)) + 2}
+                  maxValue={Math.max(...mostActiveAthletesList.map(a => a.count)) + 2}
                   isAnimated
                   animationDuration={800}
                   showGradient
@@ -1696,7 +1487,7 @@ export default function HomeScreen() {
                 />
               </View>
               <View className="rounded-xl p-2 border" style={themeStyles.card}>
-                {getMostActiveAthletes().map((athlete, index) => (
+                {mostActiveAthletesList.map((athlete, index) => (
                   <TouchableOpacity
                     key={athlete.athleteId}
                     onPress={() => router.push({ pathname: '/athlete-profile', params: { athleteId: athlete.athleteId } })}
@@ -1722,14 +1513,16 @@ export default function HomeScreen() {
           )}
 
           {/* Atividade Recente - Atletas que completaram treinos hoje */}
-          {getAthletesWhoTrainedToday().length > 0 && (
+          {athletesWhoTrainedTodayList.length > 0 && (
             <View className="mb-8">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 Atividade Recente
               </Text>
-              {getAthletesWhoTrainedToday()
+              {athletesWhoTrainedTodayList
                 .slice(0, 3)
-                .map((activity: any) => (
+                .map((activity: any) => {
+                const feedbackIconSrc = getFeedbackIconSource(activity.feedback, activity.feedbackEmoji);
+                return (
                 <TouchableOpacity
                   key={activity.id}
                   className="rounded-xl p-4 mb-3 flex-row items-center border"
@@ -1765,18 +1558,12 @@ export default function HomeScreen() {
                       <Text className="font-semibold flex-1" style={themeStyles.text}>
                         {activity.athleteName} finalizou o '{activity.workoutName}'
                       </Text>
-                      {(activity.feedback || activity.feedbackEmoji) && (
-                        activity.feedback ? (
-                          <Image
-                            source={feedbackIcons[Math.max(1, Math.min(5, Number(activity.feedback)))]}
-                            style={{ width: 26, height: 26, marginLeft: 8 }}
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Text className="text-2xl ml-2">
-                            {activity.feedbackEmoji}
-                          </Text>
-                        )
+                      {feedbackIconSrc && (
+                        <Image
+                          source={feedbackIconSrc}
+                          style={{ width: 26, height: 26, marginLeft: 8 }}
+                          resizeMode="contain"
+                        />
                       )}
                     </View>
                     <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -1795,17 +1582,18 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           )}
 
           {/* Atenção Necessária - Atletas que não treinam há tempo */}
-          {getAthletesNeedingAttention().length > 0 && (
+          {athletesNeedingAttentionList.length > 0 && (
             <View className="mb-8">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 Atenção Necessária
               </Text>
-              {getAthletesNeedingAttention().slice(0, 3).map((athlete: any) => (
+              {athletesNeedingAttentionList.slice(0, 3).map((athlete: any) => (
                 <TouchableOpacity
                   key={athlete.id}
                   className="rounded-xl p-4 mb-3 flex-row items-center border"
@@ -1890,7 +1678,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
-                  {getAthleteStats().thisWeekPending + getAthleteStats().thisWeekCompleted}
+                  {athleteStats.thisWeekPending + athleteStats.thisWeekCompleted}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Esta Semana
@@ -1916,7 +1704,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
-                  {getAthleteStats().totalCompleted}
+                  {athleteStats.totalCompleted}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Concluídos
@@ -1942,7 +1730,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text className="text-2xl font-bold mb-0 text-center" style={themeStyles.text}>
-                  {getAthleteStats().streak}
+                  {athleteStats.streak}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Sequência
@@ -1955,13 +1743,13 @@ export default function HomeScreen() {
           </View>
 
           {/* Treino de Hoje - Destaque (movido para aparecer antes da frequência) */}
-          {getTodayWorkouts().length > 0 && (
+          {todayWorkouts.length > 0 && (
             <View className="w-full mb-6">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 🎯 Treino de Hoje
               </Text>
               
-              {getTodayWorkouts().map((workout) => (
+              {todayWorkouts.map((workout) => (
                 <TouchableOpacity 
                   key={workout.id}
                   className="border-2 rounded-xl p-5 mb-3"
@@ -2025,7 +1813,7 @@ export default function HomeScreen() {
           )}
 
           {/* Gráfico de Frequência de Treinos */}
-          {getCompletedWorkouts().length > 0 && (
+          {completedWorkouts.length > 0 && (
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
@@ -2038,11 +1826,11 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              {getWeeklyFrequency().length > 0 ? (
+              {weeklyFrequency.length > 0 ? (
                 <>
                   <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                     <BarChart
-                      data={getWeeklyFrequency().map((week, index) => ({
+                      data={weeklyFrequency.map((week, index) => ({
                         value: week.count,
                         label: week.label,
                         frontColor: '#fb923c',
@@ -2061,7 +1849,7 @@ export default function HomeScreen() {
                       yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
                       xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
                       noOfSections={4}
-                      maxValue={Math.max(...getWeeklyFrequency().map(w => w.count)) + 2}
+                      maxValue={Math.max(...weeklyFrequency.map(w => w.count)) + 2}
                       isAnimated
                       animationDuration={800}
                       showGradient
@@ -2075,29 +1863,29 @@ export default function HomeScreen() {
                       <View className="flex-1">
                         <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
                         <Text className="font-bold text-xl" style={themeStyles.text}>
-                          {getAveragePerWeek()} treinos
+                          {averagePerWeekDisplay} treinos
                         </Text>
                       </View>
                       
-                      {getWeekComparison() && (
+                      {weekComparison && (
                         <View className="flex-1 items-end">
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
                           <View className="flex-row items-center gap-2">
                             <Text className="font-bold text-xl" style={themeStyles.text}>
-                              {getWeekComparison()?.current}
+                              {weekComparison?.current}
                             </Text>
                             <Text className="text-sm font-semibold" style={{
-                              color: (getWeekComparison()?.difference || 0) > 0
+                              color: (weekComparison?.difference || 0) > 0
                                 ? '#10b981'
-                                : (getWeekComparison()?.difference || 0) < 0
+                                : (weekComparison?.difference || 0) < 0
                                 ? '#ef4444'
                                 : theme.colors.textTertiary
                             }}>
-                              {(getWeekComparison()?.difference || 0) > 0 ? '+' : ''}
-                              {getWeekComparison()?.difference} 
-                              {getWeekComparison()?.difference !== 0 && (
+                              {(weekComparison?.difference || 0) > 0 ? '+' : ''}
+                              {weekComparison?.difference} 
+                              {weekComparison?.difference !== 0 && (
                                 <Text className="text-xs">
-                                  {' '}({getWeekComparison()?.percentage}%)
+                                  {' '}({weekComparison?.percentage}%)
                                 </Text>
                               )}
                             </Text>
@@ -2117,7 +1905,7 @@ export default function HomeScreen() {
                           <Text className="text-sm" style={themeStyles.textSecondary}>Sequência Atual</Text>
                         </View>
                         <Text className="font-bold text-lg" style={themeStyles.text}>
-                          {getAthleteStats().streak} dias consecutivos
+                          {athleteStats.streak} dias consecutivos
                         </Text>
                       </View>
                     </View>
@@ -2297,7 +2085,7 @@ export default function HomeScreen() {
           )}
 
           {/* Gráfico de Média de Dificuldade dos Treinos */}
-          {getCompletedWorkouts().some((w: any) => w.feedback) && (
+          {completedWorkouts.some((w: any) => w.feedback) && (
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
@@ -2310,24 +2098,37 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              {getDifficultyTrend().length > 0 ? (
+              {difficultyTrend.length > 0 ? (
                 <>
-                  {getDifficultyTrend().length === 1 ? (
+                  {difficultyTrend.length === 1 ? (() => {
+                    const weekOnly = difficultyTrend[0];
+                    const iconOnly = feedbackIconForAverage(weekOnly.average);
+                    return (
                     <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                       <View className="items-center justify-center py-4">
                         <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média atual</Text>
-                        <Text className="text-4xl font-bold" style={{ color: '#f59e0b' }}>
-                          {getDifficultyTrend()[0].average.toFixed(1)}
-                        </Text>
+                        <View className="flex-row items-center justify-center gap-3 mb-1">
+                          <Text className="text-4xl font-bold" style={{ color: '#f59e0b' }}>
+                            {weekOnly.average.toFixed(1)}
+                          </Text>
+                          {iconOnly ? (
+                            <Image
+                              source={iconOnly}
+                              style={{ width: 44, height: 44 }}
+                              resizeMode="contain"
+                            />
+                          ) : null}
+                        </View>
                         <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
-                          {getDifficultyTrend()[0].label} • dados insuficientes para tendência
+                          {weekOnly.label} • dados insuficientes para tendência
                         </Text>
                       </View>
                     </View>
-                  ) : (
+                    );
+                  })() : (
                     <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                       <LineChart
-                        data={getDifficultyTrend().map((week) => ({
+                        data={difficultyTrend.map((week) => ({
                           value: week.average,
                           label: week.label,
                         }))}
@@ -2341,7 +2142,7 @@ export default function HomeScreen() {
                         endFillColor="#f59e0b"
                         startOpacity={0.3}
                         endOpacity={0.05}
-                        spacing={Math.max(60, 280 / (getDifficultyTrend().length - 1))}
+                        spacing={Math.max(60, 280 / (difficultyTrend.length - 1))}
                         initialSpacing={0}
                         noOfSections={4}
                         maxValue={5}
@@ -2363,7 +2164,7 @@ export default function HomeScreen() {
                         yAxisTextNumberOfLines={1}
                         showVerticalLines={false}
                         xAxisLabelsVerticalShift={10}
-                        xAxisLabelTexts={getDifficultyTrend().map((week) => week.label)}
+                        xAxisLabelTexts={difficultyTrend.map((week) => week.label)}
                         pointerConfig={{
                           pointer1Color: '#f59e0b',
                           pointerStripUptoDataPoint: true,
@@ -2392,47 +2193,74 @@ export default function HomeScreen() {
                           },
                         }}
                       />
+                      {(() => {
+                        const trendWeeks = difficultyTrend;
+                        const lastW = trendWeeks[trendWeeks.length - 1];
+                        const lastIcon = feedbackIconForAverage(lastW.average);
+                        return (
+                          <View
+                            className="flex-row items-center justify-center mt-3 pt-3"
+                            style={{ borderTopWidth: 1, borderTopColor: theme.colors.border }}
+                          >
+                            <Text className="text-xs mr-2" style={themeStyles.textSecondary}>
+                              Última semana (média)
+                            </Text>
+                            <Text className="text-lg font-bold mr-2" style={{ color: '#f59e0b' }}>
+                              {lastW.average.toFixed(1)}
+                            </Text>
+                            {lastIcon ? (
+                              <Image source={lastIcon} style={{ width: 36, height: 36 }} resizeMode="contain" />
+                            ) : null}
+                          </View>
+                        );
+                      })()}
                     </View>
                   )}
 
                   {/* Análise de Tendência */}
-                  {getDifficultyTrendAnalysis() && (
+                  {difficultyTrendAnalysis && (() => {
+                    const analysis = difficultyTrendAnalysis!;
+                    const iconFirst = feedbackIconForAverage(analysis.firstAverage);
+                    const iconLast = feedbackIconForAverage(analysis.lastAverage);
+                    const labelFor = (avg: number) =>
+                      getFeedbackLabel(Math.max(1, Math.min(5, Math.round(avg))), null) ?? 'Média';
+                    return (
                     <View className="rounded-xl p-4 border" style={themeStyles.card}>
                       <View className="flex-row justify-between items-center mb-3">
                         <View className="flex-1">
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Primeira semana</Text>
-                          <Text className="font-bold text-xl" style={themeStyles.text}>
-                            {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1)}
-                          </Text>
+                          <View className="flex-row items-center gap-2 flex-wrap">
+                            <Text className="font-bold text-xl" style={themeStyles.text}>
+                              {analysis.firstAverage.toFixed(1)}
+                            </Text>
+                            {iconFirst ? (
+                              <Image source={iconFirst} style={{ width: 28, height: 28 }} resizeMode="contain" />
+                            ) : null}
+                          </View>
                           <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                            {getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
-                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '2.0' ? 'Fácil' :
-                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '3.0' ? 'Normal' :
-                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '4.0' ? 'Difícil' :
-                             getDifficultyTrendAnalysis()?.firstAverage.toFixed(1) === '5.0' ? 'Muito Difícil' :
-                             'Média'}
+                            {labelFor(analysis.firstAverage)}
                           </Text>
                         </View>
                         
                         <View className="flex-1 items-center">
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Última semana</Text>
-                          <Text className="font-bold text-xl" style={themeStyles.text}>
-                            {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1)}
-                          </Text>
+                          <View className="flex-row items-center gap-2 flex-wrap justify-center">
+                            <Text className="font-bold text-xl" style={themeStyles.text}>
+                              {analysis.lastAverage.toFixed(1)}
+                            </Text>
+                            {iconLast ? (
+                              <Image source={iconLast} style={{ width: 28, height: 28 }} resizeMode="contain" />
+                            ) : null}
+                          </View>
                           <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                            {getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '1.0' ? 'Muito Fácil' :
-                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '2.0' ? 'Fácil' :
-                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '3.0' ? 'Normal' :
-                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '4.0' ? 'Difícil' :
-                             getDifficultyTrendAnalysis()?.lastAverage.toFixed(1) === '5.0' ? 'Muito Difícil' :
-                             'Média'}
+                            {labelFor(analysis.lastAverage)}
                           </Text>
                         </View>
                         
                         <View className="flex-1 items-end">
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Tendência</Text>
                           <View className="flex-row items-center gap-2">
-                            {getDifficultyTrendAnalysis()?.trend === 'improving' && (
+                            {analysis.trend === 'improving' && (
                               <>
                                 <FontAwesome name="arrow-down" size={16} color="#10b981" />
                                 <Text className="font-bold text-xl" style={{ color: '#10b981' }}>
@@ -2440,7 +2268,7 @@ export default function HomeScreen() {
                                 </Text>
                               </>
                             )}
-                            {getDifficultyTrendAnalysis()?.trend === 'declining' && (
+                            {analysis.trend === 'declining' && (
                               <>
                                 <FontAwesome name="arrow-up" size={16} color="#ef4444" />
                                 <Text className="font-bold text-xl" style={{ color: '#ef4444' }}>
@@ -2448,7 +2276,7 @@ export default function HomeScreen() {
                                 </Text>
                               </>
                             )}
-                            {getDifficultyTrendAnalysis()?.trend === 'stable' && (
+                            {analysis.trend === 'stable' && (
                               <>
                                 <FontAwesome name="minus" size={16} color={theme.colors.textTertiary} />
                                 <Text className="font-bold text-xl" style={themeStyles.textTertiary}>
@@ -2458,30 +2286,24 @@ export default function HomeScreen() {
                             )}
                           </View>
                           <Text className="text-xs mt-1" style={{
-                            color: getDifficultyTrendAnalysis()?.trend === 'improving' ? '#10b981' :
-                                   getDifficultyTrendAnalysis()?.trend === 'declining' ? '#ef4444' :
+                            color: analysis.trend === 'improving' ? '#10b981' :
+                                   analysis.trend === 'declining' ? '#ef4444' :
                                    theme.colors.textTertiary
                           }}>
-                            {(() => {
-                              const analysis = getDifficultyTrendAnalysis();
-                              if (analysis?.difference !== undefined && analysis.difference !== 0) {
-                                return (
-                                  <>
-                                    {analysis.difference > 0 ? '+' : ''}
-                                    {analysis.difference.toFixed(1)} pontos
-                                  </>
-                                );
-                              }
-                              if (analysis?.difference === 0) {
-                                return 'Sem mudança';
-                              }
-                              return null;
-                            })()}
+                            {analysis.difference !== undefined && analysis.difference !== 0 ? (
+                              <>
+                                {analysis.difference > 0 ? '+' : ''}
+                                {analysis.difference.toFixed(1)} pontos
+                              </>
+                            ) : analysis.difference === 0 ? (
+                              'Sem mudança'
+                            ) : null}
                           </Text>
                         </View>
                       </View>
                     </View>
-                  )}
+                    );
+                  })()}
                 </>
               ) : (
                 <EmptyState
@@ -2493,7 +2315,7 @@ export default function HomeScreen() {
           )}
 
           {/* Seção de Conquistas e Recordes */}
-          {getCompletedWorkouts().length > 0 && (
+          {completedWorkouts.length > 0 && (
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
@@ -2508,8 +2330,8 @@ export default function HomeScreen() {
               
               <View className="flex-row gap-3 flex-wrap">
                 {/* Card: Maior Sequência */}
-                {getMaxStreak().maxStreak > 0 && (
-                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
+                {maxStreakData.maxStreak > 0 && (
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
                       borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)',
@@ -2520,27 +2342,27 @@ export default function HomeScreen() {
                       elevation: 4,
                     }}
                   >
-                    <View className="flex-row items-center mb-2">
-                      <Image
-                        source={require('../../assets/images/Sequencia.png')}
-                        style={{ width: 28, height: 28 }}
-                        resizeMode="contain"
-                      />
-                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Maior Sequência</Text>
-                    </View>
-                    <Text className="text-3xl font-bold mb-1" style={{ color: '#f59e0b' }}>
-                      {getMaxStreak().maxStreak}
+                    <Image
+                      source={require('../../assets/images/Sequencia.png')}
+                      style={{ width: 44, height: 44 }}
+                      resizeMode="contain"
+                    />
+                    <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
+                      Maior Sequência
                     </Text>
-                    <Text className="text-xs" style={themeStyles.textSecondary}>
+                    <Text className="text-3xl font-bold mb-1 text-center" style={{ color: '#f59e0b' }}>
+                      {maxStreakData.maxStreak}
+                    </Text>
+                    <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                       dias consecutivos
                     </Text>
-                    {getMaxStreak().currentStreak > 0 && getMaxStreak().currentStreak < getMaxStreak().maxStreak && (
-                      <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                        Atual: {getMaxStreak().currentStreak} dias
+                    {maxStreakData.currentStreak > 0 && maxStreakData.currentStreak < maxStreakData.maxStreak && (
+                      <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
+                        Atual: {maxStreakData.currentStreak} dias
                       </Text>
                     )}
-                    {getMaxStreak().currentStreak === getMaxStreak().maxStreak && getMaxStreak().currentStreak > 0 && (
-                      <Text className="text-[10px] mt-1 font-semibold" style={{ color: '#10b981' }}>
+                    {maxStreakData.currentStreak === maxStreakData.maxStreak && maxStreakData.currentStreak > 0 && (
+                      <Text className="text-[10px] mt-1 font-semibold text-center" style={{ color: '#10b981' }}>
                         🎯 Novo recorde!
                       </Text>
                     )}
@@ -2548,8 +2370,8 @@ export default function HomeScreen() {
                 )}
 
                 {/* Card: Melhor Semana */}
-                {getBestWeek() && (
-                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
+                {bestWeekData && (
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
                       borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.2)',
@@ -2560,29 +2382,29 @@ export default function HomeScreen() {
                       elevation: 4,
                     }}
                   >
-                    <View className="flex-row items-center mb-2">
-                      <Image
-                        source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
-                        style={{ width: 28, height: 28 }}
-                        resizeMode="contain"
-                      />
-                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Semana</Text>
-                    </View>
-                    <Text className="text-3xl font-bold mb-1" style={{ color: theme.colors.primary }}>
-                      {getBestWeek()?.count}
+                    <Image
+                      source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
+                      style={{ width: 44, height: 44 }}
+                      resizeMode="contain"
+                    />
+                    <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
+                      Melhor Semana
                     </Text>
-                    <Text className="text-xs" style={themeStyles.textSecondary}>
+                    <Text className="text-3xl font-bold mb-1 text-center" style={{ color: theme.colors.primary }}>
+                      {bestWeekData?.count}
+                    </Text>
+                    <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                       treinos
                     </Text>
-                    <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                      {getBestWeek()?.label}
+                    <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
+                      {bestWeekData?.label}
                     </Text>
                   </View>
                 )}
 
                 {/* Card: Melhor Mês */}
-                {getBestMonth() && (
-                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border"
+                {bestMonthData && (
+                  <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
                       borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
@@ -2593,22 +2415,22 @@ export default function HomeScreen() {
                       elevation: 4,
                     }}
                   >
-                    <View className="flex-row items-center mb-2">
-                      <Image
-                        source={require('../../assets/images/atletasmaisativos.png')}
-                        style={{ width: 28, height: 28 }}
-                        resizeMode="contain"
-                      />
-                      <Text className="text-xs ml-2" style={themeStyles.textSecondary}>Melhor Mês</Text>
-                    </View>
-                    <Text className="text-3xl font-bold mb-1" style={{ color: '#10b981' }}>
-                      {getBestMonth()?.count}
+                    <Image
+                      source={require('../../assets/images/atletasmaisativos.png')}
+                      style={{ width: 44, height: 44 }}
+                      resizeMode="contain"
+                    />
+                    <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
+                      Melhor Mês
                     </Text>
-                    <Text className="text-xs" style={themeStyles.textSecondary}>
+                    <Text className="text-3xl font-bold mb-1 text-center" style={{ color: '#10b981' }}>
+                      {bestMonthData?.count}
+                    </Text>
+                    <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                       treinos
                     </Text>
-                    <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                      {getBestMonth()?.label}
+                    <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
+                      {bestMonthData?.label}
                     </Text>
                   </View>
                 )}
@@ -2617,13 +2439,13 @@ export default function HomeScreen() {
           )}
 
           {/* Próximos Treinos */}
-          {getUpcomingWorkouts().length > 0 && (
+          {upcomingWorkouts.length > 0 && (
             <View className="w-full mb-6">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
                 📅 Próximos Treinos
               </Text>
               
-              {getUpcomingWorkouts().map((workout) => (
+              {upcomingWorkouts.map((workout) => (
                 <TouchableOpacity
                   key={workout.id}
                   className="rounded-xl p-4 mb-3 border"
@@ -2671,7 +2493,7 @@ export default function HomeScreen() {
           )}
 
           {/* Treinos Concluídos (últimos 5) */}
-          {getCompletedWorkouts().length > 0 && (
+          {completedWorkouts.length > 0 && (
             <View className="w-full">
               <View className="flex-row items-center mb-4">
                 <Image
@@ -2684,14 +2506,16 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              {getCompletedWorkouts()
+              {completedWorkouts
                 .sort((a: any, b: any) => {
                   const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
                   const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
                   return dateB - dateA;
                 })
                 .slice(0, 5)
-                .map((workout: any) => (
+                .map((workout: any) => {
+                const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
+                return (
                 <TouchableOpacity
                   key={workout.id}
                   className="border rounded-xl p-4 mb-3"
@@ -2737,23 +2561,18 @@ export default function HomeScreen() {
                           {workout.status}
                         </Text>
                       </View>
-                      {(workout.feedback || workout.feedbackEmoji) && (
-                        workout.feedback ? (
-                          <Image
-                            source={feedbackIcons[Math.max(1, Math.min(5, Number(workout.feedback)))]}
-                            style={{ width: 30, height: 30 }}
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Text className="text-2xl">
-                            {workout.feedbackEmoji}
-                          </Text>
-                        )
+                      {feedbackIconSrc && (
+                        <Image
+                          source={feedbackIconSrc}
+                          style={{ width: 40, height: 40 }}
+                          resizeMode="contain"
+                        />
                       )}
                     </View>
                   </View>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           )}
 

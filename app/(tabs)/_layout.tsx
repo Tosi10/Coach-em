@@ -1,27 +1,84 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { Image, Platform, type ImageSourcePropType, type ImageStyle, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
+/** Base ~44; Home/Treinos/Atletas +15%; Perfil +5%; imagens +21% extra sobre esses valores (10% adicional no ajuste atual). */
+const TAB_ICON_BASE = 44;
+const TAB_ICON_MAIN = Math.round(TAB_ICON_BASE * 1.15 * 1.41);
+const TAB_ICON_PROFILE = Math.round(TAB_ICON_BASE * 1.05 * 1.41 * 0.9);
+/** Tamanho base típico do rótulo na tab bar (~10). */
+const TAB_LABEL_BASE = 10;
+const TAB_LABEL_MAIN = Math.round(TAB_LABEL_BASE * 1.15);
+const TAB_LABEL_PROFILE = Math.round(TAB_LABEL_BASE * 1.05);
+/** Espaço ícone→texto (marginTop no label): PNGs têm “silhuetas” diferentes; afinar por aba. */
+const TAB_LABEL_GAP_HOME = -8;
+const TAB_LABEL_GAP_MIDDLE = -10;
+const TAB_LABEL_GAP_PROFILE = -6;
+
+/**
+ * PNGs laranja (ativo) + cinza (inativo).
+ * O @react-navigation/bottom-tabs chama este ícone DUAS vezes: uma com focused=true (camada
+ * laranja) e outra com focused=false (camada cinza). A opacidade de cada camada é aplicada
+ * pelo TabBarIcon conforme a aba está ou não selecionada — não misturar com useNavigationState.
+ * Rodapé: usar prop `safeAreaInsets` no Tabs (API do bottom-tabs) para aumentar o inset
+ * inferior — a barra cresce sem esmagar o conteúdo. paddingBottom em tabBarItemStyle dentro
+ * de altura fixa só comprime e o texto some.
+ */
+function TabBarPngIcon(props: {
+  focused: boolean;
+  active: ImageSourcePropType;
+  inactive?: ImageSourcePropType;
+  /** Largura/altura do PNG (default: +15% sobre base). */
+  size?: number;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  const { focused, active, inactive: inactiveSource, size = TAB_ICON_MAIN } = props;
+
+  const source =
+    inactiveSource != null
+      ? focused
+        ? active
+        : inactiveSource
+      : active;
+
+  const imageStyle: ImageStyle = {
+    width: size,
+    height: size,
+    ...(inactiveSource != null ? {} : { opacity: focused ? 1 : 0.42 }),
+    tintColor: undefined,
+  };
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        marginBottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      collapsable={false}>
+      <Image
+        source={source}
+        style={imageStyle}
+        resizeMode="contain"
+        resizeMethod="resize"
+        {...(Platform.OS === 'android' ? { fadeDuration: 0 } : {})}
+      />
+    </View>
+  );
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [userType, setUserType] = useState<UserType | null>(null);
 
-  // Carregar tipo de usuário do AsyncStorage
   useEffect(() => {
     const loadUserType = async () => {
       try {
@@ -36,39 +93,66 @@ export default function TabLayout() {
     loadUserType();
   }, []);
 
-  // Determinar título e ícone da segunda aba baseado no tipo de usuário
   const secondTabTitle = userType === UserType.ATHLETE ? 'Treinos' : 'Atletas';
-  // Usando 'heartbeat' para treinos (batimento cardíaco/fitness) - ícone disponível no FontAwesome padrão
-  // Alternativas disponíveis: 'fire' (intensidade), 'trophy' (troféu), 'calendar' (agenda)
-  const secondTabIcon = userType === UserType.ATHLETE ? 'heartbeat' : 'users';
+
+  const homeActive = require('../../assets/images/HouseLaranja.png');
+  const homeInactive = require('../../assets/images/HouseCinza.png');
+  const treinoActive = require('../../assets/images/TreinoLaranja.png');
+  const treinoInactive = require('../../assets/images/TreinoCinza.png');
+  const perfilActive = require('../../assets/images/PerfilLaranja.png');
+  const perfilInactive = require('../../assets/images/PerfilCinza.png');
+  const atletasActive = require('../../assets/images/AtletasLaranja.png');
+  const atletasInactive = require('../../assets/images/AtletasCinza.png');
 
   return (
     <Tabs
+      safeAreaInsets={{
+        top: insets.top,
+        left: insets.left,
+        right: insets.right,
+        bottom: insets.bottom + 10,
+      }}
       screenOptions={{
-        tabBarActiveTintColor: theme.colors.primary, // Orange for active tab
-        tabBarInactiveTintColor: theme.colors.textTertiary, // Gray for inactive tabs
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textTertiary,
+        tabBarIconStyle: {
+          width: TAB_ICON_MAIN,
+          height: TAB_ICON_MAIN,
+          marginTop: -14,
+          marginBottom: 0,
+        },
+        tabBarItemStyle: {
+          paddingTop: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: TAB_LABEL_MAIN,
+        },
         tabBarStyle: {
-          backgroundColor: theme.colors.card, // Card background
-          borderTopColor: theme.colors.border, // Border color
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
           borderTopWidth: 1,
         },
         headerStyle: {
-          backgroundColor: theme.colors.background, // Background color
+          backgroundColor: theme.colors.background,
         },
-        headerTintColor: theme.colors.text, // Text/icon color
+        headerTintColor: theme.colors.text,
         headerTitleStyle: {
-          color: theme.colors.text, // Title color
+          color: theme.colors.text,
           fontWeight: 'bold',
         },
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+          tabBarLabelStyle: {
+            fontSize: TAB_LABEL_MAIN,
+            marginTop: TAB_LABEL_GAP_HOME,
+          },
+          tabBarIcon: ({ focused }) => (
+            <TabBarPngIcon focused={focused} active={homeActive} inactive={homeInactive} />
+          ),
           headerShown: false,
         }}
       />
@@ -76,14 +160,40 @@ export default function TabLayout() {
         name="two"
         options={{
           title: secondTabTitle,
-          tabBarIcon: ({ color }) => <TabBarIcon name={secondTabIcon as any} color={color} />,
+          tabBarLabelStyle: {
+            fontSize: TAB_LABEL_MAIN,
+            marginTop: TAB_LABEL_GAP_MIDDLE,
+          },
+          tabBarIcon: ({ focused }) =>
+            userType === UserType.COACH ? (
+              <TabBarPngIcon focused={focused} active={atletasActive} inactive={atletasInactive} />
+            ) : (
+              <TabBarPngIcon focused={focused} active={treinoActive} inactive={treinoInactive} />
+            ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          tabBarIconStyle: {
+            width: TAB_ICON_PROFILE,
+            height: TAB_ICON_PROFILE,
+            marginTop: -8,
+            marginBottom: 0,
+          },
+          tabBarLabelStyle: {
+            fontSize: TAB_LABEL_PROFILE,
+            marginTop: TAB_LABEL_GAP_PROFILE,
+          },
+          tabBarIcon: ({ focused }) => (
+            <TabBarPngIcon
+              focused={focused}
+              active={perfilActive}
+              inactive={perfilInactive}
+              size={TAB_ICON_PROFILE}
+            />
+          ),
           headerShown: false,
         }}
       />

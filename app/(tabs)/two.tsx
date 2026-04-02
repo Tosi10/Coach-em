@@ -9,13 +9,14 @@ import {
     setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
+import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TabTwoScreen() {
   const router = useRouter();
@@ -194,18 +195,10 @@ export default function TabTwoScreen() {
 
   // Se for ATLETA, mostrar treinos
   if (userType === UserType.ATHLETE) {
-    const now = Date.now();
-    const isPastScheduled = (w: any) => {
-      if (!w.date) return false;
-      const [y, mo, d] = w.date.split('-').map(Number);
-      const h = w.scheduledTime ? parseInt(w.scheduledTime.split(':')[0], 10) : 0;
-      const min = w.scheduledTime ? parseInt(w.scheduledTime.split(':')[1], 10) : 0;
-      const scheduledAt = new Date(y, mo - 1, d, h, min, 0, 0).getTime();
-      return scheduledAt < now;
-    };
-    // Histórico: concluídos OU data/hora já passou. Próximos: pendentes E data/hora ainda não passou.
-    const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído' || isPastScheduled(w));
-    const pendingWorkouts = athleteWorkouts.filter((w: any) => w.status !== 'Concluído' && !isPastScheduled(w));
+    // Historico deve mostrar apenas treinos realmente concluidos.
+    // Treino atrasado (data/hora passada) nao significa treino feito.
+    const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído');
+    const pendingWorkouts = athleteWorkouts.filter((w: any) => w.status !== 'Concluído');
     
     // Determinar quais treinos mostrar baseado na sub-tab
     let workoutsToDisplay: any[] = [];
@@ -347,7 +340,7 @@ export default function TabTwoScreen() {
           {/* Lista de treinos */}
           {workoutsToDisplay.length === 0 ? (
             <EmptyState
-              icon="heartbeat"
+              imageSource={require('../../assets/images/Coracao.png')}
               message={workoutSubTab === 'historico' 
                 ? "Você ainda não concluiu nenhum treino."
                 : "Você não tem treinos agendados."}
@@ -407,6 +400,7 @@ export default function TabTwoScreen() {
                 } else {
                   // Treino individual
                   const workout = item.workout || item;
+                  const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
                   
                   return (
                     <View
@@ -459,10 +453,12 @@ export default function TabTwoScreen() {
                                 </Text>
                               </View>
                               
-                              {workout.feedbackEmoji && (
-                                <Text className="text-2xl">
-                                  {workout.feedbackEmoji}
-                                </Text>
+                              {feedbackIconSrc && (
+                                <Image
+                                  source={feedbackIconSrc}
+                                  style={{ width: 30, height: 30 }}
+                                  resizeMode="contain"
+                                />
                               )}
                             </>
                           )}

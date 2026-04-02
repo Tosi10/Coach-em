@@ -1,13 +1,15 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+import { Asset } from 'expo-asset';
 import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -25,10 +27,35 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
+const CRITICAL_IMAGE_ASSETS = [
+  require('../assets/images/HouseLaranja.png'),
+  require('../assets/images/HouseCinza.png'),
+  require('../assets/images/TreinoLaranja.png'),
+  require('../assets/images/TreinoCinza.png'),
+  require('../assets/images/PerfilLaranja.png'),
+  require('../assets/images/PerfilCinza.png'),
+  require('../assets/images/AtletasLaranja.png'),
+  require('../assets/images/AtletasCinza.png'),
+  require('../assets/images/treinaLogo2.png'),
+  require('../assets/images/PanoramaSemanal.png'),
+  require('../assets/images/AtivosHoje.png'),
+  require('../assets/images/IconeWorkoutComplete.png'),
+  require('../assets/images/Pendentes.png'),
+  require('../assets/images/BibliotecaDeExercicios.png'),
+  require('../assets/images/MeusTreinos1.png'),
+  require('../assets/images/IconeTaxadeaderencia.png'),
+  require('../assets/images/iconetreinosmaisdificeis.png'),
+  require('../assets/images/atletasmaisativos.png'),
+  require('../assets/images/IconeEstaSemanaAtleta.png'),
+  require('../assets/images/Sequencia.png'),
+  require('../assets/images/Coracao.png'),
+];
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [assetsReady, setAssetsReady] = useState(false);
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     Manrope_400Regular,
@@ -44,9 +71,25 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
+    let cancelled = false;
+    const preloadCriticalAssets = async () => {
+      if (!loaded) return;
+      try {
+        await Asset.loadAsync(CRITICAL_IMAGE_ASSETS);
+      } catch (assetError) {
+        // Não bloquear o app se um asset falhar no preload.
+        console.warn('Falha ao pré-carregar imagens críticas:', assetError);
+      } finally {
+        if (!cancelled) {
+          setAssetsReady(true);
+          await SplashScreen.hideAsync();
+        }
+      }
+    };
+    preloadCriticalAssets();
+    return () => {
+      cancelled = true;
+    };
   }, [loaded]);
 
   useEffect(() => {
@@ -64,7 +107,7 @@ export default function RootLayout() {
     })();
   }, []);
 
-  if (!loaded) {
+  if (!loaded || !assetsReady) {
     return null;
   }
 
@@ -244,10 +287,12 @@ function RootLayoutNavContent() {
 
 function RootLayoutNav() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <RootLayoutNavContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RootLayoutNavContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
