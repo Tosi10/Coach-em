@@ -1,182 +1,93 @@
-<<<<<<< HEAD
-# 🏃 Coach'em - MVP de Gestão de Performance Esportiva
+# Treina+ — gestão de performance esportiva
 
-## 📋 Sobre o Projeto
-
-Coach'em é um MVP (Produto Mínimo Viável) focado na gestão de performance esportiva, conectando Treinadores a Atletas em um fluxo profissional de elite.
-
-**Desenvolvedor:** Rodrigo (ex-atleta profissional de futebol, em transição para tecnologia)  
-**Mentor:** Antonio (programador sênior, professor e mentor)  
-**Objetivo:** Mercado de trabalho na Suíça (Lausanne) - código limpo, profissional, estilo suíço (minimalista e funcional)
+App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acompanhamento. Stack: **Expo Router**, **TypeScript**, **NativeWind**, **Firebase** (Auth, Firestore, Storage), **EAS Build** para Android.
 
 ---
 
-## 🛠️ Stack Tecnológica
+## O que o app faz (visão geral)
 
-- **Framework:** React Native com Expo (Expo Router)
-- **Linguagem:** TypeScript (strict mode)
-- **Estilização:** NativeWind v4.2.1 (Tailwind CSS)
-- **Backend:** Firebase (Auth, Firestore, Storage) - configurado mas não conectado ainda
-- **Navegação:** Expo Router (file-based routing)
+| Área | Descrição |
+|------|-----------|
+| **Autenticação** | Login e registro de **treinador**; atletas recebem conta pelo fluxo **Adicionar atleta** (email + senha provisória via Cloud Function). |
+| **Senha** | **Esqueci minha senha** → Cloud Function `sendPasswordResetEmailTreina` envia email HTML (Gmail/nodemailer) com link gerado pelo Admin SDK. **Alterar senha** e **Excluir conta** no Perfil. Ver `docs/EMAIL_PASSWORD_RESET.md`. |
+| **Sessão** | Firebase Auth com persistência em **AsyncStorage** (`src/services/firebase.config.ts`). |
+| **UI** | Tema claro/escuro, abas com ícones PNG (Home, Treinos/Atletas, Perfil), assets críticos pré-carregados no boot (`app/_layout.tsx`). |
+| **Treinos** | Atribuição, detalhes, biblioteca de exercícios, calendário do treinador, etc. |
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura principal
 
 ```
-CoachemApp/
-├── app/                    # Rotas (Expo Router)
-│   ├── (auth)/            # Rotas de autenticação
-│   ├── (tabs)/            # Rotas principais (tabs navigation)
-│   ├── select-user-type.tsx # Seleção de tipo de usuário
-│   └── _layout.tsx        # Layout principal
+Treina+ (pasta do repositório: Coach-em)/
+├── app/
+│   ├── (auth)/          # login, registro (só treinador)
+│   ├── (tabs)/          # Home, Treinos/Atletas, Perfil
+│   ├── athlete-profile.tsx
+│   └── _layout.tsx      # splash, fontes, preload de imagens
+├── components/
 ├── src/
-│   ├── components/        # Componentes reutilizáveis
-│   ├── hooks/             # Custom hooks
-│   ├── services/          # Serviços (Firebase, APIs)
-│   └── types/             # Interfaces TypeScript
-└── components/            # Componentes do template Expo
+│   ├── contexts/        # Auth, Theme
+│   ├── services/        # auth, firebase, athletes, workouts…
+│   └── types/
+├── functions/           # Cloud Functions (ex.: criar atleta com login)
+├── assets/images/
+└── app.json             # ex.: android.softwareKeyboardLayoutMode: resize
 ```
 
 ---
 
-## 🚀 Como Executar
+## Como rodar
 
-### Pré-requisitos:
-- Node.js instalado
-- Expo CLI (ou use `npx expo`)
-- Expo Go no dispositivo/emulador
-
-### Instalação:
 ```bash
 npm install
-```
-
-### Executar:
-```bash
 npx expo start
 ```
 
-### Comandos úteis:
-- `npx expo start --clear` - Limpar cache
-- `a` - Abrir no Android
-- `i` - Abrir no iOS
-- `w` - Abrir no Web
-- `r` - Recarregar app
+- Cache limpo: `npx expo start -c`
+- Build Android (EAS): `eas build -p android --profile preview` (ou `production` conforme `eas.json`)
+
+### Variáveis de ambiente
+
+Criar `.env` na raiz com as chaves `EXPO_PUBLIC_FIREBASE_*` (ver `src/services/firebase.config.ts`).
 
 ---
 
-## 🎯 Funcionalidades (MVP)
+## Conta e segurança (implementado)
 
-### Planejadas:
-1. ✅ Dois tipos de usuário: COACH (Treinador) e ATHLETE (Atleta)
-2. ⏳ Biblioteca de Repertório: Lista de exercícios (com upload de vídeos)
-3. ⏳ Workflow de Treino: 3 blocos obrigatórios
-   - Aquecimento (Warm-up)
-   - Parte Principal (Work)
-   - Finalização/Alongamento (Cool Down)
-4. ⏳ Templates: Salvar treino como modelo e atribuir a múltiplos atletas
+1. **Recuperação de senha** — O app chama a callable **`sendPasswordResetEmailTreina`** (Functions **v2**, `us-central1`), que gera o link com `generatePasswordResetLink` e envia email HTML (Treina+) via **Gmail** (nodemailer). Credenciais no **Secret Manager**: **`GMAIL_USER`** (email) e **`GMAIL_PASS`** (senha de app de 16 caracteres — não a senha normal do Gmail). **Não** usar `firebase functions:config:set` para isso. Passo a passo, troubleshooting e **modelo para outros projetos**: **`docs/EMAIL_PASSWORD_RESET.md`**.
 
-### Status Atual:
-- ✅ Estrutura base configurada
-- ✅ TypeScript interfaces definidas
-- ✅ Firebase configurado (não conectado ainda)
-- ✅ Exemplo funcional: Contador com useState/useEffect
-- 🚧 Tela de seleção de tipo de usuário (em desenvolvimento)
-- ⏳ Dashboards diferentes para COACH e ATHLETE
+2. **Trocar senha logado** — **Perfil → Segurança → Alterar senha**: reautentica com a senha atual e atualiza via `updatePassword`.
+
+3. **Excluir conta** — **Perfil → Excluir conta**: após confirmação, pede a senha atual; remove documento `users/{uid}`, `coachemAthletes/{uid}` se existir, e a conta no Auth (`deleteUser`).  
+   - **Firestore:** é preciso que as regras permitam ao usuário **deletar** o próprio documento em `users/{uid}` (e `coachemAthletes/{uid}` se aplicável). Se a exclusão do Firestore falhar, o app mostra erro e **não** remove só o Auth de forma inconsistente após o passo de reautenticação — ajuste as regras conforme seu projeto.
 
 ---
 
-## 📚 Documentação
+## Cadastro de atleta (treinador)
 
-- **`CONTEXTO_PROJETO.md`** - Documento completo de contexto para handoff entre agentes
-- **`GUIA_COMPLETO.md`** - Guia de aprendizado (conceitos explicados)
-- **`PLANO_APRENDIZADO.md`** - Roteiro de aprendizado passo a passo
-- **`SETUP.md`** - Guia de configuração do Firebase
+O treinador cadastra atleta em **Adicionar atleta** com nome, email e **senha provisória**. A Cloud Function `createAthleteByCoach` cria o usuário no Auth e os documentos necessários. Recomenda-se que o atleta **troque a senha** após o primeiro acesso (fluxo acima).
 
 ---
 
-## 🔧 Configurações Importantes
+## Melhorias recomendadas (fora deste README)
 
-### NativeWind v4:
-- Configurado em `babel.config.js` (presets, não plugins)
-- `metro.config.js` com `withNativeWind`
-- `global.css` importado no `_layout.tsx`
-
-### TypeScript:
-- Strict mode ativado
-- Todas as interfaces em `src/types/index.ts`
-- Path aliases configurados (`@/*`)
-
-### Firebase:
-- Configuração em `src/services/firebase.config.ts`
-- Usar variáveis de ambiente (`.env`)
-- **Nota:** Ainda não conectado - usando dados mockados para aprendizado
+- **Imagens:** reduzir peso dos PNGs grandes (ícones e cards) para performance em APK.
+- **Foto de perfil:** campo `photoURL` no tipo `User`; upload no Storage (planejado).
+- **Treinador que exclui conta:** avaliar o que fazer com atletas e dados vinculados (regra de negócio / função agendada).
 
 ---
 
-## 📝 Convenções de Código
+## Documentação extra no repositório
 
-- **TypeScript strict mode** - sempre tipar
-- **Interfaces bem definidas** - tudo documentado
-- **Componentes reutilizáveis** - em `src/components/`
-- **Hooks customizados** - em `src/hooks/`
-- **Serviços separados** - em `src/services/`
-- **Design Swiss-style** - minimalista e funcional
+- **`docs/EMAIL_PASSWORD_RESET.md`** — Gmail + secrets + deploy da função de reset; **checklist** para replicar o mesmo padrão em projetos futuros (mesmo estilo de configuração).
+- `CONTEXTO_PROJETO.md`, `GUIA_COMPLETO.md`, `SETUP.md` (quando existirem) — contexto e Firebase.
+- **`functions/README.md`** — deploy das Cloud Functions e referência aos secrets.
 
 ---
 
-## 🎓 Metodologia de Desenvolvimento
+## Repositório
 
-Este projeto é também um **projeto de aprendizado**. O desenvolvimento segue:
-- Explicação linha por linha
-- Código escrito pelo desenvolvedor (não gerado automaticamente)
-- Passo a passo, sem pular etapas
-- Foco em entender o "porquê", não apenas o "como"
+https://github.com/Tosi10/Coach-em.git
 
----
-
-## 📦 Dependências Principais
-
-```json
-{
-  "expo": "~54.0.30",
-  "expo-router": "~6.0.21",
-  "react-native": "0.81.5",
-  "typescript": "~5.9.2",
-  "nativewind": "^4.2.1",
-  "firebase": "^12.7.0",
-  "tailwindcss": "^3.3.2"
-}
-```
-
----
-
-## 🔐 Variáveis de Ambiente
-
-Criar arquivo `.env` na raiz:
-```env
-EXPO_PUBLIC_FIREBASE_API_KEY=your-api-key
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-EXPO_PUBLIC_FIREBASE_APP_ID=your-app-id
-```
-
----
-
-## 📄 Licença
-
-Projeto privado - desenvolvimento em andamento
-
----
-
-## 👥 Contato
-
-- **Desenvolvedor:** Rodrigo
-- **Repositório:** https://github.com/Tosi10/Coach-em.git
-
----
-
-**Status:** 🚧 Em desenvolvimento ativo (fase de aprendizado e MVP)
+**Status:** em desenvolvimento ativo — MVP e evolução contínua.

@@ -1,49 +1,38 @@
 /**
  * Authentication Service
- * 
+ *
  * Centraliza todas as operações de autenticação do Firebase Auth.
- * 
- * Por que criar um service separado?
- * - Separação de responsabilidades (SOLID)
- * - Facilita testes unitários
- * - Reutilização em múltiplos componentes
  */
 
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   updateProfile,
   User as FirebaseUser,
   UserCredential,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from './firebase.config';
+import { httpsCallable } from 'firebase/functions';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { auth, db, functions } from './firebase.config';
 import { User, UserType, Coach, Athlete } from '@/src/types';
 import { FirebaseError } from 'firebase/app';
 
-/**
- * Interface para dados de registro
- * 
- * Separamos os dados de autenticação (email, password) dos dados
- * do perfil (displayName, userType). Isso segue o princípio de
- * responsabilidade única.
- */
 export interface SignUpData {
   email: string;
   password: string;
   displayName: string;
   userType: UserType;
-  // Campos opcionais específicos por tipo
-  bio?: string; // Para COACH
-  specialization?: string; // Para COACH
-  dateOfBirth?: Date | string; // Para ATHLETE
-  sport?: string; // Para ATHLETE
+  bio?: string;
+  specialization?: string;
+  dateOfBirth?: Date | string;
+  sport?: string;
 }
 
-/**
- * Interface para dados de login
- */
 export interface SignInData {
   email: string;
   password: string;
@@ -60,6 +49,8 @@ function formatAuthError(error: unknown, fallbackPrefix: string): Error {
     'auth/user-not-found': 'Usuário não encontrado.',
     'auth/wrong-password': 'Senha incorreta.',
     'auth/invalid-email': 'Email inválido.',
+    'auth/weak-password': 'A senha é muito fraca.',
+    'auth/requires-recent-login': 'Por segurança, saia e entre de novo antes de continuar.',
     'auth/too-many-requests': 'Muitas tentativas. Tente novamente em alguns minutos.',
     'auth/network-request-failed': 'Falha de rede. Verifique sua conexão.',
     'permission-denied': 'Sem permissão para acessar os dados do perfil.',
@@ -82,8 +73,6 @@ async function ensureProfileForExistingAuthUser(firebaseUser: FirebaseUser): Pro
   const userRef = doc(db, 'users', firebaseUser.uid);
   const now = serverTimestamp() as any;
 
-  // Perfil mínimo para não bloquear login em APK quando Auth existe e o doc não foi criado.
-  // userType padrão como ATHLETE para reduzir privilégios por padrão.
   const fallbackProfile: Omit<Athlete, 'id'> = {
     email: firebaseUser.email ?? '',
     displayName: firebaseUser.displayName ?? 'Usuário',
@@ -100,21 +89,8 @@ async function ensureProfileForExistingAuthUser(firebaseUser: FirebaseUser): Pro
   return toAppUser(firebaseUser, createdDoc.data());
 }
 
-/**
- * Cria um novo usuário no Firebase Auth e no Firestore
- * 
- * Fluxo:
- * 1. Cria conta no Firebase Auth
- * 2. Atualiza o perfil com displayName
- * 3. Cria documento no Firestore com dados adicionais
- * 
- * Por que usar Promise<User>?
- * - TypeScript garante que retornamos um User tipado
- * - Facilita o uso em componentes com type safety
- */
 export async function signUp(data: SignUpData): Promise<User> {
   try {
-    // 1. Criar usuário no Firebase Auth
     const userCredential: UserCredential = await createUserWithEmailAndPassword(
       auth,
       data.email,
@@ -123,12 +99,10 @@ export async function signUp(data: SignUpData): Promise<User> {
 
     const firebaseUser: FirebaseUser = userCredential.user;
 
-    // 2. Atualizar perfil com displayName
     await updateProfile(firebaseUser, {
       displayName: data.displayName,
     });
 
-    // 3. Preparar dados do perfil para Firestore
     const userData: Omit<User, 'id'> = {
       email: data.email,
       displayName: data.displayName,
@@ -137,7 +111,6 @@ export async function signUp(data: SignUpData): Promise<User> {
       updatedAt: serverTimestamp() as any,
     };
 
-    // 4. Adicionar campos específicos por tipo
     if (data.userType === UserType.COACH) {
       (userData as Omit<Coach, 'id'>).bio = data.bio;
       (userData as Omit<Coach, 'id'>).specialization = data.specialization;
@@ -147,11 +120,9 @@ export async function signUp(data: SignUpData): Promise<User> {
       (userData as Omit<Athlete, 'id'>).sport = data.sport;
     }
 
-    // 5. Criar documento no Firestore
     const userRef = doc(db, 'users', firebaseUser.uid);
     await setDoc(userRef, userData);
 
-    // 6. Retornar usuário tipado
     return {
       id: firebaseUser.uid,
       ...userData,
@@ -163,12 +134,6 @@ export async function signUp(data: SignUpData): Promise<User> {
   }
 }
 
-/**
- * Faz login de um usuário existente
- * 
- * Retorna o usuário do Firestore (não apenas do Auth) para ter
- * acesso a todos os dados do perfil.
- */
 export async function signIn(data: SignInData): Promise<User> {
   try {
     const userCredential: UserCredential = await signInWithEmailAndPassword(
@@ -179,9 +144,8 @@ export async function signIn(data: SignInData): Promise<User> {
 
     const firebaseUser: FirebaseUser = userCredential.user;
 
-    // Buscar dados completos do Firestore
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    
+
     if (!userDoc.exists()) {
       return await ensureProfileForExistingAuthUser(firebaseUser);
     }
@@ -192,9 +156,6 @@ export async function signIn(data: SignInData): Promise<User> {
   }
 }
 
-/**
- * Faz logout do usuário atual
- */
 export async function logout(): Promise<void> {
   try {
     await signOut(auth);
@@ -203,22 +164,16 @@ export async function logout(): Promise<void> {
   }
 }
 
-/**
- * Busca o usuário atual do Firestore
- * 
- * Útil para atualizar o estado do usuário após login
- * ou verificar dados atualizados.
- */
 export async function getCurrentUser(): Promise<User | null> {
   const firebaseUser = auth.currentUser;
-  
+
   if (!firebaseUser) {
     return null;
   }
 
   try {
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    
+
     if (!userDoc.exists()) {
       return null;
     }
@@ -229,6 +184,71 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
+/**
+ * Redefinição de senha: Cloud Function envia email HTML (Gmail) com link do Admin SDK.
+ */
+export async function sendPasswordResetEmailTo(email: string): Promise<void> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) {
+    throw new Error('Informe o email.');
+  }
+  try {
+    const sendReset = httpsCallable<{ email: string }, { ok: boolean }>(
+      functions,
+      'sendPasswordResetEmailTreina'
+    );
+    await sendReset({ email: trimmed });
+  } catch (error: unknown) {
+    if (error instanceof FirebaseError && error.code.startsWith('functions/')) {
+      throw new Error(error.message || 'Erro ao enviar email de recuperação.');
+    }
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('failed-precondition') || msg.includes('não configurado')) {
+      throw new Error(
+        'Envio de email ainda não está configurado no servidor. Publique a Cloud Function e configure os secrets GMAIL_USER e GMAIL_PASS (veja docs/EMAIL_PASSWORD_RESET.md).'
+      );
+    }
+    throw formatAuthError(error, 'Erro ao enviar email de recuperação');
+  }
+}
 
+export async function changePasswordAfterReauth(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  if (newPassword.length < 6) {
+    throw new Error('A nova senha deve ter no mínimo 6 caracteres.');
+  }
+  const user = auth.currentUser;
+  if (!user?.email) {
+    throw new Error('Sessão inválida. Faça login novamente.');
+  }
+  try {
+    const cred = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, cred);
+    await updatePassword(user, newPassword);
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao alterar senha');
+  }
+}
 
-
+export async function deleteMyAccount(currentPassword: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user?.email) {
+    throw new Error('Sessão inválida. Faça login novamente.');
+  }
+  try {
+    const cred = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, cred);
+    const uid = user.uid;
+    await deleteDoc(doc(db, 'users', uid));
+    const athleteRef = doc(db, 'coachemAthletes', uid);
+    const athleteSnap = await getDoc(athleteRef);
+    if (athleteSnap.exists()) {
+      await deleteDoc(athleteRef);
+    }
+    await deleteUser(user);
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao excluir conta');
+  }
+}

@@ -1,4 +1,4 @@
-# 🚀 Próximos Passos - Coach'em
+# 🚀 Próximos Passos - Treina+
 
 ## 📊 Estado Atual do Projeto
 

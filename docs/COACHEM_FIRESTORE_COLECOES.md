@@ -1,6 +1,6 @@
-# Coleções Firestore – Coach'em (prefixo `coachem`)
+# Coleções Firestore – Treina+ (prefixo `coachem`)
 
-Para não misturar com **Futeba** e **CooPs** (coworking), todas as coleções do Coach'em usam o prefixo **`coachem`**.
+Para não misturar com **Futeba** e **CooPs** (coworking), todas as coleções do Treina+ usam o prefixo **`coachem`**.
 
 ---
 
@@ -20,7 +20,7 @@ Progresso de treino (`workout_progress_*`) e feedback por treino podem ser subco
 
 ## Resumo
 
-- **Auth:** mesmo Firebase Auth do projeto (futeba). O app Coach'em só lê/escreve nas coleções **`coachem*`**.
+- **Auth:** mesmo Firebase Auth do projeto (futeba). O app Treina+ só lê/escreve nas coleções **`coachem*`**.
 - **Documento do usuário:** em `coachemUsers`, com ID = Firebase Auth UID (igual ao Coworking em `coopsUsers`).
 
 Quando formos conectar o app ao Firestore, usamos sempre esses nomes de coleção.

@@ -1,13 +1,15 @@
 /**
  * Login Screen
  *
- * Tela de login do Coach'em – design com logo, card e gradiente.
+ * Tela de login do Treina+ – design com logo, card e gradiente.
  */
 
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { UserType } from '@/src/types';
+import { sendPasswordResetEmailTo } from '@/src/services/auth.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { CustomAlert } from '@/components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +17,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -44,10 +45,30 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'info' | 'warning' = 'info'
+  ) => {
+    setAlertState({ visible: true, title, message, type });
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      showAlert('Erro', 'Por favor, preencha todos os campos.', 'warning');
       return;
     }
 
@@ -60,12 +81,38 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (err: any) {
       const msg = err?.message ?? 'Erro ao fazer login';
-      Alert.alert('Erro ao fazer login', msg);
+      showAlert('Erro ao fazer login', msg, 'error');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const e = email.trim().toLowerCase();
+    if (!e) {
+      showAlert(
+        'Email',
+        'Digite seu email no campo acima para receber o link de recuperação.',
+        'info'
+      );
+      return;
+    }
+    try {
+      setResetSending(true);
+      await sendPasswordResetEmailTo(e);
+      showAlert(
+        'Email enviado',
+        'Se existir uma conta com este endereço, você receberá um link para redefinir a senha. Verifique também a pasta de spam.',
+        'success'
+      );
+    } catch (err: any) {
+      showAlert('Erro', err?.message ?? 'Não foi possível enviar o email.', 'error');
+    } finally {
+      setResetSending(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
+    <>
+      <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       keyboardVerticalOffset={0}
       className="flex-1"
@@ -127,7 +174,7 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
               Senha
             </Text>
-            <View className="mb-6" style={{ position: 'relative' }}>
+            <View className="mb-2" style={{ position: 'relative' }}>
               <TextInput
                 className="w-full rounded-xl px-4 py-3.5 pr-10 text-base"
                 style={{
@@ -158,6 +205,13 @@ export default function LoginScreen() {
                   size={18}
                   color={theme.colors.textSecondary}
                 />
+              </TouchableOpacity>
+            </View>
+            <View className="mb-4 flex-row justify-end">
+              <TouchableOpacity onPress={handleForgotPassword} disabled={resetSending || loading} activeOpacity={0.7}>
+                <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
+                  {resetSending ? 'Enviando…' : 'Esqueci minha senha'}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -210,6 +264,14 @@ export default function LoginScreen() {
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        onConfirm={() => setAlertState((prev) => ({ ...prev, visible: false }))}
+      />
+    </>
   );
 }

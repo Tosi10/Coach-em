@@ -1,4 +1,4 @@
-# 📚 Coach'em - Guia Completo de Aprendizado
+# 📚 Treina+ - Guia Completo de Aprendizado
 
 ## 🎯 Olá! Vamos aprender juntos!
 
@@ -395,7 +395,7 @@ R: Errar é normal! TypeScript vai te ajudar a encontrar erros. E eu estou aqui 
 ## 🚀 VAMOS COMEÇAR DE VERDADE?
 
 Agora que você entendeu a estrutura, vamos criar algo SIMPLES primeiro:
-- Uma tela que mostra "Olá, Coach'em!"
+- Uma tela que mostra "Olá, Treina+!"
 - Um botão que muda o texto
 - Sem Firebase, sem complicação!
 

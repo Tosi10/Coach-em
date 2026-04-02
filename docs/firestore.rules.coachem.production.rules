@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // users — perfil (id = Firebase Auth uid). Inclui delete para "excluir conta".
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && request.auth.uid == userId;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    // -------------------------------------------------------------------------
+    // coachemAthletes — id do doc costuma ser o uid do atleta (criação via Function).
+    // Treinador: coachId. Atleta: lê o próprio doc (docId == uid).
+    // -------------------------------------------------------------------------
+    match /coachemAthletes/{docId} {
+      allow read: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        request.auth.uid == docId
+      );
+      allow create: if signedIn() && request.resource.data.coachId == request.auth.uid;
+      allow update: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        request.auth.uid == docId
+      );
+      allow delete: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        request.auth.uid == docId
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // coachemAssignedWorkouts — coachId + athleteId em cada documento.
+    // -------------------------------------------------------------------------
+    match /coachemAssignedWorkouts/{docId} {
+      allow read: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        resource.data.athleteId == request.auth.uid
+      );
+      allow create: if signedIn() && request.resource.data.coachId == request.auth.uid;
+      allow update: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        resource.data.athleteId == request.auth.uid
+      );
+      allow delete: if signedIn() && (
+        resource.data.coachId == request.auth.uid ||
+        resource.data.athleteId == request.auth.uid
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // coachemWorkoutTemplates — sempre com coachId = dono.
+    // -------------------------------------------------------------------------
+    match /coachemWorkoutTemplates/{docId} {
+      allow read: if signedIn() && resource.data.coachId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.coachId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.coachId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // coachemExercises — createdBy = uid do treinador.
+    // Leitura: qualquer usuário logado (atleta precisa ver exercícios do treinador nos treinos).
+    // Escrita: só o treinador que criou.
+    // -------------------------------------------------------------------------
+    match /coachemExercises/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // coachemExerciseWeightHistory — documentos com athleteId; addDoc sem id fixo.
+    // -------------------------------------------------------------------------
+    match /coachemExerciseWeightHistory/{docId} {
+      allow read: if signedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        coachOwnsAthlete(resource.data.athleteId)
+      );
+      allow create: if signedIn() && request.resource.data.athleteId == request.auth.uid;
+      allow update, delete: if signedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        coachOwnsAthlete(resource.data.athleteId)
+      );
+    }
+
+    // Opcional: coleção legada / espelho (se ainda existir no projeto)
+    match /coachemUsers/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // -------------------------------------------------------------------------
+    // Nada mais é permitido por padrão (remova regras genéricas "abertas" ou com data).
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+function signedIn() {
+  return request.auth != null;
+}
+
+// Atleta doc em coachemAthletes: id do doc = uid do atleta; campo coachId.
+function coachOwnsAthlete(athleteId) {
+  return signedIn() &&
+    exists(/databases/$(database)/documents/coachemAthletes/$(athleteId)) &&
+    get(/databases/$(database)/documents/coachemAthletes/$(athleteId)).data.coachId == request.auth.uid;
+}

@@ -66,7 +66,8 @@ try {
 export { auth };
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
-export const functions: Functions = getFunctions(app);
+/** Mesma região das Cloud Functions (ex.: sendPasswordResetEmailTreina em us-central1). */
+export const functions: Functions = getFunctions(app, 'us-central1');
 
 export default app;
 

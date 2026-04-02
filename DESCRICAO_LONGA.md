@@ -1,13 +1,13 @@
-## Descrição Longa – Coach'em (Play Store e App Store)
+## Descrição Longa – Treina+ (Play Store e App Store)
 
 Use este texto na descrição principal do app nas lojas. Ajuste os campos `[[ ]]` se necessário.
 
 ---
 
-O **Coach'em** é um app de gestão esportiva criado para facilitar o dia a dia de **treinadores** e **atletas**.  
+O **Treina+** é um app de gestão esportiva criado para facilitar o dia a dia de **treinadores** e **atletas**.  
 Monte treinos de forma profissional, acompanhe a execução em tempo real e visualize o progresso em painéis claros e objetivos.
 
-Com uma interface moderna em tema escuro, o Coach'em centraliza tudo em um só lugar: treinos, métricas, feedbacks e comunicação entre coach e atleta.
+Com uma interface moderna em tema escuro, o Treina+ centraliza tudo em um só lugar: treinos, métricas, feedbacks e comunicação entre coach e atleta.
 
 ### Para treinadores
 
@@ -30,5 +30,5 @@ Com uma interface moderna em tema escuro, o Coach'em centraliza tudo em um só l
 - Interface otimizada para uso no dia a dia, com foco em **legibilidade**, **contraste** e **rapidez**.  
 - Estrutura pronta para crescer com novas funcionalidades, sem perder a simplicidade.
 
-Comece a usar o **Coach'em** e leve a gestão dos seus treinos para o próximo nível.
+Comece a usar o **Treina+** e leve a gestão dos seus treinos para o próximo nível.
 

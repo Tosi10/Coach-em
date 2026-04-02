@@ -1,5 +1,5 @@
 /**
- * Coach'em - TypeScript Interfaces
+ * Treina+ - TypeScript Interfaces
  * 
  * Este arquivo define todas as interfaces principais do sistema.
  * A tipagem forte garante segurança em tempo de compilação e melhor

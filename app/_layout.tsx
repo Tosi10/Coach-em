@@ -75,9 +75,17 @@ export default function RootLayout() {
     const preloadCriticalAssets = async () => {
       if (!loaded) return;
       try {
-        await Asset.loadAsync(CRITICAL_IMAGE_ASSETS);
+        // Um asset que falhar (ex.: Metro em IP na rede no Android) não deve derrubar o lote inteiro.
+        const results = await Promise.allSettled(
+          CRITICAL_IMAGE_ASSETS.map((mod) => Asset.loadAsync(mod))
+        );
+        const failed = results.filter((r) => r.status === 'rejected');
+        if (failed.length > 0) {
+          console.warn(
+            `Pré-carregamento: ${failed.length}/${CRITICAL_IMAGE_ASSETS.length} imagem(ns) falharam (o app ainda carrega via require nas telas).`
+          );
+        }
       } catch (assetError) {
-        // Não bloquear o app se um asset falhar no preload.
         console.warn('Falha ao pré-carregar imagens críticas:', assetError);
       } finally {
         if (!cancelled) {

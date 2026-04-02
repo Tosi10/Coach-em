@@ -1,4 +1,4 @@
-# Coach'em - Guia de Configuração Inicial
+# Treina+ - Guia de Configuração Inicial
 
 ## 🚀 Estrutura do Projeto
 
@@ -78,7 +78,7 @@ O NativeWind já está configurado. Para usar classes do Tailwind:
 ```tsx
 <View className="flex-1 bg-white p-4">
   <Text className="text-2xl font-bold text-neutral-900">
-    Coach'em
+    Treina+
   </Text>
 </View>
 ```

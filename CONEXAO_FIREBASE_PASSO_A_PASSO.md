@@ -1,8 +1,8 @@
-# 🔥 Conexão do Coach'em ao Firebase (Projeto Futeba) – Passo a Passo
+# 🔥 Conexão do Treina+ ao Firebase (Projeto Futeba) – Passo a Passo
 
-Este guia explica como **adicionar o app Coach'em** ao **mesmo projeto Firebase** que já usa o Futeba e o Coworking-app (projeto **futeba** no console). Assim, os três apps compartilham o mesmo **Firestore**, **Authentication** e **Storage**, cada um com seu próprio registro de app.
+Este guia explica como **adicionar o app Treina+** ao **mesmo projeto Firebase** que já usa o Futeba e o Coworking-app (projeto **futeba** no console). Assim, os três apps compartilham o mesmo **Firestore**, **Authentication** e **Storage**, cada um com seu próprio registro de app.
 
-**Coleções diferenciadas:** para não misturar com os outros projetos, o Coach'em usa o prefixo **`coachem`** em todas as coleções. Ver `docs/COACHEM_FIRESTORE_COLECOES.md`.
+**Coleções diferenciadas:** para não misturar com os outros projetos, o Treina+ usa o prefixo **`coachem`** em todas as coleções. Ver `docs/COACHEM_FIRESTORE_COLECOES.md`.
 
 ---
 
@@ -13,7 +13,7 @@ Faça só isso por enquanto; em seguida voltamos para o próximo passo.
 1. Abra [Firebase Console](https://console.firebase.google.com/) e selecione o projeto **futeba**.
 2. Clique no **ícone de engrenagem** → **Configurações do projeto**.
 3. Em **"Seus apps"**, clique em **Adicionar app** e escolha **Web** (ícone `</>`).
-4. Apelido do app: **Coach'em** (ou **CoachemApp**).
+4. Apelido do app: **Treina+** (ou **CoachemApp**).
 5. Clique em **Registrar app**.
 6. Na tela seguinte, o Firebase mostra o `firebaseConfig`. **Deixe essa tela aberta** (ou copie os valores para um bloco de notas). Você vai precisar de:
    - `apiKey`
@@ -21,9 +21,9 @@ Faça só isso por enquanto; em seguida voltamos para o próximo passo.
    - `projectId`
    - `storageBucket`
    - `messagingSenderId`
-   - `appId` ← este será **diferente** do Coworking; é o do app Coach'em que você acabou de criar.
+   - `appId` ← este será **diferente** do Coworking; é o do app Treina+ que você acabou de criar.
 
-Quando terminar, avise e seguimos para a Parte 2 (colocar esses valores no `.env` do Coach'em e testar).
+Quando terminar, avise e seguimos para a Parte 2 (colocar esses valores no `.env` do Treina+ e testar).
 
 ---
 
@@ -31,11 +31,11 @@ Quando terminar, avise e seguimos para a Parte 2 (colocar esses valores no `.env
 
 - **Projeto no Firebase:** nome **futeba** (no Google Cloud / Firebase Console; o ID do projeto costuma ser algo como **futeba-96395** — o mesmo que o Coworking-app em `C:\NativeReact\coworking-app` usa).
 - **Apps já registrados:** pelo menos 2 (ex.: um para Futeba e um para Coworking-app / CooPs).
-- **Coach'em:** quer usar o **mesmo** Firestore e Auth, apenas registrando o Coach'em como mais um app no mesmo projeto.
+- **Treina+:** quer usar o **mesmo** Firestore e Auth, apenas registrando o Treina+ como mais um app no mesmo projeto.
 
 ---
 
-## Parte 1 – Adicionar o app Coach'em no Firebase Console
+## Parte 1 – Adicionar o app Treina+ no Firebase Console
 
 ### Passo 1.1 – Abrir o projeto correto
 
@@ -43,7 +43,7 @@ Quando terminar, avise e seguimos para a Parte 2 (colocar esses valores no `.env
 2. Faça login na conta Google que criou o projeto.
 3. Selecione o projeto **futeba** (o mesmo do Coworking e do outro app).
 
-### Passo 1.2 – Registrar um novo app (Coach'em)
+### Passo 1.2 – Registrar um novo app (Treina+)
 
 1. No menu lateral, clique no **ícone de engrenagem** ao lado de "Visão geral do projeto" e escolha **Configurações do projeto** (Project Settings).
 2. Role até a seção **"Seus apps"** (Your apps).
@@ -52,17 +52,17 @@ Quando terminar, avise e seguimos para a Parte 2 (colocar esses valores no `.env
 **Qual tipo escolher?**
 
 - **Expo / React Native:** para desenvolvimento e testes, o mais simples é **Adicionar app Web** (ícone `</>`). O mesmo projeto (e o mesmo Firestore) funciona para Web, Android e iOS.
-- Se no futuro você publicar o Coach'em como app nativo (build EAS/APK), você pode **também** adicionar um app Android (e depois iOS) no mesmo projeto; por enquanto, **só o app Web já resolve** para conectar o código ao Firebase.
+- Se no futuro você publicar o Treina+ como app nativo (build EAS/APK), você pode **também** adicionar um app Android (e depois iOS) no mesmo projeto; por enquanto, **só o app Web já resolve** para conectar o código ao Firebase.
 
 4. Ao adicionar:
-   - **Web:** informe um apelido, por exemplo: **Coach'em** ou **CoachemApp**.
+   - **Web:** informe um apelido, por exemplo: **Treina+** ou **CoachemApp**.
    - **Android:** use o package name que está no `app.json`: `com.coachem.app`.
 5. Clique em **"Registrar app"** (ou equivalente).
 6. Na tela seguinte, o Firebase mostra um trecho de código com um objeto `firebaseConfig`. **Não é necessário colar esse código no projeto**; o que importa são os **valores** dentro dele. Anote ou deixe a tela aberta para o próximo passo.
 
-### Passo 1.3 – Copiar as credenciais para o Coach'em
+### Passo 1.3 – Copiar as credenciais para o Treina+
 
-No mesmo projeto (**futeba**), na tela do app que você acabou de registrar (Coach'em):
+No mesmo projeto (**futeba**), na tela do app que você acabou de registrar (Treina+):
 
 Você verá algo assim (os valores serão os do seu projeto):
 
@@ -81,21 +81,21 @@ No Firebase, às vezes o **messagingSenderId** aparece com outro nome (ex.: em "
 
 **Importante:**  
 - O **projectId** será o mesmo dos outros apps (futeba).  
-- O **appId** será **diferente** para o Coach'em (cada app registrado tem um `appId` próprio).  
-- Use sempre as credenciais do **app que você acabou de registrar** (Coach'em).
+- O **appId** será **diferente** para o Treina+ (cada app registrado tem um `appId` próprio).  
+- Use sempre as credenciais do **app que você acabou de registrar** (Treina+).
 
 ---
 
-## Parte 2 – Configurar o projeto Coach'em no seu PC
+## Parte 2 – Configurar o projeto Treina+ no seu PC
 
-### Passo 2.1 – Arquivo `.env` na raiz do Coach'em
+### Passo 2.1 – Arquivo `.env` na raiz do Treina+
 
 1. Abra a pasta do projeto no disco: `c:\NativeReact\Coach-em`.
 2. Copie o arquivo `.env.example` para um novo arquivo chamado **`.env`** (na mesma pasta onde está o `app.json`).
-3. Abra o `.env` e preencha com os valores do Firebase (do app Coach'em que você registrou):
+3. Abra o `.env` e preencha com os valores do Firebase (do app Treina+ que você registrou):
 
 ```env
-# Coach'em – projeto futeba (mesmo DB do Coworking e outro app)
+# Treina+ – projeto futeba (mesmo DB do Coworking e outro app)
 EXPO_PUBLIC_FIREBASE_API_KEY=valor_do_apiKey
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=valor_do_authDomain
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=valor_do_projectId
@@ -119,31 +119,31 @@ As variáveis `EXPO_PUBLIC_*` são lidas em tempo de build. Depois de criar ou a
 npx expo start --clear
 ```
 
-Assim o app passa a usar as credenciais do projeto **futeba** para o app Coach'em.
+Assim o app passa a usar as credenciais do projeto **futeba** para o app Treina+.
 
 ---
 
 ## Parte 3 – Conferir Auth e Firestore no projeto futeba
 
-Como o Coach'em usa o **mesmo** projeto que o Coworking e o outro app, Auth e Firestore já podem estar ativos. Só precisamos garantir.
+Como o Treina+ usa o **mesmo** projeto que o Coworking e o outro app, Auth e Firestore já podem estar ativos. Só precisamos garantir.
 
 ### Passo 3.1 – Authentication
 
 1. No Firebase Console, projeto **futeba**, vá em **Authentication**.
 2. Se ainda não estiver ativo, clique em **"Começar"**.
-3. Na aba **"Sign-in method"**, verifique se **E-mail/senha** está **Ativado** (o auth.service do Coach'em usa isso).
+3. Na aba **"Sign-in method"**, verifique se **E-mail/senha** está **Ativado** (o auth.service do Treina+ usa isso).
 
 ### Passo 3.2 – Firestore Database
 
 1. No menu lateral, abra **Firestore Database**.
-2. Se o banco já existir (por causa do Coworking ou do outro app), **não crie outro**. O Coach'em usará o mesmo.
+2. Se o banco já existir (por causa do Coworking ou do outro app), **não crie outro**. O Treina+ usará o mesmo.
 3. Se for a primeira vez no projeto, clique em **"Criar banco de dados"**, escolha **modo produção** (ou teste, para desenvolvimento) e uma localização (ex.: `southamerica-east1`).
 
-O Coach'em vai usar coleções nesse mesmo banco. Para não misturar com os outros apps, podemos usar um prefixo ou namespaces por app (isso definimos na implementação das coleções).
+O Treina+ vai usar coleções nesse mesmo banco. Para não misturar com os outros apps, podemos usar um prefixo ou namespaces por app (isso definimos na implementação das coleções).
 
 ---
 
-## Parte 4 – Testar a conexão no Coach'em
+## Parte 4 – Testar a conexão no Treina+
 
 ### Passo 4.1 – Login/Registro
 
@@ -154,7 +154,7 @@ O Coach'em vai usar coleções nesse mesmo banco. Para não misturar com os outr
 ### Passo 4.2 – Conferir no Console
 
 - Em **Authentication > Users**, deve aparecer o usuário que você usou (ou acabou de criar).
-- Em **Firestore > Data**, deve existir a coleção **users** e um documento com o `uid` desse usuário (o `auth.service` do Coach'em cria/atualiza esse documento no registro/login).
+- Em **Firestore > Data**, deve existir a coleção **users** e um documento com o `uid` desse usuário (o `auth.service` do Treina+ cria/atualiza esse documento no registro/login).
 
 ---
 
@@ -162,8 +162,8 @@ O Coach'em vai usar coleções nesse mesmo banco. Para não misturar com os outr
 
 | Onde | O que fazer |
 |------|-------------|
-| **Firebase Console** | Projeto **futeba** → Configurações do projeto → Adicionar app (Web) → Registrar "Coach'em" → Copiar `firebaseConfig`. |
-| **Coach'em (PC)** | Copiar `.env.example` → `.env` → Colar os 6 valores do Firebase → Salvar. |
+| **Firebase Console** | Projeto **futeba** → Configurações do projeto → Adicionar app (Web) → Registrar "Treina+" → Copiar `firebaseConfig`. |
+| **Treina+ (PC)** | Copiar `.env.example` → `.env` → Colar os 6 valores do Firebase → Salvar. |
 | **Terminal** | `npx expo start --clear` e testar login/registro. |
 | **Auth/Firestore** | Auth: E-mail/senha ativo. Firestore: usar o mesmo DB do projeto (não criar outro). |
 
@@ -172,7 +172,7 @@ O Coach'em vai usar coleções nesse mesmo banco. Para não misturar com os outr
 ## Próximos passos (implementação no código)
 
 ### ✅ Já feito
-- App Web Coach'em registrado no projeto futeba.
+- App Web Treina+ registrado no projeto futeba.
 - `.env` configurado; login e registro funcionando.
 - Regras do Firestore com `users` e `coachem*` publicadas.
 
@@ -210,11 +210,11 @@ Cada etapa pode ser feita uma de cada vez: criar um serviço (ou funções) que 
 
 ## Sobre o projeto Coworking-app (C:\NativeReact\coworking-app)
 
-O **coworking-app** está em **`C:\NativeReact\coworking-app`** e já está conectado ao mesmo projeto Firebase (**futeba**). Para o Coach'em seguir o mesmo padrão:
+O **coworking-app** está em **`C:\NativeReact\coworking-app`** e já está conectado ao mesmo projeto Firebase (**futeba**). Para o Treina+ seguir o mesmo padrão:
 
-- No Firebase, cada app (Futeba, Coworking, Coach'em) tem seu próprio registro em **"Seus apps"**, com **appId** diferente.
+- No Firebase, cada app (Futeba, Coworking, Treina+) tem seu próprio registro em **"Seus apps"**, com **appId** diferente.
 - **projectId**, **apiKey**, **authDomain**, **storageBucket** e **messagingSenderId** são os mesmos (projeto único).
-- No Coworking-app, o `.env.example` usa as mesmas 6 variáveis `EXPO_PUBLIC_FIREBASE_*`. O **appId** do Coworking é o do app "CooPs" registrado no projeto. Para o Coach'em, use o **appId** do app que você registrar como "Coach'em" no passo 1.2.
+- No Coworking-app, o `.env.example` usa as mesmas 6 variáveis `EXPO_PUBLIC_FIREBASE_*`. O **appId** do Coworking é o do app "CooPs" registrado no projeto. Para o Treina+, use o **appId** do app que você registrar como "Treina+" no passo 1.2.
 
 **Firestore – prefixo por app:**  
-O Coworking usa o prefixo **`coops`** em todas as coleções (`coopsUsers`, `coopsRooms`, `coopsBookings`, etc.) para não misturar com Futeba. No Coach'em, o ideal é usar um prefixo próprio, por exemplo **`coachem`** (ex.: `coachemUsers`, `coachemExercises`, `coachemWorkoutTemplates`, `coachemAssignedWorkouts`). Assim os três apps coexistem no mesmo Firestore sem conflito.
+O Coworking usa o prefixo **`coops`** em todas as coleções (`coopsUsers`, `coopsRooms`, `coopsBookings`, etc.) para não misturar com Futeba. No Treina+, o ideal é usar um prefixo próprio, por exemplo **`coachem`** (ex.: `coachemUsers`, `coachemExercises`, `coachemWorkoutTemplates`, `coachemAssignedWorkouts`). Assim os três apps coexistem no mesmo Firestore sem conflito.

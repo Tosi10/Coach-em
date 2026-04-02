@@ -66,7 +66,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           ]}
         >
           <Text className="text-center text-xl font-bold mb-2" style={themeStyles.text}>
-            Bem-vindo ao Coach&apos;em
+            Bem-vindo ao Treina+
           </Text>
           <Text className="text-center text-xs mb-4" style={themeStyles.textSecondary}>
             Um tour rápido para você entender onde estão as coisas principais do app.

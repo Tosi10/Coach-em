@@ -5,7 +5,16 @@
  * Usado pela tela gate (index) para redirecionar e pelas telas (auth) para login/registro.
  */
 
-import { getCurrentUser, logout, signIn as authSignIn, SignInData, signUp as authSignUp, SignUpData } from '@/src/services/auth.service';
+import {
+  changePasswordAfterReauth,
+  deleteMyAccount,
+  getCurrentUser,
+  logout,
+  signIn as authSignIn,
+  SignInData,
+  signUp as authSignUp,
+  SignUpData,
+} from '@/src/services/auth.service';
 import { User, UserType } from '@/src/types';
 import { onAuthStateChanged } from 'firebase/auth';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
@@ -19,6 +28,8 @@ type AuthContextValue = {
   signIn: (data: SignInData) => Promise<User>;
   signUp: (data: SignUpData) => Promise<User>;
   signOut: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (currentPassword: string) => Promise<void>;
   /** Só em __DEV__: entra como treinador sem Firebase (para usar o app sem configurar o projeto). */
   signInDev?: () => void;
 };
@@ -98,6 +109,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    setError(null);
+    await changePasswordAfterReauth(currentPassword, newPassword);
+  }, []);
+
+  const deleteAccount = useCallback(async (currentPassword: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteMyAccount(currentPassword);
+      setUser(null);
+    } catch (e: any) {
+      setError(e?.message ?? 'Erro ao excluir conta');
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const signInDev = useCallback(() => {
     setError(null);
     const mockUser: User = {
@@ -119,6 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    changePassword,
+    deleteAccount,
     ...(__DEV__ ? { signInDev } : {}),
   };
 

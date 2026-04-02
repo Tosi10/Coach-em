@@ -1,4 +1,4 @@
-## Checklist de Testes Manuais – Coach'em
+## Checklist de Testes Manuais – Treina+
 
 Use este roteiro quando estiver com o aparelho físico. Marque cada item que testar.
 

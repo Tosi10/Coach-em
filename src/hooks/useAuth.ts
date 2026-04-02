@@ -16,6 +16,8 @@ export interface UseAuthReturn {
   signIn: (data: SignInData) => Promise<User>;
   signUp: (data: SignUpData) => Promise<User>;
   signOut: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (currentPassword: string) => Promise<void>;
   signInDev?: () => void;
 }
 
@@ -28,6 +30,8 @@ export function useAuth(): UseAuthReturn {
     signIn: ctx.signIn,
     signUp: ctx.signUp,
     signOut: ctx.signOut,
+    changePassword: ctx.changePassword,
+    deleteAccount: ctx.deleteAccount,
     signInDev: ctx.signInDev,
   };
 }

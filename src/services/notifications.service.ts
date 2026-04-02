@@ -1,77 +1,75 @@
 /**
- * Notifications Service - Notificações locais e push (expo-notifications)
- * Opção 3.1.1: Configurar biblioteca de notificações
+ * Notificações locais (expo-notifications).
+ * No Expo Go (SDK 53+), importar expo-notifications quebra o app — só carregamos em dev build / standalone.
  */
 
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
-/**
- * Configura como o app lida com notificações quando está em primeiro plano.
- * - showAlert: exibe o alerta nativo
- * - playSound: toca o som
- * - setBadge: atualiza o badge no ícone
- */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldAnimate: true,
-  }),
-});
+const isExpoGo = Constants.appOwnership === 'expo';
 
-/**
- * Solicita permissão para enviar notificações ao usuário.
- * @returns true se a permissão foi concedida
- */
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsMod: NotificationsModule | null = null;
+let handlerConfigured = false;
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (isExpoGo) return null;
+  if (!notificationsMod) {
+    notificationsMod = await import('expo-notifications');
+  }
+  return notificationsMod;
+}
+
+async function ensureHandler(): Promise<void> {
+  if (isExpoGo || handlerConfigured) return;
+  const N = await loadNotifications();
+  if (!N) return;
+  N.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldAnimate: true,
+    }),
+  });
+  handlerConfigured = true;
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
-  const { status: existing } = await Notifications.getPermissionsAsync();
+  const N = await loadNotifications();
+  if (!N) return false;
+  await ensureHandler();
+  const { status: existing } = await N.getPermissionsAsync();
   if (existing === 'granted') return true;
-
-  const { status } = await Notifications.requestPermissionsAsync();
+  const { status } = await N.requestPermissionsAsync();
   return status === 'granted';
 }
 
-/**
- * Configura o canal de notificações no Android (recomendado para Android 8+).
- * Chamar uma vez no início do app.
- */
 export async function setupNotificationChannel(): Promise<void> {
-  await Notifications.setNotificationChannelAsync('default', {
+  const N = await loadNotifications();
+  if (!N) return;
+  await ensureHandler();
+  await N.setNotificationChannelAsync('default', {
     name: 'Padrão',
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: N.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#fb923c',
   });
-
-  await Notifications.setNotificationChannelAsync('workouts', {
+  await N.setNotificationChannelAsync('workouts', {
     name: 'Treinos',
     description: 'Lembretes e notificações de treinos',
-    importance: Notifications.AndroidImportance.HIGH,
+    importance: N.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#fb923c',
   });
 }
 
-/**
- * Monta um Date a partir de data (YYYY-MM-DD) e horário (HH:mm).
- */
 function parseDateTime(dateStr: string, timeStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hours, minutes] = timeStr.split(':').map(Number);
   return new Date(year, month - 1, day, hours, minutes, 0, 0);
 }
 
-const triggerDate = (date: Date, channelId: string) => ({
-  type: Notifications.SchedulableTriggerInputTypes.DATE,
-  date,
-  channelId,
-});
-
-/**
- * Agenda apenas 1 lembrete para o TREINADOR: na hora do início do treino.
- * Assim o treinador não recebe 2 mensagens por aula.
- */
 export async function scheduleWorkoutRemindersForCoach(
   workoutId: string,
   dateStr: string,
@@ -80,19 +78,26 @@ export async function scheduleWorkoutRemindersForCoach(
   channelId: string = 'workouts'
 ): Promise<string[]> {
   const scheduledIds: string[] = [];
-  const workoutAt = parseDateTime(dateStr, timeStr);
+  const N = await loadNotifications();
+  if (!N) return scheduledIds;
+  await ensureHandler();
 
+  const workoutAt = parseDateTime(dateStr, timeStr);
   if (workoutAt.getTime() <= Date.now()) return scheduledIds;
 
   try {
-    const id = await Notifications.scheduleNotificationAsync({
+    const id = await N.scheduleNotificationAsync({
       content: {
         title: 'Início do treino',
         body: `"${workoutName}" começa agora (${timeStr}).`,
         sound: true,
         channelId,
       },
-      trigger: triggerDate(workoutAt, channelId),
+      trigger: {
+        type: N.SchedulableTriggerInputTypes.DATE,
+        date: workoutAt,
+        channelId,
+      },
     });
     if (id) scheduledIds.push(id);
   } catch (e) {
@@ -101,9 +106,6 @@ export async function scheduleWorkoutRemindersForCoach(
   return scheduledIds;
 }
 
-/**
- * Agenda 2 lembretes para o ATLETA: 30 min antes e na hora do treino.
- */
 export async function scheduleWorkoutRemindersForAthlete(
   workoutId: string,
   dateStr: string,
@@ -112,35 +114,44 @@ export async function scheduleWorkoutRemindersForAthlete(
   channelId: string = 'workouts'
 ): Promise<string[]> {
   const scheduledIds: string[] = [];
-  const workoutAt = parseDateTime(dateStr, timeStr);
+  const N = await loadNotifications();
+  if (!N) return scheduledIds;
+  await ensureHandler();
 
+  const workoutAt = parseDateTime(dateStr, timeStr);
   if (workoutAt.getTime() <= Date.now()) return scheduledIds;
 
   try {
-    // 1. 30 minutos antes
     const thirtyMinBefore = new Date(workoutAt.getTime() - 30 * 60 * 1000);
     if (thirtyMinBefore.getTime() > Date.now()) {
-      const id = await Notifications.scheduleNotificationAsync({
+      const id = await N.scheduleNotificationAsync({
         content: {
           title: 'Treino em 30 min 💪',
           body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
           sound: true,
           channelId,
         },
-        trigger: triggerDate(thirtyMinBefore, channelId),
+        trigger: {
+          type: N.SchedulableTriggerInputTypes.DATE,
+          date: thirtyMinBefore,
+          channelId,
+        },
       });
       if (id) scheduledIds.push(id);
     }
 
-    // 2. Na hora do treino
-    const id = await Notifications.scheduleNotificationAsync({
+    const id = await N.scheduleNotificationAsync({
       content: {
         title: 'Hora do treino! 💪',
         body: `"${workoutName}" – comece agora.`,
         sound: true,
         channelId,
       },
-      trigger: triggerDate(workoutAt, channelId),
+      trigger: {
+        type: N.SchedulableTriggerInputTypes.DATE,
+        date: workoutAt,
+        channelId,
+      },
     });
     if (id) scheduledIds.push(id);
   } catch (e) {

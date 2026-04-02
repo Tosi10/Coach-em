@@ -1,8 +1,7 @@
 /**
  * Aba Perfil – configurações e conta
  *
- * Treinador e atleta: dados do usuário, tema, logout.
- * Espaço para futuras opções (deletar conta, financeiro, etc.).
+ * Treinador e atleta: dados do usuário, tema, trocar senha, logout, excluir conta.
  */
 
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -14,14 +13,41 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+const INPUT_BORDER_WIDTH = 1;
+const inputBorderColor = (isDark: boolean) =>
+  isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, loading } = useAuthContext();
+  const { user, signOut, loading, changePassword, deleteAccount } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
+  const isDark = theme.mode === 'dark';
+  const fieldBorder = inputBorderColor(isDark);
+
   const [loggingOut, setLoggingOut] = useState(false);
+  const [changeModalOpen, setChangeModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [deletePwd, setDeletePwd] = useState('');
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -36,10 +62,85 @@ export default function ProfileScreen() {
     }
   };
 
+  const openChangeModal = () => {
+    setCurrentPwd('');
+    setNewPwd('');
+    setConfirmPwd('');
+    setChangeModalOpen(true);
+  };
+
+  const submitChangePassword = async () => {
+    if (!currentPwd || !newPwd) {
+      Alert.alert('Campos', 'Preencha senha atual e nova senha.');
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      Alert.alert('Senhas', 'A confirmação não coincide com a nova senha.');
+      return;
+    }
+    if (newPwd.length < 6) {
+      Alert.alert('Senha', 'A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      await changePassword(currentPwd, newPwd);
+      setChangeModalOpen(false);
+      Alert.alert('Senha alterada', 'Sua senha foi atualizada com sucesso.');
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message ?? 'Não foi possível alterar a senha.');
+    } finally {
+      setPwdBusy(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Excluir conta',
+      'Esta ação é permanente. Seus dados de perfil serão removidos. Treinos e histórico podem permanecer conforme as regras do app. Deseja continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => {
+            setDeletePwd('');
+            setDeleteModalOpen(true);
+          },
+        },
+      ]
+    );
+  };
+
+  const submitDeleteAccount = async () => {
+    if (!deletePwd.trim()) {
+      Alert.alert('Senha', 'Digite sua senha atual para confirmar a exclusão.');
+      return;
+    }
+    setDeleteBusy(true);
+    try {
+      await deleteAccount(deletePwd);
+      await AsyncStorage.multiRemove(['userType', 'currentAthleteId']);
+      setDeleteModalOpen(false);
+      router.replace('/(auth)/login');
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message ?? 'Não foi possível excluir a conta.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   const isCoach = user?.userType === UserType.COACH;
 
+  const inputStyle = {
+    backgroundColor: theme.colors.background,
+    borderWidth: INPUT_BORDER_WIDTH,
+    borderColor: fieldBorder,
+    color: theme.colors.text,
+  };
+
   return (
-    <ScrollView className="flex-1" style={themeStyles.bg}>
+    <ScrollView className="flex-1" style={themeStyles.bg} keyboardShouldPersistTaps="handled">
       <View className="px-6 pt-14 pb-20">
         <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
           Perfil
@@ -48,7 +149,6 @@ export default function ProfileScreen() {
           Configurações da sua conta
         </Text>
 
-        {/* Card: dados do usuário */}
         <View
           className="rounded-2xl p-5 mb-6 border"
           style={[themeStyles.card, { borderWidth: 1 }]}
@@ -75,7 +175,10 @@ export default function ProfileScreen() {
               <Text className="text-sm" style={themeStyles.textSecondary}>
                 {user?.email}
               </Text>
-              <View className="mt-1.5 self-start rounded-lg px-2.5 py-1" style={{ backgroundColor: theme.colors.primary + '20' }}>
+              <View
+                className="mt-1.5 self-start rounded-lg px-2.5 py-1"
+                style={{ backgroundColor: theme.colors.primary + '20' }}
+              >
                 <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
                   {isCoach ? 'Treinador' : 'Atleta'}
                 </Text>
@@ -84,7 +187,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Aparência */}
         <View className="mb-6">
           <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
             Aparência
@@ -94,14 +196,47 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Conta */}
+        <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+          Segurança
+        </Text>
+        <View
+          className="rounded-2xl border overflow-hidden mb-6"
+          style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+        >
+          <TouchableOpacity
+            className="flex-row items-center justify-between px-4 py-4 border-b"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderBottomColor: theme.colors.border,
+              borderBottomWidth: 1,
+            }}
+            onPress={openChangeModal}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <FontAwesome name="lock" size={20} color={theme.colors.primary} style={{ marginRight: 12 }} />
+              <Text className="font-semibold" style={themeStyles.text}>
+                Alterar senha
+              </Text>
+            </View>
+            <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
         <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
           Conta
         </Text>
-        <View className="rounded-2xl border overflow-hidden" style={{ borderColor: theme.colors.border, borderWidth: 1 }}>
+        <View
+          className="rounded-2xl border overflow-hidden"
+          style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+        >
           <TouchableOpacity
             className="flex-row items-center justify-between px-4 py-4 border-b"
-            style={{ backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}
+            style={{
+              backgroundColor: theme.colors.card,
+              borderBottomColor: theme.colors.border,
+              borderBottomWidth: 1,
+            }}
             onPress={handleLogout}
             disabled={loading || loggingOut}
             activeOpacity={0.7}
@@ -112,39 +247,167 @@ export default function ProfileScreen() {
                 Sair da conta
               </Text>
             </View>
-            {(loading || loggingOut) ? (
+            {loading || loggingOut ? (
               <ActivityIndicator size="small" color={theme.colors.error} />
             ) : (
               <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
             )}
           </TouchableOpacity>
 
-          {/* Deletar conta – placeholder para depois */}
           <TouchableOpacity
             className="flex-row items-center justify-between px-4 py-4"
             style={{ backgroundColor: theme.colors.card }}
-            disabled
+            onPress={confirmDeleteAccount}
             activeOpacity={0.7}
           >
             <View className="flex-row items-center">
-              <FontAwesome name="trash-o" size={20} color={theme.colors.textTertiary} style={{ marginRight: 12 }} />
-              <Text className="font-medium" style={themeStyles.textTertiary}>
-                Deletar conta
+              <FontAwesome name="trash-o" size={20} color={theme.colors.error} style={{ marginRight: 12 }} />
+              <Text className="font-semibold" style={{ color: theme.colors.error }}>
+                Excluir conta
               </Text>
             </View>
-            <Text className="text-xs" style={themeStyles.textTertiary}>
-              Em breve
-            </Text>
+            <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
-        {/* Espaço para futuro: financeiro, notificações, etc. */}
         <View className="mt-8 rounded-xl py-3 px-4" style={{ backgroundColor: theme.colors.backgroundSecondary }}>
           <Text className="text-xs text-center" style={themeStyles.textTertiary}>
-            Em breve: mais opções de configuração e preferências.
+            Esqueceu a senha? Use &quot;Esqueci minha senha&quot; na tela de login para receber o link por email.
           </Text>
         </View>
       </View>
+
+      <Modal visible={changeModalOpen} animationType="slide" transparent onRequestClose={() => setChangeModalOpen(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+        >
+          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setChangeModalOpen(false)} />
+          <View
+            className="rounded-t-3xl px-5 pt-6 pb-10"
+            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+          >
+            <Text className="text-lg font-semibold mb-4" style={themeStyles.text}>
+              Alterar senha
+            </Text>
+            <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
+              Senha atual
+            </Text>
+            <TextInput
+              className="w-full rounded-xl px-4 py-3 mb-3 text-base"
+              style={inputStyle}
+              secureTextEntry
+              value={currentPwd}
+              onChangeText={setCurrentPwd}
+              placeholder="••••••••"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
+              Nova senha
+            </Text>
+            <TextInput
+              className="w-full rounded-xl px-4 py-3 mb-3 text-base"
+              style={inputStyle}
+              secureTextEntry
+              value={newPwd}
+              onChangeText={setNewPwd}
+              placeholder="Mínimo 6 caracteres"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
+              Confirmar nova senha
+            </Text>
+            <TextInput
+              className="w-full rounded-xl px-4 py-3 mb-5 text-base"
+              style={inputStyle}
+              secureTextEntry
+              value={confirmPwd}
+              onChangeText={setConfirmPwd}
+              placeholder="Repita a nova senha"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center border"
+                style={{ borderColor: theme.colors.border }}
+                onPress={() => setChangeModalOpen(false)}
+                disabled={pwdBusy}
+              >
+                <Text className="font-semibold" style={themeStyles.text}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: theme.colors.primary }}
+                onPress={submitChangePassword}
+                disabled={pwdBusy}
+              >
+                {pwdBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="font-semibold text-white">Salvar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={deleteModalOpen} animationType="slide" transparent onRequestClose={() => setDeleteModalOpen(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+        >
+          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setDeleteModalOpen(false)} />
+          <View
+            className="rounded-t-3xl px-5 pt-6 pb-10"
+            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+          >
+            <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.error }}>
+              Excluir conta
+            </Text>
+            <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
+              Digite sua senha atual para confirmar. Sua conta de autenticação e seu perfil serão removidos.
+            </Text>
+            <TextInput
+              className="w-full rounded-xl px-4 py-3 mb-5 text-base"
+              style={inputStyle}
+              secureTextEntry
+              value={deletePwd}
+              onChangeText={setDeletePwd}
+              placeholder="Senha atual"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center border"
+                style={{ borderColor: theme.colors.border }}
+                onPress={() => setDeleteModalOpen(false)}
+                disabled={deleteBusy}
+              >
+                <Text className="font-semibold" style={themeStyles.text}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: theme.colors.error }}
+                onPress={submitDeleteAccount}
+                disabled={deleteBusy}
+              >
+                {deleteBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="font-semibold text-white">Excluir</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
