@@ -27,28 +27,29 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const CRITICAL_IMAGE_ASSETS = [
-  require('../assets/images/HouseLaranja.png'),
-  require('../assets/images/HouseCinza.png'),
-  require('../assets/images/TreinoLaranja.png'),
-  require('../assets/images/TreinoCinza.png'),
-  require('../assets/images/PerfilLaranja.png'),
-  require('../assets/images/PerfilCinza.png'),
-  require('../assets/images/AtletasLaranja.png'),
-  require('../assets/images/AtletasCinza.png'),
-  require('../assets/images/treinaLogo2.png'),
-  require('../assets/images/PanoramaSemanal.png'),
-  require('../assets/images/AtivosHoje.png'),
-  require('../assets/images/IconeWorkoutComplete.png'),
-  require('../assets/images/Pendentes.png'),
-  require('../assets/images/BibliotecaDeExercicios.png'),
-  require('../assets/images/MeusTreinos1.png'),
-  require('../assets/images/IconeTaxadeaderencia.png'),
-  require('../assets/images/iconetreinosmaisdificeis.png'),
-  require('../assets/images/atletasmaisativos.png'),
-  require('../assets/images/IconeEstaSemanaAtleta.png'),
-  require('../assets/images/Sequencia.png'),
-  require('../assets/images/Coracao.png'),
+/** Nome do ficheiro + módulo — usado no preload e no log de falhas. */
+const CRITICAL_IMAGES: { name: string; asset: number }[] = [
+  { name: 'HouseLaranja.png', asset: require('../assets/images/HouseLaranja.png') },
+  { name: 'HouseCinza.png', asset: require('../assets/images/HouseCinza.png') },
+  { name: 'TreinoLaranja.png', asset: require('../assets/images/TreinoLaranja.png') },
+  { name: 'TreinoCinza.png', asset: require('../assets/images/TreinoCinza.png') },
+  { name: 'PerfilLaranja.png', asset: require('../assets/images/PerfilLaranja.png') },
+  { name: 'PerfilCinza.png', asset: require('../assets/images/PerfilCinza.png') },
+  { name: 'AtletasLaranja.png', asset: require('../assets/images/AtletasLaranja.png') },
+  { name: 'AtletasCinza.png', asset: require('../assets/images/AtletasCinza.png') },
+  { name: 'treinaLogo2.png', asset: require('../assets/images/treinaLogo2.png') },
+  { name: 'PanoramaSemanal.png', asset: require('../assets/images/PanoramaSemanal.png') },
+  { name: 'AtivosHoje.png', asset: require('../assets/images/AtivosHoje.png') },
+  { name: 'IconeWorkoutComplete.png', asset: require('../assets/images/IconeWorkoutComplete.png') },
+  { name: 'Pendentes.png', asset: require('../assets/images/Pendentes.png') },
+  { name: 'BibliotecaDeExercicios.png', asset: require('../assets/images/BibliotecaDeExercicios.png') },
+  { name: 'MeusTreinos1.png', asset: require('../assets/images/MeusTreinos1.png') },
+  { name: 'IconeTaxadeaderencia.png', asset: require('../assets/images/IconeTaxadeaderencia.png') },
+  { name: 'iconetreinosmaisdificeis.png', asset: require('../assets/images/iconetreinosmaisdificeis.png') },
+  { name: 'atletasmaisativos.png', asset: require('../assets/images/atletasmaisativos.png') },
+  { name: 'IconeEstaSemanaAtleta.png', asset: require('../assets/images/IconeEstaSemanaAtleta.png') },
+  { name: 'Sequencia.png', asset: require('../assets/images/Sequencia.png') },
+  { name: 'Coracao.png', asset: require('../assets/images/Coracao.png') },
 ];
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -75,14 +76,31 @@ export default function RootLayout() {
     const preloadCriticalAssets = async () => {
       if (!loaded) return;
       try {
-        // Um asset que falhar (ex.: Metro em IP na rede no Android) não deve derrubar o lote inteiro.
-        const results = await Promise.allSettled(
-          CRITICAL_IMAGE_ASSETS.map((mod) => Asset.loadAsync(mod))
-        );
-        const failed = results.filter((r) => r.status === 'rejected');
-        if (failed.length > 0) {
+        // Sequencial + 1 retry: em dev o Metro serve por HTTP; 21 pedidos em paralelo saturava e falhava
+        // na maior parte das imagens. Um a um replica melhor o comportamento estável do lote único.
+        const failedNames: string[] = [];
+        const loadWithRetry = async (asset: number): Promise<boolean> => {
+          try {
+            await Asset.loadAsync(asset);
+            return true;
+          } catch {
+            await new Promise<void>((r) => setTimeout(r, 120));
+            try {
+              await Asset.loadAsync(asset);
+              return true;
+            } catch {
+              return false;
+            }
+          }
+        };
+        for (const { name, asset } of CRITICAL_IMAGES) {
+          if (cancelled) break;
+          const ok = await loadWithRetry(asset);
+          if (!ok) failedNames.push(name);
+        }
+        if (failedNames.length > 0) {
           console.warn(
-            `Pré-carregamento: ${failed.length}/${CRITICAL_IMAGE_ASSETS.length} imagem(ns) falharam (o app ainda carrega via require nas telas).`
+            `Pré-carregamento: ${failedNames.length}/${CRITICAL_IMAGES.length} falharam após retry: ${failedNames.join(', ')}`
           );
         }
       } catch (assetError) {

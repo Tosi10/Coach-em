@@ -6,27 +6,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyD6rghGXVvXvtwQkkfidOvlKyHzaMr6pEw",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "futeba-96395.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "futeba-96395",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "futeba-96395.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "470404253728",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:470404253728:web:09df90634f992dedb4d445"
-      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyD6rghGXVvXvtwQkkfidOvlKyHzaMr6pEw",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "futeba-96395.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "futeba-96395",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "futeba-96395.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "470404253728",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:470404253728:web:09df90634f992dedb4d445"
-      },
       "android": {
         "buildType": "apk"
       }

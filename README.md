@@ -49,7 +49,11 @@ npx expo start
 
 ### Variáveis de ambiente
 
-Criar `.env` na raiz com as chaves `EXPO_PUBLIC_FIREBASE_*` (ver `src/services/firebase.config.ts`).
+**Local:** criar `.env` na raiz com as chaves `EXPO_PUBLIC_FIREBASE_*` (ver `src/services/firebase.config.ts`). O `.env` **não** vai para o Git.
+
+**EAS Build (obrigatório para `eas build`):** as mesmas variáveis devem estar no **Expo Dashboard** do projeto → **Environment variables** (ou `eas env:create`), para os ambientes **preview** / **production**. **Não** coloque chaves Firebase dentro de `eas.json` no repositório — o GitHub alerta e o histórico público fica exposto.
+
+Se uma chave já foi commitada: no [Google Cloud Console](https://console.cloud.google.com/) → APIs e serviços → Credenciais → restrinja a API key (ex.: só APIs do Firebase, ou apps Android com pacote + SHA-256) ou crie outra chave e atualize o Firebase + variáveis no Expo.
 
 ---
 
