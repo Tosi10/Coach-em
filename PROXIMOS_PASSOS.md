@@ -1,5 +1,34 @@
 # 🚀 Próximos Passos - Treina+
 
+## 📝 Log de trabalho — 2026-04-03
+
+Resumo do que foi feito nesta sessão (código + UX):
+
+- **Assets `*2.png`:** cópia e uso dos ícones faltantes (`IconeWorkoutComplete2`, `iconetreinosmaisdificeis2`, `IconeTrabalhoPrincipal2`, `IconeAquecimento2`, `IconeFinalizacao2`) e referências alinhadas em `_layout`, `index`, `workout-details`.
+- **Dashboard (treinador):** remoção dos círculos nos cards do Panorama Semanal; ajuste de tamanho dos ícones (Biblioteca / Meus Treinos / cards); tab bar — gaps ícone↔texto e tamanhos por aba (Home +5%, Atletas −5%).
+- **Agenda (`coach-calendar`):** feedback emoji reposicionado entre dados e seta; tamanho e centralização no espaço entre texto e chevron.
+- **Perfil:** foto de perfil com upload (Storage + Firestore + espelho em `coachemAthletes`); fallback atleta igual treinador (ícone user); treinador vê foto nas listas e perfil do atleta.
+- **Firebase Storage:** regra documentada para pasta `profilePhotos/{userId}/...` (substituir/colar no console).
+
+---
+
+## 🔔 Próxima prioridade sugerida: notificações (push + locais)
+
+**Decisão de produto:** não haverá chat; haverá **avisos/alertas** para atletas e treinadores.
+
+| Quem | Quando | O quê (alvo) |
+|------|--------|----------------|
+| **Atleta** | 30 min antes do horário do treino | Lembrete do treino |
+| **Atleta** | No horário do treino | Lembrete “na hora” |
+| **Treinador** | No horário do treino | Lembrete/alerta do treino |
+| **Treinador** | Quando o atleta **concluir** o treino | Aviso (ex.: “X concluiu o treino Y”) |
+
+**Nota técnica:** Lembretes agendados no aparelho (**notificações locais**) já são viáveis com `expo-notifications` (o projeto tem base em `notifications.service.ts`). O aviso ao treinador **no momento em que o atleta conclui** exige **mensagem remota** (FCM + backend ou Cloud Function disparando push), porque o app do treinador pode estar fechado — não dá para resolver só com agendamento local no celular do atleta.
+
+Experiência em outro app (ex.: Eletronovo) com Expo + FCM ajuda; ainda assim é preciso: credenciais EAS, chaves FCM/APNs, e fluxo servidor para o evento “treino concluído”.
+
+---
+
 ## 📊 Estado Atual do Projeto
 
 ### ✅ O que já está funcionando:

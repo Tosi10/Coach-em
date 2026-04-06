@@ -11,6 +11,7 @@ import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -33,7 +34,7 @@ const inputBorderColor = (isDark: boolean) =>
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, loading, changePassword, deleteAccount } = useAuthContext();
+  const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const isDark = theme.mode === 'dark';
@@ -48,6 +49,37 @@ export default function ProfileScreen() {
   const [deletePwd, setDeletePwd] = useState('');
   const [pwdBusy, setPwdBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  const pickProfilePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permissão',
+        'Precisamos acessar a galeria para você escolher a foto de perfil.'
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    setPhotoUploading(true);
+    try {
+      await updateProfilePhoto(result.assets[0].uri);
+    } catch (e: any) {
+      Alert.alert(
+        'Foto de perfil',
+        e?.message ??
+          'Não foi possível enviar a foto. Confira o Firebase Storage e as regras de segurança.'
+      );
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -154,20 +186,37 @@ export default function ProfileScreen() {
           style={[themeStyles.card, { borderWidth: 1 }]}
         >
           <View className="flex-row items-center mb-4">
-            <View
-              className="w-14 h-14 rounded-full items-center justify-center"
-              style={{ backgroundColor: theme.colors.primary + '25' }}
+            <TouchableOpacity
+              onPress={pickProfilePhoto}
+              disabled={photoUploading}
+              activeOpacity={0.8}
+              className="relative"
             >
-              {isCoach ? (
-                <FontAwesome name="user" size={26} color={theme.colors.primary} />
-              ) : (
-                <Image
-                  source={require('../../assets/images/Coracao.png')}
-                  style={{ width: 38, height: 38 }}
-                  resizeMode="contain"
-                />
-              )}
-            </View>
+              <View
+                className="w-14 h-14 rounded-full items-center justify-center overflow-hidden"
+                style={{ backgroundColor: theme.colors.primary + '25' }}
+              >
+                {user?.photoURL ? (
+                  <Image
+                    source={{ uri: user.photoURL }}
+                    style={{ width: 56, height: 56 }}
+                    resizeMode="cover"
+                  />
+                ) : isCoach ? (
+                  <FontAwesome name="user" size={26} color={theme.colors.primary} />
+                ) : (
+                  <FontAwesome name="user" size={26} color={theme.colors.primary} />
+                )}
+                {photoUploading && (
+                  <View
+                    className="absolute inset-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                  >
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
             <View className="ml-4 flex-1">
               <Text className="text-lg font-semibold" style={themeStyles.text}>
                 {user?.displayName ?? 'Usuário'}
@@ -185,6 +234,9 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+          <Text className="text-xs" style={themeStyles.textSecondary}>
+            Toque na foto para escolher uma imagem da galeria.
+          </Text>
         </View>
 
         <View className="mb-6">

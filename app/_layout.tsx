@@ -29,26 +29,26 @@ export const unstable_settings = {
 
 /** Nome do ficheiro + módulo — usado no preload e no log de falhas. */
 const CRITICAL_IMAGES: { name: string; asset: number }[] = [
-  { name: 'HouseLaranja.png', asset: require('../assets/images/HouseLaranja.png') },
-  { name: 'HouseCinza.png', asset: require('../assets/images/HouseCinza.png') },
-  { name: 'TreinoLaranja.png', asset: require('../assets/images/TreinoLaranja.png') },
-  { name: 'TreinoCinza.png', asset: require('../assets/images/TreinoCinza.png') },
-  { name: 'PerfilLaranja.png', asset: require('../assets/images/PerfilLaranja.png') },
-  { name: 'PerfilCinza.png', asset: require('../assets/images/PerfilCinza.png') },
-  { name: 'AtletasLaranja.png', asset: require('../assets/images/AtletasLaranja.png') },
-  { name: 'AtletasCinza.png', asset: require('../assets/images/AtletasCinza.png') },
+  { name: 'HouseLaranja2.png', asset: require('../assets/images/HouseLaranja2.png') },
+  { name: 'HouseCinza2.png', asset: require('../assets/images/HouseCinza2.png') },
+  { name: 'TreinoLaranja2.png', asset: require('../assets/images/TreinoLaranja2.png') },
+  { name: 'TreinoCinza2.png', asset: require('../assets/images/TreinoCinza2.png') },
+  { name: 'PerfilLaranja2.png', asset: require('../assets/images/PerfilLaranja2.png') },
+  { name: 'PerfilCinza2.png', asset: require('../assets/images/PerfilCinza2.png') },
+  { name: 'AtletasLaranja2.png', asset: require('../assets/images/AtletasLaranja2.png') },
+  { name: 'AtletasCinza2.png', asset: require('../assets/images/AtletasCinza2.png') },
   { name: 'treinaLogo2.png', asset: require('../assets/images/treinaLogo2.png') },
-  { name: 'PanoramaSemanal.png', asset: require('../assets/images/PanoramaSemanal.png') },
-  { name: 'AtivosHoje.png', asset: require('../assets/images/AtivosHoje.png') },
-  { name: 'IconeWorkoutComplete.png', asset: require('../assets/images/IconeWorkoutComplete.png') },
-  { name: 'Pendentes.png', asset: require('../assets/images/Pendentes.png') },
-  { name: 'BibliotecaDeExercicios.png', asset: require('../assets/images/BibliotecaDeExercicios.png') },
-  { name: 'MeusTreinos1.png', asset: require('../assets/images/MeusTreinos1.png') },
-  { name: 'IconeTaxadeaderencia.png', asset: require('../assets/images/IconeTaxadeaderencia.png') },
-  { name: 'iconetreinosmaisdificeis.png', asset: require('../assets/images/iconetreinosmaisdificeis.png') },
-  { name: 'atletasmaisativos.png', asset: require('../assets/images/atletasmaisativos.png') },
-  { name: 'IconeEstaSemanaAtleta.png', asset: require('../assets/images/IconeEstaSemanaAtleta.png') },
-  { name: 'Sequencia.png', asset: require('../assets/images/Sequencia.png') },
+  { name: 'PanoramaSemanal2.png', asset: require('../assets/images/PanoramaSemanal2.png') },
+  { name: 'AtivosHoje2.png', asset: require('../assets/images/AtivosHoje2.png') },
+  { name: 'IconeWorkoutComplete2.png', asset: require('../assets/images/IconeWorkoutComplete2.png') },
+  { name: 'Pendentes2.png', asset: require('../assets/images/Pendentes2.png') },
+  { name: 'BibliotecaDeExercicios2.png', asset: require('../assets/images/BibliotecaDeExercicios2.png') },
+  { name: 'MeusTreinos2.png', asset: require('../assets/images/MeusTreinos2.png') },
+  { name: 'IconeTaxadeaderencia2.png', asset: require('../assets/images/IconeTaxadeaderencia2.png') },
+  { name: 'iconetreinosmaisdificeis2.png', asset: require('../assets/images/iconetreinosmaisdificeis2.png') },
+  { name: 'atletasmaisativos2.png', asset: require('../assets/images/atletasmaisativos2.png') },
+  { name: 'IconeEstaSemanaAtleta2.png', asset: require('../assets/images/IconeEstaSemanaAtleta2.png') },
+  { name: 'Sequencia2.png', asset: require('../assets/images/Sequencia2.png') },
   { name: 'Coracao.png', asset: require('../assets/images/Coracao.png') },
 ];
 
@@ -322,3 +322,4 @@ function RootLayoutNav() {
     </SafeAreaProvider>
   );
 }
+

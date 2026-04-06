@@ -157,6 +157,7 @@ export default function CoachCalendarScreen() {
           dayWorkouts.map((w: any) => {
             const isCompleted = w.status === 'Concluído';
             const feedbackIconSrc = getFeedbackIconSource(w.feedback, w.feedbackEmoji);
+            const feedbackIconSize = 90;
             return (
               <TouchableOpacity
                 key={w.id}
@@ -168,36 +169,57 @@ export default function CoachCalendarScreen() {
                 onPress={() => router.push({ pathname: '/workout-details', params: { workoutId: w.id } })}
                 activeOpacity={0.7}
               >
-                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: theme.colors.primary + '30' }}>
-                  <FontAwesome name="trophy" size={18} color={theme.colors.primary} />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-semibold" style={themeStyles.text}>
-                    {w.name}
-                  </Text>
-                  <Text className="text-sm" style={themeStyles.textSecondary}>
-                    {getAthleteName(w.athleteId)}
-                    {w.scheduledTime ? ` • ${w.scheduledTime}` : ''}
-                  </Text>
-                  <View className="flex-row items-center gap-2 mt-1.5">
-                    <View
-                      className="px-2 py-0.5 rounded-full self-start"
-                      style={{
-                        backgroundColor: isCompleted ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)') : (theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.15)'),
-                        borderWidth: 1,
-                        borderColor: isCompleted ? '#10b98150' : '#f59e0b50',
-                      }}
-                    >
-                      <Text className="text-xs font-semibold" style={{ color: isCompleted ? '#10b981' : '#f59e0b' }}>
-                        {isCompleted ? 'Concluído' : 'Pendente'}
-                      </Text>
+                <View
+                  className="flex-row flex-shrink min-w-0"
+                  style={{ alignItems: 'flex-start', marginRight: 8, maxWidth: '48%' }}
+                >
+                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: theme.colors.primary + '30' }}>
+                    <FontAwesome name="trophy" size={18} color={theme.colors.primary} />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-semibold" style={themeStyles.text} numberOfLines={2}>
+                      {w.name}
+                    </Text>
+                    <Text className="text-sm" style={themeStyles.textSecondary} numberOfLines={2}>
+                      {getAthleteName(w.athleteId)}
+                      {w.scheduledTime ? ` • ${w.scheduledTime}` : ''}
+                    </Text>
+                    <View className="flex-row items-center gap-2 mt-1.5">
+                      <View
+                        className="px-2 py-0.5 rounded-full self-start"
+                        style={{
+                          backgroundColor: isCompleted ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)') : (theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.15)'),
+                          borderWidth: 1,
+                          borderColor: isCompleted ? '#10b98150' : '#f59e0b50',
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: isCompleted ? '#10b981' : '#f59e0b' }}>
+                          {isCompleted ? 'Concluído' : 'Pendente'}
+                        </Text>
+                      </View>
                     </View>
-                    {isCompleted && feedbackIconSrc && (
-                      <Image source={feedbackIconSrc} style={{ width: 22, height: 22 }} resizeMode="contain" />
-                    )}
                   </View>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+                {isCompleted && feedbackIconSrc ? (
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: feedbackIconSize,
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <Image
+                      source={feedbackIconSrc}
+                      style={{ width: feedbackIconSize, height: feedbackIconSize }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : (
+                  <View style={{ flex: 1 }} />
+                )}
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             );
           })

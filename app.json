@@ -4,18 +4,18 @@
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/IconeTreina2.png",
+    "icon": "./assets/images/TreinaLogo2.1.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/treinaLogo2.png",
+      "image": "./assets/images/TreinaLogo2.1.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
     "ios": {
       "bundleIdentifier": "com.vision10.coachem",
-      "buildNumber": "1.0.1",
+      "buildNumber": "1.0.2",
       "supportsTablet": true,
       "splash": {
         "backgroundColor": "#0a0a0a"
@@ -32,7 +32,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconeTreina2.png",
+        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -48,7 +48,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/IconeTreina2.png"
+      "favicon": "./assets/images/TreinaLogo2.1.png"
     },
     "plugins": [
       "expo-router",
@@ -63,7 +63,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0a0a",
-          "image": "./assets/images/treinaLogo2.png",
+          "image": "./assets/images/TreinaLogo2.1.png",
           "imageWidth": 280,
           "resizeMode": "contain"
         }

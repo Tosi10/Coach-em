@@ -16,10 +16,10 @@ const TAB_ICON_PROFILE = Math.round(TAB_ICON_BASE * 1.05 * 1.41 * 0.9);
 const TAB_LABEL_BASE = 10;
 const TAB_LABEL_MAIN = Math.round(TAB_LABEL_BASE * 1.15);
 const TAB_LABEL_PROFILE = Math.round(TAB_LABEL_BASE * 1.05);
-/** Espaço ícone→texto (marginTop no label): PNGs têm “silhuetas” diferentes; afinar por aba. */
-const TAB_LABEL_GAP_HOME = -8;
-const TAB_LABEL_GAP_MIDDLE = -10;
-const TAB_LABEL_GAP_PROFILE = -6;
+/** Espaço ícone→texto (marginTop no label): mais negativo = texto mais próximo do ícone. */
+const TAB_LABEL_GAP_HOME = -17;
+const TAB_LABEL_GAP_MIDDLE = -18;
+const TAB_LABEL_GAP_PROFILE = -11;
 
 /**
  * PNGs laranja (ativo) + cinza (inativo).
@@ -95,14 +95,14 @@ export default function TabLayout() {
 
   const secondTabTitle = userType === UserType.ATHLETE ? 'Treinos' : 'Atletas';
 
-  const homeActive = require('../../assets/images/HouseLaranja.png');
-  const homeInactive = require('../../assets/images/HouseCinza.png');
-  const treinoActive = require('../../assets/images/TreinoLaranja.png');
-  const treinoInactive = require('../../assets/images/TreinoCinza.png');
-  const perfilActive = require('../../assets/images/PerfilLaranja.png');
-  const perfilInactive = require('../../assets/images/PerfilCinza.png');
-  const atletasActive = require('../../assets/images/AtletasLaranja.png');
-  const atletasInactive = require('../../assets/images/AtletasCinza.png');
+  const homeActive = require('../../assets/images/HouseLaranja2.png');
+  const homeInactive = require('../../assets/images/HouseCinza2.png');
+  const treinoActive = require('../../assets/images/TreinoLaranja2.png');
+  const treinoInactive = require('../../assets/images/TreinoCinza2.png');
+  const perfilActive = require('../../assets/images/PerfilLaranja2.png');
+  const perfilInactive = require('../../assets/images/PerfilCinza2.png');
+  const atletasActive = require('../../assets/images/AtletasLaranja2.png');
+  const atletasInactive = require('../../assets/images/AtletasCinza2.png');
 
   return (
     <Tabs
@@ -151,7 +151,12 @@ export default function TabLayout() {
             marginTop: TAB_LABEL_GAP_HOME,
           },
           tabBarIcon: ({ focused }) => (
-            <TabBarPngIcon focused={focused} active={homeActive} inactive={homeInactive} />
+            <TabBarPngIcon
+              focused={focused}
+              active={homeActive}
+              inactive={homeInactive}
+              size={Math.round(TAB_ICON_MAIN * 1.05)}
+            />
           ),
           headerShown: false,
         }}
@@ -166,7 +171,12 @@ export default function TabLayout() {
           },
           tabBarIcon: ({ focused }) =>
             userType === UserType.COACH ? (
-              <TabBarPngIcon focused={focused} active={atletasActive} inactive={atletasInactive} />
+              <TabBarPngIcon
+                focused={focused}
+                active={atletasActive}
+                inactive={atletasInactive}
+                size={Math.round(TAB_ICON_MAIN * 0.97)}
+              />
             ) : (
               <TabBarPngIcon focused={focused} active={treinoActive} inactive={treinoInactive} />
             ),

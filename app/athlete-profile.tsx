@@ -74,6 +74,28 @@ export default function AthleteProfileScreen() {
       setAlertVisible(true);
   };
 
+  const loadAthleteFromFirestore = useCallback(async () => {
+    if (!athleteIdString) return;
+    try {
+      const { getAthleteById } = await import('@/src/services/athletes.service');
+      const a = await getAthleteById(athleteIdString);
+      setAthlete({
+        id: athleteIdString,
+        name: a?.name ?? `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
+        sport: a?.sport ?? '-',
+        status: a?.status ?? 'Ativo',
+        photoURL: a?.photoURL,
+      });
+    } catch {
+      setAthlete({
+        id: athleteIdString,
+        name: `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
+        sport: '-',
+        status: 'Ativo',
+      });
+    }
+  }, [athleteIdString]);
+
   const loadAthleteWorkouts = useCallback(async () => {
     try {
       if (!athleteIdString) {
@@ -97,35 +119,17 @@ export default function AthleteProfileScreen() {
 
   useEffect(() => {
     if (!athleteIdString) return;
-    const load = async () => {
-      try {
-        const { getAthleteById } = await import('@/src/services/athletes.service');
-        const a = await getAthleteById(athleteIdString);
-        setAthlete({
-          id: athleteIdString,
-          name: a?.name ?? `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
-          sport: a?.sport ?? '-',
-          status: a?.status ?? 'Ativo',
-        });
-      } catch {
-        setAthlete({
-          id: athleteIdString,
-          name: `Atleta ${athleteIdString.length > 8 ? athleteIdString.slice(-8) : athleteIdString}`,
-          sport: '-',
-          status: 'Ativo',
-        });
-      }
-    };
-    load();
+    loadAthleteFromFirestore();
     loadAthleteWorkouts();
     loadWeightHistory();
-  }, [athleteIdString, loadAthleteWorkouts]);
+  }, [athleteIdString, loadAthleteWorkouts, loadAthleteFromFirestore]);
 
-  // Recarregar treinos ao voltar da tela de editar treino atribuído
+  // Recarregar treinos e dados do atleta (ex.: foto de perfil) ao voltar a esta tela
   useFocusEffect(
     useCallback(() => {
+      loadAthleteFromFirestore();
       loadAthleteWorkouts();
-    }, [loadAthleteWorkouts])
+    }, [loadAthleteFromFirestore, loadAthleteWorkouts])
   );
 
   // Carregar histórico de peso do atleta
@@ -259,16 +263,20 @@ export default function AthleteProfileScreen() {
 
         {/* Seção de perfil do atleta */}
         <View className="flex-row items-center mb-6">
-          {/* Avatar placeholder */}
-          <View className="w-20 h-20 rounded-full border-2 items-center justify-center mr-4"
+          <View
+            className="w-20 h-20 rounded-full border-2 mr-4 overflow-hidden items-center justify-center"
             style={{
               backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
               borderColor: theme.colors.primary + '50',
             }}
           >
-            <Text className="font-bold text-2xl" style={{ color: theme.colors.primary }}>
-              {athlete.name.charAt(0)}
-            </Text>
+            {athlete.photoURL ? (
+              <Image source={{ uri: athlete.photoURL }} style={{ width: 80, height: 80 }} resizeMode="cover" />
+            ) : (
+              <Text className="font-bold text-2xl" style={{ color: theme.colors.primary }}>
+                {athlete.name.charAt(0)}
+              </Text>
+            )}
           </View>
 
           <View className="flex-1">

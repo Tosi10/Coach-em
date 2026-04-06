@@ -15,6 +15,7 @@ import {
   signUp as authSignUp,
   SignUpData,
 } from '@/src/services/auth.service';
+import { uploadProfilePhoto as uploadProfilePhotoToStorage } from '@/src/services/profilePhoto.service';
 import { User, UserType } from '@/src/types';
 import { onAuthStateChanged } from 'firebase/auth';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
@@ -30,6 +31,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (currentPassword: string) => Promise<void>;
+  /** Envia imagem da galeria para Storage e atualiza Firestore + Auth. */
+  updateProfilePhoto: (localUri: string) => Promise<void>;
   /** Só em __DEV__: entra como treinador sem Firebase (para usar o app sem configurar o projeto). */
   signInDev?: () => void;
 };
@@ -114,6 +117,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await changePasswordAfterReauth(currentPassword, newPassword);
   }, []);
 
+  const updateProfilePhoto = useCallback(async (localUri: string) => {
+    setError(null);
+    await uploadProfilePhotoToStorage(localUri);
+    const u = await getCurrentUser();
+    if (u) setUser(u);
+  }, []);
+
   const deleteAccount = useCallback(async (currentPassword: string) => {
     setLoading(true);
     setError(null);
@@ -151,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     changePassword,
     deleteAccount,
+    updateProfilePhoto,
     ...(__DEV__ ? { signInDev } : {}),
   };
 

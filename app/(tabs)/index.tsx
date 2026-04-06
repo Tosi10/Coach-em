@@ -20,7 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 
 function formatWeekLabel(weekStart: Date): string {
@@ -36,6 +36,37 @@ function formatWeekLabel(weekStart: Date): string {
   return `${startDay}/${startMonth} - ${endDay}/${endMonth}`;
 }
 
+/** Largura útil do gráfico dentro do ScrollView (px-6+px-2) + card (p-3/p-4). */
+function chartAreaWidth(screenWidth: number) {
+  return Math.max(240, screenWidth - 96);
+}
+
+function computeBarChartLayout(n: number, chartWidth: number) {
+  const yAxisReserve = 42;
+  const inner = Math.max(100, chartWidth - yAxisReserve);
+  if (n <= 0) return { width: chartWidth, barWidth: 20, spacing: 8 };
+  let spacing = n >= 12 ? 4 : n >= 8 ? 6 : n >= 5 ? 8 : n >= 3 ? 12 : 16;
+  let barWidth = (inner - (n - 1) * spacing) / n;
+  barWidth = Math.max(8, Math.min(40, barWidth));
+  if (n > 1) {
+    spacing = Math.max(4, (inner - n * barWidth) / (n - 1));
+  }
+  return { width: chartWidth, barWidth, spacing };
+}
+
+/** Evita spacing mínimo fixo que estoura o SVG quando há muitos pontos. */
+function computeLineChartLayout(n: number, chartWidth: number) {
+  const yAxisReserve = 48;
+  const inner = Math.max(60, chartWidth - yAxisReserve);
+  const spacing = n > 1 ? Math.max(2, inner / Math.max(1, n - 1)) : 36;
+  return {
+    width: chartWidth,
+    spacing,
+    initialSpacing: 4,
+    endSpacing: 8,
+  };
+}
+
 /**
  * O QUE É ISSO?
  * 
@@ -48,6 +79,8 @@ export default function HomeScreen() {
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
+  const { width: windowWidth } = useWindowDimensions();
+  const chartMaxW = useMemo(() => chartAreaWidth(windowWidth), [windowWidth]);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +92,7 @@ export default function HomeScreen() {
   const [availableExercises, setAvailableExercises] = useState<Array<{id: string, name: string}>>([]);
   
   const [workouts, setWorkouts] = useState<any[]>([]);
-  const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string }>>([]);
+  const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string; photoURL?: string }>>([]);
 
   // Atletas derivados dos treinos; nome vindo do Firestore (coachemAthletes) quando existir
   const getAthletesFromWorkouts = useCallback(() => {
@@ -68,10 +101,14 @@ export default function HomeScreen() {
       const id = w.athleteId || w.coach;
       if (id) ids.add(id);
     });
-    return Array.from(ids).map((id) => ({
-      id,
-      name: athletesList.find((a) => a.id === id)?.name || `Atleta ${id.length > 8 ? id.slice(-8) : id}`,
-    }));
+    return Array.from(ids).map((id) => {
+      const fromList = athletesList.find((a) => a.id === id);
+      return {
+        id,
+        name: fromList?.name || `Atleta ${id.length > 8 ? id.slice(-8) : id}`,
+        photoURL: fromList?.photoURL,
+      };
+    });
   }, [workouts, athletesList]);
 
   useEffect(() => {
@@ -123,7 +160,7 @@ export default function HomeScreen() {
     try {
       const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
       const list = await listAthletesByCoachId(user.id);
-      setAthletesList(list.map((a) => ({ id: a.id, name: a.name })));
+      setAthletesList(list.map((a) => ({ id: a.id, name: a.name, photoURL: a.photoURL })));
     } catch {
       setAthletesList([]);
     }
@@ -661,8 +698,10 @@ export default function HomeScreen() {
         id: uniqueId,
         athleteId,
         athleteName: athlete?.name || `Atleta ${athleteId}`,
+        athletePhotoURL: athlete?.photoURL,
         workoutName: w.name,
         completedAt: w.completedDate || new Date().toISOString(),
+        feedback: w.feedback,
         feedbackEmoji: w.feedbackEmoji || null,
       };
     });
@@ -747,6 +786,31 @@ export default function HomeScreen() {
       pendingWorkouts: workouts.filter((w: any) => w.status === 'Pendente').length,
     }),
     [athletesWhoTrainedTodayList, todayCompletedForCoach, workouts]
+  );
+
+  const barLayoutCoachWeekly = useMemo(
+    () => computeBarChartLayout(coachWeeklyStats.length, chartMaxW),
+    [coachWeeklyStats.length, chartMaxW]
+  );
+  const barLayoutAdherence = useMemo(
+    () => computeBarChartLayout(allAthletesAdherence.length, chartMaxW),
+    [allAthletesAdherence.length, chartMaxW]
+  );
+  const barLayoutWeeklyFrequency = useMemo(
+    () => computeBarChartLayout(weeklyFrequency.length, chartMaxW),
+    [weeklyFrequency.length, chartMaxW]
+  );
+  const barLayoutMostActive = useMemo(
+    () => computeBarChartLayout(mostActiveAthletesList.length, chartMaxW),
+    [mostActiveAthletesList.length, chartMaxW]
+  );
+  const lineLayoutWeight = useMemo(
+    () => computeLineChartLayout(weightHistory.length, chartMaxW),
+    [weightHistory.length, chartMaxW]
+  );
+  const lineLayoutDifficulty = useMemo(
+    () => computeLineChartLayout(difficultyTrend.length, chartMaxW),
+    [difficultyTrend.length, chartMaxW]
   );
 
   const loadWorkoutStatuses = useCallback(async () => {
@@ -862,7 +926,7 @@ export default function HomeScreen() {
           <View className="mb-4">
             <View className="flex-row items-center mb-4">
               <Image
-                source={require('../../assets/images/PanoramaSemanal.png')}
+                source={require('../../assets/images/PanoramaSemanal2.png')}
                 style={{ width: 36, height: 36 }}
                 resizeMode="contain"
               />
@@ -883,22 +947,11 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View
-                  className="items-center justify-center mb-1.5 rounded-full"
-                  style={{
-                    width: 46,
-                    height: 46,
-                    backgroundColor: theme.mode === 'dark' ? 'rgba(14, 165, 233, 0.14)' : 'rgba(14, 165, 233, 0.08)',
-                    borderWidth: 1,
-                    borderColor: theme.mode === 'dark' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(14, 165, 233, 0.2)',
-                  }}
-                >
-                  <Image
-                    source={require('../../assets/images/AtivosHoje.png')}
-                    style={{ width: 36, height: 36 }}
-                    resizeMode="contain"
-                  />
-                </View>
+                <Image
+                  source={require('../../assets/images/AtivosHoje2.png')}
+                  style={{ width: 41, height: 41, marginBottom: 6 }}
+                  resizeMode="contain"
+                />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {weeklyStatsCoach.athletesToday}
                 </Text>
@@ -919,22 +972,11 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View
-                  className="items-center justify-center mb-1.5 rounded-full"
-                  style={{
-                    width: 46,
-                    height: 46,
-                    backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.08)',
-                    borderWidth: 1,
-                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.2)',
-                  }}
-                >
-                  <Image
-                    source={require('../../assets/images/IconeWorkoutComplete.png')}
-                    style={{ width: 36, height: 36 }}
-                    resizeMode="contain"
-                  />
-                </View>
+                <Image
+                  source={require('../../assets/images/IconeWorkoutComplete2.png')}
+                  style={{ width: 41, height: 41, marginBottom: 6 }}
+                  resizeMode="contain"
+                />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {weeklyStatsCoach.completedToday}
                 </Text>
@@ -955,22 +997,11 @@ export default function HomeScreen() {
                   elevation: 4,
                 }}
               >
-                <View
-                  className="items-center justify-center mb-1.5 rounded-full"
-                  style={{
-                    width: 46,
-                    height: 46,
-                    backgroundColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.08)',
-                    borderWidth: 1,
-                    borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(245, 158, 11, 0.2)',
-                  }}
-                >
-                  <Image
-                    source={require('../../assets/images/Pendentes.png')}
-                    style={{ width: 36, height: 36 }}
-                    resizeMode="contain"
-                  />
-                </View>
+                <Image
+                  source={require('../../assets/images/Pendentes2.png')}
+                  style={{ width: 41, height: 41, marginBottom: 6 }}
+                  resizeMode="contain"
+                />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {weeklyStatsCoach.pendingWorkouts}
                 </Text>
@@ -1058,8 +1089,8 @@ export default function HomeScreen() {
                 style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Image
-                  source={require('../../assets/images/BibliotecaDeExercicios.png')}
-                  style={{ width: 84, height: 84, marginBottom: 12 }}
+                  source={require('../../assets/images/BibliotecaDeExercicios2.png')}
+                  style={{ width: 128, height: 92, marginBottom: 12 }}
                   resizeMode="contain"
                 />
                 <Text 
@@ -1099,8 +1130,8 @@ export default function HomeScreen() {
                 style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Image
-                  source={require('../../assets/images/MeusTreinos1.png')}
-                  style={{ width: 84, height: 84, marginBottom: 12 }}
+                  source={require('../../assets/images/MeusTreinos2.png')}
+                  style={{ width: 128, height: 90, marginBottom: 12 }}
                   resizeMode="contain"
                 />
                 <Text 
@@ -1118,7 +1149,7 @@ export default function HomeScreen() {
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-3">
                 <Image
-                  source={require('../../assets/images/IconeWorkoutComplete.png')}
+                  source={require('../../assets/images/IconeWorkoutComplete2.png')}
                   style={{ width: 36, height: 36 }}
                   resizeMode="contain"
                 />
@@ -1127,7 +1158,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              <View className="rounded-xl p-3 mb-3 border" style={themeStyles.card}>
+              <View className="rounded-xl p-3 mb-3 border overflow-hidden" style={themeStyles.card}>
                 <BarChart
                   data={coachWeeklyStats.map((week) => ({
                     value: week.count,
@@ -1136,10 +1167,10 @@ export default function HomeScreen() {
                     topLabelText: week.count.toString(),
                     topLabelTextStyle: { color: '#3b82f6', fontSize: 10, fontWeight: 'bold' },
                   }))}
-                  width={300}
+                  width={barLayoutCoachWeekly.width}
                   height={120}
-                  barWidth={30}
-                  spacing={12}
+                  barWidth={barLayoutCoachWeekly.barWidth}
+                  spacing={barLayoutCoachWeekly.spacing}
                   hideRules
                   xAxisThickness={1}
                   xAxisColor={theme.colors.borderSecondary}
@@ -1235,7 +1266,7 @@ export default function HomeScreen() {
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
-                  source={require('../../assets/images/IconeTaxadeaderencia.png')}
+                  source={require('../../assets/images/IconeTaxadeaderencia2.png')}
                   style={{ width: 36, height: 36 }}
                   resizeMode="contain"
                 />
@@ -1245,7 +1276,7 @@ export default function HomeScreen() {
               </View>
               
               {/* Gráfico de Barras */}
-              <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
+              <View className="rounded-xl p-3 mb-2 border overflow-hidden" style={themeStyles.card}>
                 <BarChart
                   data={allAthletesAdherence.map((athlete) => ({
                     value: athlete.rate,
@@ -1260,10 +1291,10 @@ export default function HomeScreen() {
                       fontWeight: 'bold' 
                     },
                   }))}
-                  width={300}
+                  width={barLayoutAdherence.width}
                   height={100}
-                  barWidth={28}
-                  spacing={10}
+                  barWidth={barLayoutAdherence.barWidth}
+                  spacing={barLayoutAdherence.spacing}
                   hideRules
                   xAxisThickness={1}
                   xAxisColor={theme.colors.borderSecondary}
@@ -1345,7 +1376,7 @@ export default function HomeScreen() {
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
-                  source={require('../../assets/images/iconetreinosmaisdificeis.png')}
+                  source={require('../../assets/images/iconetreinosmaisdificeis2.png')}
                   style={{ width: 36, height: 36 }}
                   resizeMode="contain"
                 />
@@ -1445,7 +1476,7 @@ export default function HomeScreen() {
             <View className="w-full mb-4">
               <View className="flex-row items-center mb-2">
                 <Image
-                  source={require('../../assets/images/atletasmaisativos.png')}
+                  source={require('../../assets/images/atletasmaisativos2.png')}
                   style={{ width: 36, height: 36 }}
                   resizeMode="contain"
                 />
@@ -1456,7 +1487,7 @@ export default function HomeScreen() {
               <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
                 Últimos 30 dias – treinos concluídos
               </Text>
-              <View className="rounded-xl p-3 mb-2 border" style={themeStyles.card}>
+              <View className="rounded-xl p-3 mb-2 border overflow-hidden" style={themeStyles.card}>
                 <BarChart
                   data={mostActiveAthletesList.map((athlete, index) => ({
                     value: athlete.count,
@@ -1467,10 +1498,10 @@ export default function HomeScreen() {
                     topLabelText: athlete.count.toString(),
                     topLabelTextStyle: { color: theme.colors.text, fontSize: 9, fontWeight: 'bold' },
                   }))}
-                  width={300}
+                  width={barLayoutMostActive.width}
                   height={120}
-                  barWidth={28}
-                  spacing={10}
+                  barWidth={barLayoutMostActive.barWidth}
+                  spacing={barLayoutMostActive.spacing}
                   hideRules
                   xAxisThickness={1}
                   xAxisColor={theme.colors.borderSecondary}
@@ -1541,16 +1572,24 @@ export default function HomeScreen() {
                     });
                   }}
                 >
-                  {/* Avatar placeholder */}
-                  <View className="w-12 h-12 rounded-full border items-center justify-center mr-3"
+                  <View
+                    className="w-12 h-12 rounded-full border mr-3 overflow-hidden items-center justify-center"
                     style={{
                       backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)',
                       borderColor: theme.colors.primary + '50',
                     }}
                   >
-                    <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
-                      {activity.athleteName.charAt(0)}
-                    </Text>
+                    {activity.athletePhotoURL ? (
+                      <Image
+                        source={{ uri: activity.athletePhotoURL }}
+                        style={{ width: 48, height: 48 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
+                        {activity.athleteName.charAt(0)}
+                      </Text>
+                    )}
                   </View>
                   
                   <View className="flex-1 mr-3">
@@ -1612,16 +1651,24 @@ export default function HomeScreen() {
                     });
                   }}
                 >
-                  {/* Avatar placeholder */}
-                  <View className="w-12 h-12 rounded-full border items-center justify-center mr-3"
+                  <View
+                    className="w-12 h-12 rounded-full border mr-3 overflow-hidden items-center justify-center"
                     style={{
                       backgroundColor: theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
                       borderColor: '#ef4444' + '50',
                     }}
                   >
-                    <Text className="font-bold text-lg" style={{ color: '#ef4444' }}>
-                      {athlete.name.charAt(0)}
-                    </Text>
+                    {athlete.photoURL ? (
+                      <Image
+                        source={{ uri: athlete.photoURL }}
+                        style={{ width: 48, height: 48 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text className="font-bold text-lg" style={{ color: '#ef4444' }}>
+                        {athlete.name.charAt(0)}
+                      </Text>
+                    )}
                   </View>
                   
                   <View className="flex-1">
@@ -1672,7 +1719,7 @@ export default function HomeScreen() {
               >
                 <View className="items-center justify-center mb-0">
                   <Image
-                    source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
+                    source={require('../../assets/images/IconeEstaSemanaAtleta2.png')}
                     style={{ width: 52, height: 52 }}
                     resizeMode="contain"
                   />
@@ -1698,7 +1745,7 @@ export default function HomeScreen() {
               >
                 <View className="items-center justify-center mb-0">
                   <Image
-                    source={require('../../assets/images/IconeWorkoutComplete.png')}
+                    source={require('../../assets/images/IconeWorkoutComplete2.png')}
                     style={{ width: 52, height: 52 }}
                     resizeMode="contain"
                   />
@@ -1724,7 +1771,7 @@ export default function HomeScreen() {
               >
                 <View className="items-center justify-center mb-0">
                   <Image
-                    source={require('../../assets/images/Sequencia.png')}
+                    source={require('../../assets/images/Sequencia2.png')}
                     style={{ width: 52, height: 52 }}
                     resizeMode="contain"
                   />
@@ -1817,7 +1864,7 @@ export default function HomeScreen() {
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
-                  source={require('../../assets/images/IconeTaxadeaderencia.png')}
+                  source={require('../../assets/images/IconeTaxadeaderencia2.png')}
                   style={{ width: 42, height: 42, marginRight: 10 }}
                   resizeMode="contain"
                 />
@@ -1828,7 +1875,7 @@ export default function HomeScreen() {
               
               {weeklyFrequency.length > 0 ? (
                 <>
-                  <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
+                  <View className="rounded-xl p-4 mb-4 border overflow-hidden" style={themeStyles.card}>
                     <BarChart
                       data={weeklyFrequency.map((week, index) => ({
                         value: week.count,
@@ -1837,10 +1884,10 @@ export default function HomeScreen() {
                         topLabelText: week.count.toString(),
                         topLabelTextStyle: { color: '#fb923c', fontSize: 11, fontWeight: 'bold' },
                       }))}
-                      width={300}
+                      width={barLayoutWeeklyFrequency.width}
                       height={140}
-                      barWidth={35}
-                      spacing={15}
+                      barWidth={barLayoutWeeklyFrequency.barWidth}
+                      spacing={barLayoutWeeklyFrequency.spacing}
                       hideRules
                       xAxisThickness={1}
                       xAxisColor={theme.colors.borderSecondary}
@@ -1859,8 +1906,8 @@ export default function HomeScreen() {
 
                   {/* Estatísticas */}
                   <View className="rounded-xl p-4 border" style={themeStyles.card}>
-                    <View className="flex-row justify-between items-center mb-3">
-                      <View className="flex-1">
+                    <View className="flex-row justify-between items-start mb-3" style={{ flexWrap: 'wrap', gap: 12 }}>
+                      <View className="flex-1 min-w-[140px]">
                         <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
                         <Text className="font-bold text-xl" style={themeStyles.text}>
                           {averagePerWeekDisplay} treinos
@@ -1868,9 +1915,9 @@ export default function HomeScreen() {
                       </View>
                       
                       {weekComparison && (
-                        <View className="flex-1 items-end">
+                        <View className="flex-1 items-end min-w-0" style={{ maxWidth: '100%' }}>
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
-                          <View className="flex-row items-center gap-2">
+                          <View className="flex-row flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
                             <Text className="font-bold text-xl" style={themeStyles.text}>
                               {weekComparison?.current}
                             </Text>
@@ -1890,7 +1937,7 @@ export default function HomeScreen() {
                               )}
                             </Text>
                           </View>
-                          <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
+                          <Text className="text-[10px] mt-1 text-right" style={themeStyles.textTertiary}>
                             vs semana anterior
                           </Text>
                         </View>
@@ -1925,7 +1972,7 @@ export default function HomeScreen() {
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
-                  source={require('../../assets/images/AtletaProfileEProgress.png')}
+                  source={require('../../assets/images/AtletaProfileEProgress2.png')}
                   style={{ width: 42, height: 42, marginRight: 10 }}
                   resizeMode="contain"
                 />
@@ -1968,7 +2015,7 @@ export default function HomeScreen() {
               
               {/* Gráfico */}
               {weightHistory.length > 0 ? (
-                <View className="rounded-xl p-4 border" style={themeStyles.card}>
+                <View className="rounded-xl p-4 border overflow-hidden" style={themeStyles.card}>
                   <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
                     {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
                   </Text>
@@ -1978,7 +2025,7 @@ export default function HomeScreen() {
                         value: record.weight,
                         label: new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
                       }))}
-                      width={280}
+                      width={lineLayoutWeight.width}
                       height={140}
                     color="#fb923c"
                     thickness={3}
@@ -1988,8 +2035,9 @@ export default function HomeScreen() {
                     endFillColor="#fb923c"
                     startOpacity={0.3}
                     endOpacity={0.05}
-                    spacing={weightHistory.length > 1 ? Math.max(60, 280 / (weightHistory.length - 1)) : 60}
-                    initialSpacing={0}
+                    spacing={lineLayoutWeight.spacing}
+                    initialSpacing={lineLayoutWeight.initialSpacing}
+                    endSpacing={lineLayoutWeight.endSpacing}
                     noOfSections={4}
                     maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
                     yAxisColor={theme.colors.borderSecondary}
@@ -2089,7 +2137,7 @@ export default function HomeScreen() {
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
-                  source={require('../../assets/images/iconetreinosmaisdificeis.png')}
+                  source={require('../../assets/images/iconetreinosmaisdificeis2.png')}
                   style={{ width: 42, height: 42, marginRight: 10 }}
                   resizeMode="contain"
                 />
@@ -2126,13 +2174,13 @@ export default function HomeScreen() {
                     </View>
                     );
                   })() : (
-                    <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
+                    <View className="rounded-xl p-4 mb-4 border overflow-hidden" style={themeStyles.card}>
                       <LineChart
                         data={difficultyTrend.map((week) => ({
                           value: week.average,
                           label: week.label,
                         }))}
-                        width={280}
+                        width={lineLayoutDifficulty.width}
                         height={140}
                         color="#f59e0b"
                         thickness={3}
@@ -2142,8 +2190,9 @@ export default function HomeScreen() {
                         endFillColor="#f59e0b"
                         startOpacity={0.3}
                         endOpacity={0.05}
-                        spacing={Math.max(60, 280 / (difficultyTrend.length - 1))}
-                        initialSpacing={0}
+                        spacing={lineLayoutDifficulty.spacing}
+                        initialSpacing={lineLayoutDifficulty.initialSpacing}
+                        endSpacing={lineLayoutDifficulty.endSpacing}
                         noOfSections={4}
                         maxValue={5}
                         yAxisColor={theme.colors.borderSecondary}
@@ -2259,27 +2308,62 @@ export default function HomeScreen() {
                         
                         <View className="flex-1 items-end">
                           <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Tendência</Text>
-                          <View className="flex-row items-center gap-2">
+                          <View
+                            className="flex-row items-center justify-end"
+                            style={{ columnGap: Platform.OS === 'ios' ? 4 : 8, minHeight: 28 }}
+                          >
                             {analysis.trend === 'improving' && (
                               <>
-                                <FontAwesome name="arrow-down" size={16} color="#10b981" />
-                                <Text className="font-bold text-xl" style={{ color: '#10b981' }}>
+                                <FontAwesome name="arrow-down" size={15} color="#10b981" />
+                                <Text
+                                  className="font-bold"
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  minimumFontScale={0.82}
+                                  style={{
+                                    color: '#10b981',
+                                    fontSize: Platform.OS === 'ios' ? 17 : 20,
+                                    lineHeight: Platform.OS === 'ios' ? 20 : 24,
+                                  }}
+                                >
                                   Melhorando
                                 </Text>
                               </>
                             )}
                             {analysis.trend === 'declining' && (
                               <>
-                                <FontAwesome name="arrow-up" size={16} color="#ef4444" />
-                                <Text className="font-bold text-xl" style={{ color: '#ef4444' }}>
+                                <FontAwesome name="arrow-up" size={15} color="#ef4444" />
+                                <Text
+                                  className="font-bold"
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  minimumFontScale={0.82}
+                                  style={{
+                                    color: '#ef4444',
+                                    fontSize: Platform.OS === 'ios' ? 16 : 18,
+                                    lineHeight: Platform.OS === 'ios' ? 19 : 22,
+                                  }}
+                                >
                                   Mais Difícil
                                 </Text>
                               </>
                             )}
                             {analysis.trend === 'stable' && (
                               <>
-                                <FontAwesome name="minus" size={16} color={theme.colors.textTertiary} />
-                                <Text className="font-bold text-xl" style={themeStyles.textTertiary}>
+                                <FontAwesome name="minus" size={15} color={theme.colors.textTertiary} />
+                                <Text
+                                  className="font-bold"
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  minimumFontScale={0.82}
+                                  style={[
+                                    themeStyles.textTertiary,
+                                    {
+                                      fontSize: Platform.OS === 'ios' ? 16 : 18,
+                                      lineHeight: Platform.OS === 'ios' ? 19 : 22,
+                                    },
+                                  ]}
+                                >
                                   Estável
                                 </Text>
                               </>
@@ -2319,7 +2403,7 @@ export default function HomeScreen() {
             <View className="w-full mb-6">
               <View className="flex-row items-center mb-4">
                 <Image
-                  source={require('../../assets/images/atletasmaisativos.png')}
+                  source={require('../../assets/images/atletasmaisativos2.png')}
                   style={{ width: 42, height: 42, marginRight: 10 }}
                   resizeMode="contain"
                 />
@@ -2343,7 +2427,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Image
-                      source={require('../../assets/images/Sequencia.png')}
+                      source={require('../../assets/images/Sequencia2.png')}
                       style={{ width: 44, height: 44 }}
                       resizeMode="contain"
                     />
@@ -2383,7 +2467,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Image
-                      source={require('../../assets/images/IconeEstaSemanaAtleta.png')}
+                      source={require('../../assets/images/IconeEstaSemanaAtleta2.png')}
                       style={{ width: 44, height: 44 }}
                       resizeMode="contain"
                     />
@@ -2416,7 +2500,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Image
-                      source={require('../../assets/images/atletasmaisativos.png')}
+                      source={require('../../assets/images/atletasmaisativos2.png')}
                       style={{ width: 44, height: 44 }}
                       resizeMode="contain"
                     />
@@ -2497,7 +2581,7 @@ export default function HomeScreen() {
             <View className="w-full">
               <View className="flex-row items-center mb-4">
                 <Image
-                  source={require('../../assets/images/IconeWorkoutComplete.png')}
+                  source={require('../../assets/images/IconeWorkoutComplete2.png')}
                   style={{ width: 42, height: 42, marginRight: 10 }}
                   resizeMode="contain"
                 />
@@ -2603,3 +2687,4 @@ export default function HomeScreen() {
  * 
  * PRÓXIMO PASSO: Vamos adicionar ESTADO para mudar algo quando clicar!
  */
+

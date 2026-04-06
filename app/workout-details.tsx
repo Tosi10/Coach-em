@@ -12,13 +12,30 @@ import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlockData } from '@/src/types';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
+import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ResizeMode, Video } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vibration, View } from 'react-native';
+import {
+  Animated,
+  Image,
+  InteractionManager,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Vibration,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -183,7 +200,13 @@ const getMockWorkoutTemplates = () => {
 
 export default function WorkoutDetailsScreen() {
   const router = useRouter();
-  const { workoutId } = useLocalSearchParams();
+  const { workoutId: workoutIdRaw } = useLocalSearchParams();
+  const workoutId =
+    typeof workoutIdRaw === 'string'
+      ? workoutIdRaw
+      : Array.isArray(workoutIdRaw)
+        ? workoutIdRaw[0]
+        : undefined;
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   
@@ -227,6 +250,8 @@ export default function WorkoutDetailsScreen() {
   
   // Estados para modal de exercício e navegação
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const insets = useSafeAreaInsets();
+  const exerciseModalScrollRef = useRef<ScrollView>(null);
   const [currentBlockIndex, setCurrentBlockIndex] = useState<number | null>(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number | null>(null);
   
@@ -284,6 +309,10 @@ export default function WorkoutDetailsScreen() {
     const loadWorkoutData = async () => {
       try {
         setLoading(true);
+        if (!workoutId) {
+          setLoading(false);
+          return;
+        }
         const { getAssignedWorkoutById } = await import('@/src/services/assignedWorkouts.service');
         const found = await getAssignedWorkoutById(workoutId);
         if (!found) {
@@ -310,16 +339,20 @@ export default function WorkoutDetailsScreen() {
           });
         } else {
           const { getWorkoutTemplateById } = await import('@/src/services/workoutTemplates.service');
-          let template = await getWorkoutTemplateById(found.workoutTemplateId);
+          let template: WorkoutTemplateForApp | null = await getWorkoutTemplateById(
+            found.workoutTemplateId
+          );
           if (!template) {
             const mockTemplates = getMockWorkoutTemplates();
-            template = mockTemplates.find((t: any) => t.id === found.workoutTemplateId) || null;
+            const fromMock = mockTemplates.find((t: any) => t.id === found.workoutTemplateId);
+            template = fromMock ? (fromMock as WorkoutTemplateForApp) : null;
           }
           if (!template) {
             const savedTemplatesJson = await AsyncStorage.getItem('workout_templates');
             if (savedTemplatesJson) {
               const savedTemplates = JSON.parse(savedTemplatesJson);
-              template = savedTemplates.find((t: any) => t.id === found.workoutTemplateId) || null;
+              const fromSaved = savedTemplates.find((t: any) => t.id === found.workoutTemplateId);
+              template = fromSaved ? (fromSaved as WorkoutTemplateForApp) : null;
             }
           }
           if (template) {
@@ -663,12 +696,14 @@ export default function WorkoutDetailsScreen() {
         return;
       }
 
+      const exerciseName = getCurrentExercise()?.exercise?.name || 'Exercício';
+
       const { addExerciseWeightRecord } = await import('@/src/services/exerciseWeightHistory.service');
       await addExerciseWeightRecord({
         athleteId,
         workoutId,
         exerciseId,
-        exerciseName: getCurrentExercise()?.exercise?.name || 'Exercício',
+        exerciseName,
         weight,
         date: new Date().toISOString(),
       });
@@ -682,7 +717,7 @@ export default function WorkoutDetailsScreen() {
       const newRecord = {
         id: `weight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         exerciseId: exerciseId,
-        exerciseName: getCurrentExercise()?.exercise?.name || 'Exercício',
+        exerciseName,
         weight: weight,
         date: new Date().toISOString(),
         workoutId: workoutId,
@@ -703,8 +738,24 @@ export default function WorkoutDetailsScreen() {
       
       // Limpar campo de input
       setExerciseWeight('');
-      
-      showAlert('Sucesso', `Peso de ${weight}kg registrado com sucesso!`, 'success');
+
+      // iOS: não empilhar CustomAlert (Modal) por cima do modal do exercício + teclado — trava toques na tela.
+      Keyboard.dismiss();
+      setIsResting(false);
+      setRestTime(0);
+      setIsRunningDuration(false);
+      setDurationTime(0);
+      setDurationTotal(0);
+      setIsRunningWarmUp(false);
+      setWarmUpTime(0);
+      setWarmUpTotal(0);
+      setShowExerciseModal(false);
+
+      InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          showAlert('Sucesso', `Peso de ${weight}kg registrado com sucesso!`, 'success');
+        }, 350);
+      });
     } catch (error) {
       console.error('Erro ao salvar peso:', error);
       showAlert('Erro', 'Não foi possível salvar o peso', 'error');
@@ -829,6 +880,10 @@ export default function WorkoutDetailsScreen() {
       );
       return;
     }
+    if (!workoutId) {
+      showAlert('Erro', 'Treino inválido', 'error');
+      return;
+    }
 
     try {
       // 1. Salvar progresso atual antes de marcar como concluído
@@ -899,18 +954,26 @@ export default function WorkoutDetailsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1" style={themeStyles.bg}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <ScrollView
+      className="flex-1"
+      style={[{ flex: 1 }, themeStyles.bg]}
+      keyboardShouldPersistTaps="always"
+      keyboardDismissMode="on-drag"
+      nestedScrollEnabled
+    >
       <View className="px-6 pt-20 pb-20">
         <FirstTimeTip
           storageKey="tutorial_workout_details_v1"
           title="Como usar o treino"
           description="Passe pelos blocos do treino, toque nos exercícios para ver detalhes e vá marcando o que concluir. No final, envie seu feedback para o treinador saber como foi a sessão."
         />
-        {/* Header com botão voltar melhorado */}
-        <TouchableOpacity
-          className="mb-6 flex-row items-center"
+        {/* Header: Pressable (evita conflito de gesto com ScrollView no iOS) */}
+        <Pressable
+          className="mb-6 flex-row items-center self-start"
           onPress={() => router.back()}
-          activeOpacity={0.7}
+          hitSlop={16}
+          style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, zIndex: 10 })}
         >
           <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
@@ -918,7 +981,7 @@ export default function WorkoutDetailsScreen() {
           <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
             Voltar
           </Text>
-        </TouchableOpacity>
+        </Pressable>
 
                 {/* Informações do treino */}
                 <View className="mb-6">
@@ -1093,93 +1156,122 @@ export default function WorkoutDetailsScreen() {
                     const exerciseUniqueId = exercise.exerciseId || `block_${blockIndex}_ex_${exerciseIndex}`;
                     const isCompleted = completedExercises.has(exerciseUniqueId);
                     
+                    const pending = assignedWorkout.status === 'Pendente';
                     return (
-                    <TouchableOpacity
-                      key={exerciseIndex}
-                      onPress={() => openExercise(blockIndex, exerciseIndex)}
-                      activeOpacity={0.7}
-                      className="rounded-xl p-4 mb-3 border"
-                  style={{
-                    ...themeStyles.card,
-                    borderColor: isCompleted ? 'rgba(16, 185, 129, 0.5)' : theme.colors.border,
-                    shadowColor: isCompleted ? '#10b981' : '#fb923c',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isCompleted ? 0.2 : 0.1,
-                    shadowRadius: 4,
-                    elevation: 4,
-                  }}
-                    >
-                      {/* Checkbox para marcar exercício como concluído */}
-                      {assignedWorkout.status === 'Pendente' && (
-                        <TouchableOpacity
-                          onPress={() => toggleExercise(exerciseUniqueId)}
-                          className="absolute top-3 right-3 z-10"
-                          activeOpacity={0.7}
+                      <View
+                        key={`${blockIndex}-${exerciseIndex}-${exerciseUniqueId}`}
+                        className="rounded-xl mb-3 border"
+                        style={{
+                          ...themeStyles.card,
+                          borderColor: isCompleted ? 'rgba(16, 185, 129, 0.5)' : theme.colors.border,
+                          shadowColor: isCompleted ? '#10b981' : '#fb923c',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: isCompleted ? 0.2 : 0.1,
+                          shadowRadius: 4,
+                          elevation: 4,
+                          position: 'relative',
+                          overflow: 'visible',
+                        }}
+                        collapsable={false}
+                      >
+                        <Pressable
+                          onPress={() => openExercise(blockIndex, exerciseIndex)}
+                          style={({ pressed }) => ({
+                            opacity: pressed ? 0.92 : 1,
+                          })}
                         >
-                          <View className="w-7 h-7 rounded-full border-2 items-center justify-center"
+                          <View
                             style={{
-                              backgroundColor: isCompleted ? '#10b981' : theme.colors.backgroundTertiary,
-                              borderColor: isCompleted ? '#10b981' : theme.colors.primary,
-                              ...(isCompleted ? {
-                                shadowColor: '#10b981',
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 4,
-                                elevation: 4,
-                              } : {}),
+                              paddingVertical: 16,
+                              paddingLeft: 18,
+                              paddingRight: pending ? 52 : 18,
                             }}
                           >
-                            {isCompleted && (
-                              <FontAwesome name="check" size={14} color="#fff" />
+                            <Text className="text-lg font-semibold mb-2 pr-1"
+                              style={{
+                                color: isCompleted ? '#10b981' : theme.colors.text,
+                                textDecorationLine: isCompleted ? 'line-through' : 'none',
+                              }}
+                            >
+                              {exercise.exercise?.name || `Exercício ${exerciseIndex + 1}`}
+                            </Text>
+                            
+                            {exercise.exercise?.description && (
+                              <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
+                                {exercise.exercise.description}
+                              </Text>
+                            )}
+                            
+                            <View className="flex-row gap-4 flex-wrap">
+                              {exercise.sets && (
+                                <Text style={themeStyles.textSecondary}>
+                                  Séries: {exercise.sets}
+                                </Text>
+                              )}
+                              {exercise.reps && (
+                                <Text style={themeStyles.textSecondary}>
+                                  Repetições: {exercise.reps}
+                                </Text>
+                              )}
+                              {exercise.duration && (
+                                <Text style={themeStyles.textSecondary}>
+                                  Duração: {Math.floor(exercise.duration / 60)}min
+                                </Text>
+                              )}
+                              {exercise.restTime && (
+                                <Text style={themeStyles.textSecondary}>
+                                  Descanso: {exercise.restTime}s
+                                </Text>
+                              )}
+                            </View>
+                            
+                            {exercise.notes && (
+                              <Text className="text-sm mt-2 italic" style={themeStyles.textTertiary}>
+                                💡 {exercise.notes}
+                              </Text>
                             )}
                           </View>
-                        </TouchableOpacity>
-                      )}
-                      
-                      <Text className="text-lg font-semibold mb-2 pr-10"
-                        style={{
-                          color: isCompleted ? '#10b981' : theme.colors.text,
-                          textDecorationLine: isCompleted ? 'line-through' : 'none',
-                        }}
-                      >
-                        {exercise.exercise?.name || `Exercício ${exerciseIndex + 1}`}
-                      </Text>
-                      
-                      {exercise.exercise?.description && (
-                        <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
-                          {exercise.exercise.description}
-                        </Text>
-                      )}
-                      
-                      <View className="flex-row gap-4 flex-wrap">
-                        {exercise.sets && (
-                          <Text style={themeStyles.textSecondary}>
-                            Séries: {exercise.sets}
-                          </Text>
-                        )}
-                        {exercise.reps && (
-                          <Text style={themeStyles.textSecondary}>
-                            Repetições: {exercise.reps}
-                          </Text>
-                        )}
-                        {exercise.duration && (
-                          <Text style={themeStyles.textSecondary}>
-                            Duração: {Math.floor(exercise.duration / 60)}min
-                          </Text>
-                        )}
-                        {exercise.restTime && (
-                          <Text style={themeStyles.textSecondary}>
-                            Descanso: {exercise.restTime}s
-                          </Text>
+                        </Pressable>
+                        {pending && (
+                          <View
+                            pointerEvents="box-none"
+                            style={{
+                              position: 'absolute',
+                              top: 12,
+                              right: 12,
+                              zIndex: 30,
+                              elevation: 8,
+                            }}
+                          >
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel="Alternar exercício concluído"
+                              onPress={() => toggleExercise(exerciseUniqueId)}
+                              hitSlop={12}
+                              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                            >
+                              <View
+                                className="w-7 h-7 rounded-full border-2 items-center justify-center"
+                                style={{
+                                  backgroundColor: isCompleted ? '#10b981' : theme.colors.backgroundTertiary,
+                                  borderColor: isCompleted ? '#10b981' : theme.colors.primary,
+                                  ...(isCompleted
+                                    ? {
+                                        shadowColor: '#10b981',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.3,
+                                        shadowRadius: 4,
+                                        elevation: 4,
+                                      }
+                                    : {}),
+                                }}
+                              >
+                                {isCompleted && <FontAwesome name="check" size={14} color="#fff" />}
+                              </View>
+                            </Pressable>
+                          </View>
                         )}
                       </View>
-                      
-                      {exercise.notes && (
-                        <Text className="text-sm mt-2 italic" style={themeStyles.textTertiary}>
-                          💡 {exercise.notes}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -1187,6 +1279,35 @@ export default function WorkoutDetailsScreen() {
             })}
           </View>
         )}
+
+        {/* Mensagem se já estiver concluído */}
+        {assignedWorkout.status === 'Concluído' && (
+          <View className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
+            <Text className="text-green-400 font-semibold text-center">
+              ✅ Este treino já foi concluído!
+            </Text>
+          </View>
+        )}
+       
+      </View>
+    </ScrollView>
+
+      {/* Fora do ScrollView: overlays não roubam toques da lista nem do Voltar */}
+      <CelebrationAnimation
+        visible={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        confirmText="OK"
+        onConfirm={() => {
+          setAlertVisible(false);
+          alertOnConfirm?.();
+        }}
+      />
 
         {/* Modal de Exercício Focado */}
         {showExerciseModal && currentBlockIndex !== null && currentExerciseIndex !== null && (() => {
@@ -1215,22 +1336,39 @@ export default function WorkoutDetailsScreen() {
               visible={showExerciseModal}
               transparent={true}
               animationType="slide"
+              presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
               onRequestClose={() => setShowExerciseModal(false)}
             >
-              <View className="flex-1 bg-black/80 justify-center items-center p-3">
+              <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? Math.max(insets.top, 8) : 0}
+              >
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: 'rgba(0,0,0,0.82)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  paddingTop: Math.max(insets.top, 8),
+                  paddingBottom: Math.max(insets.bottom, 12),
+                }}
+              >
                 <View
                   className="rounded-3xl w-full max-w-md border"
                   style={{
                     ...themeStyles.card,
                     maxHeight: '94%',
+                    minHeight: 0,
+                    overflow: 'hidden',
                     borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.22)',
                   }}
                 >
                   {/* Header do Modal */}
                   <View className="flex-row items-center justify-between mb-4 px-6 pt-6">
-                    <TouchableOpacity
+                    <Pressable
                       onPress={() => {
-                        // Resetar timers ao fechar modal
                         setIsResting(false);
                         setRestTime(0);
                         setIsRunningDuration(false);
@@ -1241,10 +1379,12 @@ export default function WorkoutDetailsScreen() {
                         setWarmUpTotal(0);
                         setShowExerciseModal(false);
                       }}
+                      hitSlop={14}
                       className="p-2"
+                      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                     >
                       <FontAwesome name="times" size={20} color={theme.colors.text} />
-                    </TouchableOpacity>
+                    </Pressable>
                     <Text className="font-semibold text-lg" style={themeStyles.text}>
                       Exercício {exerciseNumber} de {totalExercises}
                     </Text>
@@ -1252,11 +1392,15 @@ export default function WorkoutDetailsScreen() {
                   </View>
                   
                   {/* Detalhes do Exercício */}
-                  <ScrollView 
+                  <ScrollView
+                    ref={exerciseModalScrollRef}
                     style={{ flexGrow: 0 }}
                     contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="always"
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                   >
                     <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
                       {exercise.exercise?.name || `Exercício ${exerciseNumber}`}
@@ -1523,6 +1667,11 @@ export default function WorkoutDetailsScreen() {
                                 borderColor: theme.colors.border,
                                 color: theme.colors.text,
                               }}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  exerciseModalScrollRef.current?.scrollToEnd({ animated: true });
+                                }, 120);
+                              }}
                             />
                             <Text style={themeStyles.textSecondary}>kg</Text>
                           </View>
@@ -1534,7 +1683,8 @@ export default function WorkoutDetailsScreen() {
                                 showAlert('Atenção', 'Por favor, digite um peso válido', 'warning');
                                 return;
                               }
-                              saveExerciseWeight(exerciseUniqueId, weight, workoutId as string);
+                              if (!workoutId) return;
+                              saveExerciseWeight(exerciseUniqueId, weight, workoutId);
                             }}
                             className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center mt-3"
                           >
@@ -1616,6 +1766,7 @@ export default function WorkoutDetailsScreen() {
                   </View>
                 </View>
               </View>
+              </KeyboardAvoidingView>
             </Modal>
           );
         })()}
@@ -1748,35 +1899,6 @@ export default function WorkoutDetailsScreen() {
           </View>
         </Modal>
 
-        {/* Mensagem se já estiver concluído */}
-        {assignedWorkout.status === 'Concluído' && (
-          <View className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-            <Text className="text-green-400 font-semibold text-center">
-              ✅ Este treino já foi concluído!
-            </Text>
-          </View>
-        )}
-       
-      </View>
-      
-      {/* Animação de Celebração */}
-      <CelebrationAnimation
-        visible={showCelebration}
-        onComplete={() => setShowCelebration(false)}
-      />
-      
-      {/* Custom Alert */}
-      <CustomAlert
-        visible={alertVisible}
-        title={alertTitle}
-        message={alertMessage}
-        type={alertType}
-        confirmText="OK"
-        onConfirm={() => {
-          setAlertVisible(false);
-          alertOnConfirm?.();
-        }}
-      />
-    </ScrollView>
+  </View>
   );
 }

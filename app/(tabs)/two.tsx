@@ -28,7 +28,7 @@ export default function TabTwoScreen() {
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   // Atletas derivados dos treinos (Firestore) – só para COACH
-  const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string; photoURL?: string }>>([]);
   
   // Estados para treinos do atleta
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
@@ -78,32 +78,6 @@ export default function TabTwoScreen() {
     loadUserData();
   }, []);
 
-  // Carregar treinos do atleta quando for atleta
-  useEffect(() => {
-    if (userType === UserType.ATHLETE && currentAthleteId) {
-      loadAthleteWorkouts();
-    }
-  }, [userType, currentAthleteId, loadAthleteWorkouts]);
-
-  const loadCoachAthletes = useCallback(async () => {
-    if (!user?.id) {
-      setAthletes([]);
-      return;
-    }
-    try {
-      const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
-      const list = await listAthletesByCoachId(user.id);
-      setAthletes(list.map((a) => ({ id: a.id, name: a.name })));
-    } catch (e) {
-      setAthletes([]);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (userType === UserType.COACH) loadCoachAthletes();
-    else setAthletes([]);
-  }, [userType, loadCoachAthletes]);
-
   const loadAthleteWorkouts = useCallback(async () => {
     try {
       if (!currentAthleteId) {
@@ -143,6 +117,32 @@ export default function TabTwoScreen() {
       console.error('Erro ao carregar treinos do atleta:', error);
     }
   }, [currentAthleteId]);
+
+  // Carregar treinos do atleta quando for atleta
+  useEffect(() => {
+    if (userType === UserType.ATHLETE && currentAthleteId) {
+      loadAthleteWorkouts();
+    }
+  }, [userType, currentAthleteId, loadAthleteWorkouts]);
+
+  const loadCoachAthletes = useCallback(async () => {
+    if (!user?.id) {
+      setAthletes([]);
+      return;
+    }
+    try {
+      const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
+      const list = await listAthletesByCoachId(user.id);
+      setAthletes(list.map((a) => ({ id: a.id, name: a.name, photoURL: a.photoURL })));
+    } catch (e) {
+      setAthletes([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (userType === UserType.COACH) loadCoachAthletes();
+    else setAthletes([]);
+  }, [userType, loadCoachAthletes]);
 
   useFocusEffect(
     useCallback(() => {
@@ -573,12 +573,35 @@ export default function TabTwoScreen() {
                 });
               }}
             >
-              <Text className="text-lg font-semibold" style={themeStyles.text}>
-                {athlete.name}
-              </Text>
-              <Text className="mt-1" style={themeStyles.textSecondary}>
-                Ativo
-              </Text>
+              <View className="flex-row items-center">
+                <View
+                  className="w-12 h-12 rounded-full mr-3 overflow-hidden items-center justify-center border"
+                  style={{
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.backgroundTertiary,
+                  }}
+                >
+                  {athlete.photoURL ? (
+                    <Image
+                      source={{ uri: athlete.photoURL }}
+                      style={{ width: 48, height: 48 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
+                      {athlete.name.charAt(0)}
+                    </Text>
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-lg font-semibold" style={themeStyles.text}>
+                    {athlete.name}
+                  </Text>
+                  <Text className="mt-1" style={themeStyles.textSecondary}>
+                    Ativo
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
           ))
         )}

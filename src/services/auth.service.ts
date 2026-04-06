@@ -64,6 +64,7 @@ function toAppUser(firebaseUser: FirebaseUser, userData: any): User {
   return {
     id: firebaseUser.uid,
     ...userData,
+    photoURL: userData.photoURL ?? firebaseUser.photoURL ?? undefined,
     createdAt: userData.createdAt?.toDate?.() || new Date(),
     updatedAt: userData.updatedAt?.toDate?.() || new Date(),
   } as User;

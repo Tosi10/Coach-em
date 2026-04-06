@@ -32,6 +32,10 @@ export interface AthleteDoc {
   name: string;
   sport?: string;
   status?: string;
+  /** Mesmo uid do Auth quando criado pela Cloud Function (doc id costuma ser igual). */
+  authUid?: string;
+  /** URL pública (Storage) – espelha users/{uid}.photoURL quando o atleta tem conta. */
+  photoURL?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,9 +65,29 @@ function docToAthlete(snap: DocumentSnapshot): AthleteDoc {
     name: data.name || '',
     sport: data.sport,
     status: data.status || 'Ativo',
+    authUid: typeof data.authUid === 'string' ? data.authUid : undefined,
+    photoURL: typeof data.photoURL === 'string' ? data.photoURL : undefined,
     createdAt: toStr(data.createdAt),
     updatedAt: toStr(data.updatedAt),
   };
+}
+
+/** Quando coachemAthletes não tem photoURL, tenta users (treinador precisa das regras que permitem leitura). */
+async function enrichAthletePhotoFromUsersDoc(a: AthleteDoc): Promise<AthleteDoc> {
+  if (a.photoURL) return a;
+  const tryIds = [...new Set([a.authUid, a.id].filter(Boolean) as string[])];
+  for (const uid of tryIds) {
+    try {
+      const userSnap = await getDoc(doc(db, 'users', uid));
+      const url = userSnap.data()?.photoURL;
+      if (typeof url === 'string' && url.length > 0) {
+        return { ...a, photoURL: url };
+      }
+    } catch {
+      // sem permissão ou rede
+    }
+  }
+  return a;
 }
 
 export async function listAthletesByCoachId(coachId: string): Promise<AthleteDoc[]> {
@@ -72,14 +96,15 @@ export async function listAthletesByCoachId(coachId: string): Promise<AthleteDoc
     where('coachId', '==', coachId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(docToAthlete);
+  const list = snap.docs.map(docToAthlete);
+  return Promise.all(list.map((a) => enrichAthletePhotoFromUsersDoc(a)));
 }
 
 export async function getAthleteById(id: string): Promise<AthleteDoc | null> {
   const ref = doc(db, COLLECTION, id);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
-  return docToAthlete(snap);
+  return enrichAthletePhotoFromUsersDoc(docToAthlete(snap));
 }
 
 export async function createAthlete(
