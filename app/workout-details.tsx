@@ -22,8 +22,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
-  InteractionManager,
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -272,6 +270,7 @@ export default function WorkoutDetailsScreen() {
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
   const [savedWeights, setSavedWeights] = useState<Record<string, number>>({}); // Pesos salvos por exercício
+  const [weightSaveMessage, setWeightSaveMessage] = useState('');
 
   // Animação de pulse contínua no botão
   useEffect(() => {
@@ -739,23 +738,9 @@ export default function WorkoutDetailsScreen() {
       // Limpar campo de input
       setExerciseWeight('');
 
-      // iOS: não empilhar CustomAlert (Modal) por cima do modal do exercício + teclado — trava toques na tela.
-      Keyboard.dismiss();
-      setIsResting(false);
-      setRestTime(0);
-      setIsRunningDuration(false);
-      setDurationTime(0);
-      setDurationTotal(0);
-      setIsRunningWarmUp(false);
-      setWarmUpTime(0);
-      setWarmUpTotal(0);
-      setShowExerciseModal(false);
-
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(() => {
-          showAlert('Sucesso', `Peso de ${weight}kg registrado com sucesso!`, 'success');
-        }, 350);
-      });
+      // Mantém o modal aberto: feedback discreto evita empilhar Modal por cima de Modal no iOS.
+      setWeightSaveMessage(`Peso ${weight}kg salvo com sucesso!`);
+      setTimeout(() => setWeightSaveMessage(''), 1800);
     } catch (error) {
       console.error('Erro ao salvar peso:', error);
       showAlert('Erro', 'Não foi possível salvar o peso', 'error');
@@ -1692,6 +1677,14 @@ export default function WorkoutDetailsScreen() {
                               Salvar Peso
                             </Text>
                           </TouchableOpacity>
+                          {weightSaveMessage ? (
+                            <View className="mt-2 flex-row items-center justify-center">
+                              <FontAwesome name="check-circle" size={14} color="#10b981" />
+                              <Text className="text-xs ml-1" style={{ color: '#10b981' }}>
+                                {weightSaveMessage}
+                              </Text>
+                            </View>
+                          ) : null}
                         </View>
                       );
                     })()}

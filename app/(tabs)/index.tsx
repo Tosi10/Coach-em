@@ -808,6 +808,31 @@ export default function HomeScreen() {
     () => computeLineChartLayout(weightHistory.length, chartMaxW),
     [weightHistory.length, chartMaxW]
   );
+  const weightPointSpacing = useMemo(
+    () => Math.max(30, lineLayoutWeight.spacing + 8),
+    [lineLayoutWeight.spacing]
+  );
+  const weightChartWidth = useMemo(
+    () => Math.max(lineLayoutWeight.width, 72 + weightHistory.length * weightPointSpacing),
+    [lineLayoutWeight.width, weightHistory.length, weightPointSpacing]
+  );
+  const weeklyFrequencySpacing = useMemo(
+    () => Math.max(4, Math.min(8, barLayoutWeeklyFrequency.spacing)),
+    [barLayoutWeeklyFrequency.spacing]
+  );
+  const mostActiveSpacing = useMemo(
+    () => Math.max(4, Math.min(8, barLayoutMostActive.spacing)),
+    [barLayoutMostActive.spacing]
+  );
+  const weightXAxisLabels = useMemo(() => {
+    if (weightHistory.length === 0) return [];
+    const maxVisibleLabels = 4;
+    const step = Math.max(1, Math.ceil(weightHistory.length / maxVisibleLabels));
+    return weightHistory.map((record, index) => {
+      const formatted = new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      return index % step === 0 || index === weightHistory.length - 1 ? formatted : '';
+    });
+  }, [weightHistory]);
   const lineLayoutDifficulty = useMemo(
     () => computeLineChartLayout(difficultyTrend.length, chartMaxW),
     [difficultyTrend.length, chartMaxW]
@@ -1501,7 +1526,7 @@ export default function HomeScreen() {
                   width={barLayoutMostActive.width}
                   height={120}
                   barWidth={barLayoutMostActive.barWidth}
-                  spacing={barLayoutMostActive.spacing}
+                  spacing={mostActiveSpacing}
                   hideRules
                   xAxisThickness={1}
                   xAxisColor={theme.colors.borderSecondary}
@@ -1887,7 +1912,7 @@ export default function HomeScreen() {
                       width={barLayoutWeeklyFrequency.width}
                       height={140}
                       barWidth={barLayoutWeeklyFrequency.barWidth}
-                      spacing={barLayoutWeeklyFrequency.spacing}
+                      spacing={weeklyFrequencySpacing}
                       hideRules
                       xAxisThickness={1}
                       xAxisColor={theme.colors.borderSecondary}
@@ -2015,80 +2040,83 @@ export default function HomeScreen() {
               
               {/* Gráfico */}
               {weightHistory.length > 0 ? (
-                <View className="rounded-xl p-4 border overflow-hidden" style={themeStyles.card}>
+                <View className="rounded-xl p-4 border" style={themeStyles.card}>
                   <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
                     {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
                   </Text>
                   
-                    <LineChart
-                      data={weightHistory.map((record, index) => ({
-                        value: record.weight,
-                        label: new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                      }))}
-                      width={lineLayoutWeight.width}
-                      height={140}
-                    color="#fb923c"
-                    thickness={3}
-                    curved
-                    areaChart
-                    startFillColor="#fb923c"
-                    endFillColor="#fb923c"
-                    startOpacity={0.3}
-                    endOpacity={0.05}
-                    spacing={lineLayoutWeight.spacing}
-                    initialSpacing={lineLayoutWeight.initialSpacing}
-                    endSpacing={lineLayoutWeight.endSpacing}
-                    noOfSections={4}
-                    maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
-                    yAxisColor={theme.colors.borderSecondary}
-                    xAxisColor={theme.colors.borderSecondary}
-                    yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
-                    xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
-                    hideDataPoints={false}
-                    dataPointsColor="#fb923c"
-                    dataPointsRadius={6}
-                    dataPointsWidth={6}
-                    dataPointsHeight={6}
-                    textShiftY={-2}
-                    textShiftX={-5}
-                    textFontSize={10}
-                    hideRules={false}
-                    rulesColor={theme.colors.border}
-                    rulesType="solid"
-                    yAxisTextNumberOfLines={1}
-                    showVerticalLines={false}
-                    xAxisLabelsVerticalShift={10}
-                    xAxisLabelTexts={weightHistory.map((record) => 
-                      new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                    )}
-                      pointerConfig={{
-                        pointer1Color: '#fb923c',
-                        pointerStripUptoDataPoint: true,
-                        pointerStripColor: '#fb923c',
-                        pointerStripWidth: 2,
-                        activatePointersOnLongPress: true,
-                        hidePointer1: false,
-                        autoAdjustPointerLabelPosition: true,
-                      pointerLabelComponent: (items: any) => {
-                        return (
-                          <View
-                            style={{
-                              height: 40,
-                              width: 60,
-                              backgroundColor: '#fb923c',
-                              borderRadius: 8,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
-                              {items[0].value}kg
-                            </Text>
-                          </View>
-                        );
-                      },
-                    }}
-                  />
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingBottom: 12 }}
+                    >
+                      <LineChart
+                        data={weightHistory.map((record) => ({
+                          value: record.weight,
+                        }))}
+                        width={weightChartWidth}
+                        height={140}
+                        color="#fb923c"
+                        thickness={3}
+                        curved
+                        areaChart
+                        startFillColor="#fb923c"
+                        endFillColor="#fb923c"
+                        startOpacity={0.3}
+                        endOpacity={0.05}
+                        spacing={weightPointSpacing}
+                        initialSpacing={lineLayoutWeight.initialSpacing}
+                        endSpacing={lineLayoutWeight.endSpacing}
+                        noOfSections={4}
+                        maxValue={Math.max(...weightHistory.map(r => r.weight)) + 10}
+                        yAxisColor={theme.colors.borderSecondary}
+                        xAxisColor={theme.colors.borderSecondary}
+                        yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                        xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                        hideDataPoints={false}
+                        dataPointsColor="#fb923c"
+                        dataPointsRadius={6}
+                        dataPointsWidth={6}
+                        dataPointsHeight={6}
+                        textShiftY={-2}
+                        textShiftX={-5}
+                        textFontSize={10}
+                        hideRules={false}
+                        rulesColor={theme.colors.border}
+                        rulesType="solid"
+                        yAxisTextNumberOfLines={1}
+                        showVerticalLines={false}
+                        xAxisLabelsVerticalShift={6}
+                        xAxisLabelTexts={weightXAxisLabels}
+                        pointerConfig={{
+                          pointer1Color: '#fb923c',
+                          pointerStripUptoDataPoint: true,
+                          pointerStripColor: '#fb923c',
+                          pointerStripWidth: 2,
+                          activatePointersOnLongPress: true,
+                          hidePointer1: false,
+                          autoAdjustPointerLabelPosition: true,
+                          pointerLabelComponent: (items: any) => {
+                            return (
+                              <View
+                                style={{
+                                  height: 40,
+                                  width: 60,
+                                  backgroundColor: '#fb923c',
+                                  borderRadius: 8,
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text style={{ color: '#000', fontSize: 12, fontWeight: 'bold' }}>
+                                  {items[0].value}kg
+                                </Text>
+                              </View>
+                            );
+                          },
+                        }}
+                      />
+                    </ScrollView>
                   
                   {/* Estatísticas */}
                   {weightHistory.length > 1 && (
