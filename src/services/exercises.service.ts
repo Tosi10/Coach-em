@@ -68,7 +68,12 @@ export async function listExercisesByCoachId(coachId: string): Promise<Exercise[
     where('createdBy', '==', coachId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(docToExercise);
+  return snap.docs
+    .filter((d) => {
+      const data = d.data();
+      return !data?.deletedAt;
+    })
+    .map(docToExercise);
 }
 
 /**
@@ -78,6 +83,8 @@ export async function getExerciseById(id: string): Promise<Exercise | null> {
   const ref = doc(db, COLLECTION, id);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
+  const data = snap.data();
+  if (data?.deletedAt) return null;
   return docToExercise(snap);
 }
 
@@ -185,5 +192,13 @@ export async function updateExercise(
  * Remove um ou mais exercícios.
  */
 export async function deleteExercises(ids: string[]): Promise<void> {
-  await Promise.all(ids.map((id) => deleteDoc(doc(db, COLLECTION, id))));
+  const now = new Date().toISOString();
+  await Promise.all(
+    ids.map((id) =>
+      updateDoc(doc(db, COLLECTION, id), {
+        deletedAt: now,
+        updatedAt: now,
+      })
+    )
+  );
 }

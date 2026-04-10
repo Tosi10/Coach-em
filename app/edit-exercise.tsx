@@ -1,6 +1,8 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { useAuthContext } from '@/src/contexts/AuthContext';
+import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { getExerciseById, updateExercise } from '@/src/services/exercises.service';
+import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -12,6 +14,7 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 
 export default function EditExerciseScreen() {
     const router = useRouter();
+    const { user } = useAuthContext();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
     const { exerciseId } = useLocalSearchParams();
@@ -33,6 +36,7 @@ export default function EditExerciseScreen() {
     const [existingVideoURL, setExistingVideoURL] = useState<string | null>(null);
     const [removeStoredVideo, setRemoveStoredVideo] = useState(false);
     const [uploadingVideo, setUploadingVideo] = useState(false);
+    const [isDefaultExercise, setIsDefaultExercise] = useState(false);
 
     // Estados para CustomAlert
     const [alertVisible, setAlertVisible] = useState(false);
@@ -61,6 +65,7 @@ export default function EditExerciseScreen() {
                 if (!exerciseIdString) return;
                 const exercise = await getExerciseById(exerciseIdString);
                 if (exercise) {
+                    setIsDefaultExercise(false);
                     setName(exercise.name || '');
                     setDescription(exercise.description || '');
                     setDifficulty(exercise.difficulty || 'beginner');
@@ -71,7 +76,21 @@ export default function EditExerciseScreen() {
                     setVideoUri(null);
                     setRemoveStoredVideo(false);
                 } else {
-                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
+                    const fallbackDefault = DEFAULT_EXERCISES.find((ex) => ex.id === exerciseIdString);
+                    if (fallbackDefault) {
+                        setIsDefaultExercise(true);
+                        setName(fallbackDefault.name || '');
+                        setDescription(fallbackDefault.description || '');
+                        setDifficulty(fallbackDefault.difficulty || 'beginner');
+                        setMuscleGroups(fallbackDefault.muscleGroups || []);
+                        setEquipment(fallbackDefault.equipment || []);
+                        setDuration(fallbackDefault.duration ? fallbackDefault.duration.toString() : '');
+                        setExistingVideoURL(fallbackDefault.videoURL || null);
+                        setVideoUri(null);
+                        setRemoveStoredVideo(false);
+                    } else {
+                        showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar exercício:', error);
@@ -127,7 +146,11 @@ export default function EditExerciseScreen() {
         }
       
         try {
-            const patch: Parameters<typeof updateExercise>[1] = {
+            if (!exerciseIdString) {
+                showAlert('Erro', 'Exercício inválido.', 'error');
+                return;
+            }
+            const patch = {
                 name: name.trim(),
                 description: description.trim(),
                 difficulty,
@@ -150,7 +173,26 @@ export default function EditExerciseScreen() {
                 patch.videoURL = null;
             }
 
-            await updateExercise(exerciseIdString!, patch);
+            if (isDefaultExercise) {
+                if (!user?.id) {
+                    showAlert('Erro', 'Não foi possível identificar o treinador para salvar a edição.', 'error');
+                    return;
+                }
+                await createExercise(user.id, {
+                    id: `exercise_default_${exerciseIdString}_${user.id}`,
+                    name: patch.name,
+                    description: patch.description,
+                    difficulty: patch.difficulty,
+                    muscleGroups: patch.muscleGroups,
+                    equipment: patch.equipment,
+                    duration: patch.duration,
+                    videoURL: patch.videoURL,
+                    thumbnailURL: undefined,
+                    isGlobal: true,
+                });
+            } else {
+                await updateExercise(exerciseIdString!, patch);
+            }
             if (newVideoUploadFailed) {
                 showAlert(
                     'Salvo com aviso',
@@ -159,7 +201,14 @@ export default function EditExerciseScreen() {
                     () => setTimeout(() => router.back(), 0)
                 );
             } else {
-                showAlert('Sucesso', 'Exercício atualizado com sucesso!', 'success', () => setTimeout(() => router.back(), 0));
+                showAlert(
+                    'Sucesso',
+                    isDefaultExercise
+                        ? 'Exercício padrão personalizado com sucesso!'
+                        : 'Exercício atualizado com sucesso!',
+                    'success',
+                    () => setTimeout(() => router.back(), 0)
+                );
             }
         } catch (error) {
             console.error('Erro ao atualizar exercício:', error);
@@ -203,7 +252,7 @@ export default function EditExerciseScreen() {
 
     // PARTE 3: JSX (igual ao create-exercise.tsx, mas com título "Editar Exercício")
     return (
-        <ScrollView className="flex-1 bg-dark-950">
+        <ScrollView className="flex-1 bg-dark-950" keyboardShouldPersistTaps="handled">
             <View className="px-6 pt-20 pb-20">
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity

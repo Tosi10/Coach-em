@@ -10,6 +10,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { WorkoutBlockData } from '@/src/types';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
@@ -22,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  InputAccessoryView,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -39,18 +41,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
 const getMockWorkoutTemplates = () => {
   // Exercícios mockados (simplificados)
-  const mockExercises: any[] = [
-    { id: 'ex1', name: 'Agachamento', description: 'Agachamento livre' },
-    { id: 'ex2', name: 'Leg Press', description: 'Leg press 45°' },
-    { id: 'ex3', name: 'Extensão de Pernas', description: 'Extensão no aparelho' },
-    { id: 'ex4', name: 'Caminhada Leve', description: '5 minutos de caminhada' },
-    { id: 'ex5', name: 'Alongamento de Pernas', description: 'Alongamento estático' },
-    { id: 'ex6', name: 'Supino Reto', description: 'Supino com barra' },
-    { id: 'ex7', name: 'Supino Inclinado', description: 'Supino inclinado 45°' },
-    { id: 'ex8', name: 'Crucifixo', description: 'Crucifixo com halteres' },
-    { id: 'ex9', name: 'Corrida Leve', description: '5 minutos de corrida' },
-    { id: 'ex10', name: 'Alongamento de Peito', description: 'Alongamento estático' },
-  ];
+  const mockExercises: any[] = DEFAULT_EXERCISES.map((exercise) => ({
+    id: exercise.id,
+    name: exercise.name,
+    description: exercise.description,
+  }));
 
   return [
     {
@@ -197,6 +192,7 @@ const getMockWorkoutTemplates = () => {
 
 
 export default function WorkoutDetailsScreen() {
+  const weightInputAccessoryViewId = 'weightInputAccessoryView';
   const router = useRouter();
   const { workoutId: workoutIdRaw } = useLocalSearchParams();
   const workoutId =
@@ -271,6 +267,7 @@ export default function WorkoutDetailsScreen() {
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
   const [savedWeights, setSavedWeights] = useState<Record<string, number>>({}); // Pesos salvos por exercício
   const [weightSaveMessage, setWeightSaveMessage] = useState('');
+  const weightInputRef = useRef<TextInput>(null);
 
   // Animação de pulse contínua no botão
   useEffect(() => {
@@ -1641,11 +1638,13 @@ export default function WorkoutDetailsScreen() {
                           
                           <View className="flex-row gap-2 items-center">
                             <TextInput
+                              ref={weightInputRef}
                               value={exerciseWeight}
                               onChangeText={setExerciseWeight}
                               placeholder="Peso em kg"
                               placeholderTextColor={theme.colors.textTertiary}
                               keyboardType="numeric"
+                              inputAccessoryViewID={Platform.OS === 'ios' ? weightInputAccessoryViewId : undefined}
                               className="flex-1 border rounded-lg px-4 py-3"
                               style={{ 
                                 backgroundColor: theme.colors.backgroundTertiary,
@@ -1660,6 +1659,31 @@ export default function WorkoutDetailsScreen() {
                             />
                             <Text style={themeStyles.textSecondary}>kg</Text>
                           </View>
+                          {Platform.OS === 'ios' ? (
+                            <InputAccessoryView nativeID={weightInputAccessoryViewId}>
+                              <View
+                                style={{
+                                  backgroundColor: theme.colors.card,
+                                  borderTopWidth: 1,
+                                  borderTopColor: theme.colors.border,
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  alignItems: 'flex-end',
+                                }}
+                              >
+                                <Pressable
+                                  onPress={() => {
+                                    weightInputRef.current?.blur();
+                                  }}
+                                  hitSlop={10}
+                                >
+                                  <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                                    Fechar
+                                  </Text>
+                                </Pressable>
+                              </View>
+                            </InputAccessoryView>
+                          ) : null}
                           
                           <TouchableOpacity
                             onPress={() => {

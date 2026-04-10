@@ -8,6 +8,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { deleteExercises, listExercisesByCoachId } from '@/src/services/exercises.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -16,117 +17,8 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-// Dados mockados de exercícios (temporário - depois virá do Firebase)
-const mockExercises = [
-  {
-    id: '1',
-    name: 'Agachamento',
-    description: 'Exercício fundamental para desenvolvimento de força nas pernas e glúteos.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['pernas', 'glúteos'],
-    equipment: ['Nenhum'],
-    duration: 60,
-  },
-  {
-    id: '2',
-    name: 'Supino Reto',
-    description: 'Exercício clássico para desenvolvimento do peitoral, tríceps e deltoides.',
-    difficulty: 'intermediate' as const,
-    muscleGroups: ['peito', 'tríceps', 'ombros'],
-    equipment: ['Barra', 'Banco'],
-    duration: 90,
-  },
-  {
-    id: '3',
-    name: 'Puxada Frontal',
-    description: 'Exercício para desenvolvimento das costas e bíceps.',
-    difficulty: 'intermediate' as const,
-    muscleGroups: ['costas', 'bíceps'],
-    equipment: ['Barra', 'Pulley'],
-    duration: 90,
-  },
-  {
-    id: '4',
-    name: 'Leg Press',
-    description: 'Exercício para pernas realizado em máquina, ideal para iniciantes.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['pernas', 'glúteos'],
-    equipment: ['Máquina Leg Press'],
-    duration: 75,
-  },
-  {
-    id: '5',
-    name: 'Rosca Direta',
-    description: 'Exercício isolado para desenvolvimento dos bíceps.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['bíceps'],
-    equipment: ['Halteres'],
-    duration: 45,
-  },
-  {
-    id: '6',
-    name: 'Tríceps Pulley',
-    description: 'Exercício isolado para desenvolvimento dos tríceps.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['tríceps'],
-    equipment: ['Pulley'],
-    duration: 45,
-  },
-  {
-    id: '7',
-    name: 'Desenvolvimento com Halteres',
-    description: 'Exercício para desenvolvimento dos ombros.',
-    difficulty: 'intermediate' as const,
-    muscleGroups: ['ombros'],
-    equipment: ['Halteres'],
-    duration: 60,
-  },
-  {
-    id: '8',
-    name: 'Remada Curvada',
-    description: 'Exercício para desenvolvimento das costas e bíceps.',
-    difficulty: 'advanced' as const,
-    muscleGroups: ['costas', 'bíceps'],
-    equipment: ['Barra', 'Halteres'],
-    duration: 90,
-  },
-  {
-    id: '9',
-    name: 'Abdominal Crunch',
-    description: 'Exercício básico para fortalecimento do core.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['core', 'abdômen'],
-    equipment: ['Nenhum'],
-    duration: 30,
-  },
-  {
-    id: '10',
-    name: 'Prancha',
-    description: 'Exercício isométrico para fortalecimento do core.',
-    difficulty: 'intermediate' as const,
-    muscleGroups: ['core', 'abdômen'],
-    equipment: ['Nenhum'],
-    duration: 60,
-  },
-  {
-    id: '11',
-    name: 'Caminhada Leve',
-    description: '5 minutos de caminhada. Ideal para aquecimento.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['cardio'],
-    equipment: ['Nenhum'],
-    duration: 300,
-  },
-  {
-    id: '12',
-    name: 'Corrida Leve',
-    description: '5 minutos de corrida. Ideal para aquecimento ou bloco principal.',
-    difficulty: 'beginner' as const,
-    muscleGroups: ['cardio'],
-    equipment: ['Nenhum'],
-    duration: 300,
-  },
-];
+// Base padrão de exercícios para iniciar a biblioteca do treinador.
+const mockExercises = DEFAULT_EXERCISES;
 
 export default function ExercisesLibraryScreen() {
   const router = useRouter();
@@ -138,6 +30,7 @@ export default function ExercisesLibraryScreen() {
 
   // ESTADO: Filtro por grupo muscular
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
+  const [selectedExerciseType, setSelectedExerciseType] = useState<'warmup' | 'work' | 'cooldown' | null>(null);
 
   // Estados para CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
@@ -166,7 +59,11 @@ export default function ExercisesLibraryScreen() {
       const savedExercises = coachId
         ? await listExercisesByCoachId(coachId)
         : [];
-      const combinedExercises = [...mockExercises, ...savedExercises];
+      const combinedExercises = mergeDefaultExercisesWithCoachSaved(
+        mockExercises,
+        savedExercises,
+        coachId ?? undefined
+      );
       setAllExercises(combinedExercises);
     } catch (error) {
       console.error('Erro ao carregar exercícios', error);
@@ -206,6 +103,26 @@ export default function ExercisesLibraryScreen() {
     );
   };
 
+  const handleResetSingleExercise = (exerciseId: string, exerciseName: string) => {
+    showAlert(
+      'Restaurar exercício',
+      `Deseja restaurar "${exerciseName}" para o padrão?`,
+      'warning',
+      async () => {
+        try {
+          // Remove apenas o override deste exercício.
+          // O default base volta a aparecer automaticamente na posição original.
+          await deleteExercises([exerciseId]);
+          await loadSavedExercises();
+          showAlert('Sucesso', 'Exercício restaurado para o padrão.', 'success');
+        } catch (error) {
+          console.error('Erro ao restaurar exercício:', error);
+          showAlert('Erro', 'Não foi possível restaurar este exercício.', 'error');
+        }
+      }
+    );
+  };
+
   // FUNÇÃO: Obter todos os grupos musculares únicos
   const getAllMuscleGroups = (): string[] => {
     const groupsSet = new Set<string>();
@@ -217,6 +134,13 @@ export default function ExercisesLibraryScreen() {
     });
 
     return Array.from(groupsSet).sort();
+  };
+
+  const getExerciseType = (exercise: any): 'warmup' | 'work' | 'cooldown' => {
+    const groups = (exercise.muscleGroups || []).map((g: string) => g.toLowerCase());
+    if (groups.some((g: string) => g.includes('flexibilidade'))) return 'cooldown';
+    if (groups.some((g: string) => g.includes('cardio') || g.includes('mobilidade'))) return 'warmup';
+    return 'work';
   };
 
   // FUNÇÃO: Filtrar exercícios
@@ -235,6 +159,11 @@ export default function ExercisesLibraryScreen() {
         group.toLowerCase() === selectedMuscleGroup.toLowerCase()
       );
       if (!hasGroup) return false;
+    }
+    
+    // FILTRO 3: Tipo do exercício
+    if (selectedExerciseType) {
+      if (getExerciseType(exercise) !== selectedExerciseType) return false;
     }
 
     return true;
@@ -306,21 +235,23 @@ export default function ExercisesLibraryScreen() {
           Gerencie seu repertório de exercícios
         </Text>
 
-        {/* Botão Criar Exercício */}
-        <TouchableOpacity
-          className="rounded-lg py-3 px-6 mb-6 border"
-          style={{
-            backgroundColor: theme.mode === 'dark' 
-              ? 'rgba(249, 115, 22, 0.4)' 
-              : 'rgba(251, 146, 60, 0.2)',
-            borderColor: theme.colors.primary + '50',
-          }}
-          onPress={() => router.push('/create-exercise')}
-        >
-          <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-            ➕ Criar Exercício
-          </Text>
-        </TouchableOpacity>
+        {/* Ações da biblioteca */}
+        <View className="mb-6">
+          <TouchableOpacity
+            className="rounded-lg py-3 px-6 border"
+            style={{
+              backgroundColor: theme.mode === 'dark' 
+                ? 'rgba(249, 115, 22, 0.4)' 
+                : 'rgba(251, 146, 60, 0.2)',
+              borderColor: theme.colors.primary + '50',
+            }}
+            onPress={() => router.push('/create-exercise')}
+          >
+            <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
+              ➕ Criar Exercício
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Campo de busca */}
         <View className="mb-4">
@@ -397,6 +328,67 @@ export default function ExercisesLibraryScreen() {
           </ScrollView>
         </View>
 
+        {/* FILTRO POR TIPO */}
+        <View className="mb-4">
+          <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
+            Tipo
+          </Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              className="px-4 py-2 rounded-lg"
+              style={{
+                backgroundColor: selectedExerciseType === null
+                  ? theme.colors.primary
+                  : theme.colors.backgroundTertiary,
+              }}
+              onPress={() => setSelectedExerciseType(null)}
+            >
+              <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === null ? '#ffffff' : theme.colors.text }}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="px-4 py-2 rounded-lg"
+              style={{
+                backgroundColor: selectedExerciseType === 'warmup'
+                  ? theme.colors.primary
+                  : theme.colors.backgroundTertiary,
+              }}
+              onPress={() => setSelectedExerciseType(selectedExerciseType === 'warmup' ? null : 'warmup')}
+            >
+              <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'warmup' ? '#ffffff' : theme.colors.text }}>
+                Aquecimento
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="px-4 py-2 rounded-lg"
+              style={{
+                backgroundColor: selectedExerciseType === 'work'
+                  ? theme.colors.primary
+                  : theme.colors.backgroundTertiary,
+              }}
+              onPress={() => setSelectedExerciseType(selectedExerciseType === 'work' ? null : 'work')}
+            >
+              <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'work' ? '#ffffff' : theme.colors.text }}>
+                Principal
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="px-4 py-2 rounded-lg"
+              style={{
+                backgroundColor: selectedExerciseType === 'cooldown'
+                  ? theme.colors.primary
+                  : theme.colors.backgroundTertiary,
+              }}
+              onPress={() => setSelectedExerciseType(selectedExerciseType === 'cooldown' ? null : 'cooldown')}
+            >
+              <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'cooldown' ? '#ffffff' : theme.colors.text }}>
+                Finalização
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Contador de resultados */}
         <Text className="mb-4" style={themeStyles.textSecondary}>
           {filteredExercises.length} exercício{filteredExercises.length !== 1 ? 's' : ''} encontrado{filteredExercises.length !== 1 ? 's' : ''}
@@ -422,25 +414,37 @@ export default function ExercisesLibraryScreen() {
                 {exercise.name || 'Exercício sem nome'}
               </Text>
               
-              {/* Botões de ação - só aparecem para exercícios criados (não mockados) */}
-              {exercise.id.startsWith('exercise_') && (
-                <View className="flex-row gap-2 mr-2">
-                  {/* Botão Editar */}
+              {/* Botões de ação */}
+              <View className="flex-row gap-2 mr-2">
+                {/* Editar disponível para defaults e personalizados */}
+                <TouchableOpacity
+                  className="bg-blue-500/80 rounded-lg px-3 py-1"
+                  onPress={() => {
+                    router.push({
+                      pathname: '/edit-exercise',
+                      params: { exerciseId: exercise.id },
+                    });
+                  }}
+                >
+                  <Text className="text-white font-semibold text-xs">
+                    ✏️
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Restaurar padrão por exercício (somente overrides de default) */}
+                {exercise.id.startsWith('exercise_default_') && (
                   <TouchableOpacity
-                    className="bg-blue-500/80 rounded-lg px-3 py-1"
-                    onPress={() => {
-                      router.push({
-                        pathname: '/edit-exercise',
-                        params: { exerciseId: exercise.id },
-                      });
-                    }}
+                    className="bg-amber-500/80 rounded-lg px-3 py-1"
+                    onPress={() => handleResetSingleExercise(exercise.id, exercise.name || 'Exercício')}
                   >
                     <Text className="text-white font-semibold text-xs">
-                      ✏️
+                      ↺
                     </Text>
                   </TouchableOpacity>
-                  
-                  {/* Botão Deletar */}
+                )}
+
+                {/* Deletar só para personalizados do treinador (não default override) */}
+                {exercise.id.startsWith('exercise_') && !exercise.id.startsWith('exercise_default_') && (
                   <TouchableOpacity
                     className="bg-red-500/80 rounded-lg px-3 py-1"
                     onPress={() => handleDeleteExercise(exercise.id, exercise.name || 'Exercício')}
@@ -449,8 +453,8 @@ export default function ExercisesLibraryScreen() {
                       🗑️
                     </Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                )}
+              </View>
               
               <View className={`px-3 py-1 rounded-full ${getDifficultyColor(exercise.difficulty || 'beginner')}`}>
                 <Text className={`text-xs font-semibold ${getDifficultyTextColor(exercise.difficulty || 'beginner')}`}>

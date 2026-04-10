@@ -8,6 +8,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { deleteWorkoutTemplate, getWorkoutTemplateById } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -16,19 +17,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-// Exercícios mockados (mesmos do workouts-library.tsx)
-const mockExercises: Exercise[] = [
-    { id: 'ex1', name: 'Agachamento', description: 'Agachamento livre', difficulty: 'intermediate', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex2', name: 'Leg Press', description: 'Leg press 45°', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex3', name: 'Extensão de Pernas', description: 'Extensão no aparelho', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex4', name: 'Caminhada Leve', description: '5 minutos de caminhada', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex5', name: 'Alongamento de Pernas', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex6', name: 'Supino Reto', description: 'Supino com barra', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex7', name: 'Supino Inclinado', description: 'Supino inclinado 45°', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex8', name: 'Crucifixo', description: 'Crucifixo com halteres', difficulty: 'beginner', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex9', name: 'Corrida Leve', description: '5 minutos de corrida', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex10', name: 'Alongamento de Peito', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-];
+// Exercícios padrão para fallback visual dos templates.
+const mockExercises: Exercise[] = DEFAULT_EXERCISES;
 
 // Dados mockados de treinos (mesmos do workouts-library.tsx)
 const mockWorkouts = [

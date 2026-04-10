@@ -15,6 +15,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { listExercisesByCoachId } from '@/src/services/exercises.service';
 import { createWorkoutTemplate } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
@@ -24,24 +25,8 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-// Exercícios mockados (mesmos da biblioteca de exercícios)
-// TODO: Depois vamos buscar da biblioteca real
-const mockExercises: Exercise[] = [
-    { id: '1', name: 'Agachamento', description: 'Exercício fundamental para desenvolvimento de força nas pernas e glúteos.', difficulty: 'beginner', muscleGroups: ['pernas', 'glúteos'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '2', name: 'Supino Reto', description: 'Exercício clássico para desenvolvimento do peitoral, tríceps e deltoides.', difficulty: 'intermediate', muscleGroups: ['peito', 'tríceps', 'ombros'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '3', name: 'Puxada Frontal', description: 'Exercício para desenvolvimento das costas e bíceps.', difficulty: 'intermediate', muscleGroups: ['costas', 'bíceps'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '4', name: 'Leg Press', description: 'Exercício para pernas realizado em máquina, ideal para iniciantes.', difficulty: 'beginner', muscleGroups: ['pernas', 'glúteos'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '5', name: 'Rosca Direta', description: 'Exercício isolado para desenvolvimento dos bíceps.', difficulty: 'beginner', muscleGroups: ['bíceps'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '6', name: 'Tríceps Pulley', description: 'Exercício isolado para desenvolvimento dos tríceps.', difficulty: 'beginner', muscleGroups: ['tríceps'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '7', name: 'Desenvolvimento com Halteres', description: 'Exercício para desenvolvimento dos ombros.', difficulty: 'intermediate', muscleGroups: ['ombros'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '8', name: 'Remada Curvada', description: 'Exercício para desenvolvimento das costas e bíceps.', difficulty: 'advanced', muscleGroups: ['costas', 'bíceps'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '9', name: 'Abdominal Crunch', description: 'Exercício básico para fortalecimento do core.', difficulty: 'beginner', muscleGroups: ['core', 'abdômen'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '10', name: 'Prancha', description: 'Exercício isométrico para fortalecimento do core.', difficulty: 'intermediate', muscleGroups: ['core', 'abdômen'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '11', name: 'Caminhada Leve', description: '5 minutos de caminhada', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '12', name: 'Corrida Leve', description: '5 minutos de corrida', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '13', name: 'Alongamento de Pernas', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: '14', name: 'Alongamento de Peito', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-];
+// Exercícios padrão de academia para iniciar os treinos do treinador.
+const mockExercises: Exercise[] = DEFAULT_EXERCISES;
 
 export default function CreateWorkoutScreen() {
     const router = useRouter();
@@ -93,7 +78,11 @@ export default function CreateWorkoutScreen() {
             const savedExercises: Exercise[] = coachId
                 ? await listExercisesByCoachId(coachId)
                 : [];
-            const combined = [...mockExercises, ...savedExercises];
+            const combined = mergeDefaultExercisesWithCoachSaved(
+                mockExercises,
+                savedExercises,
+                coachId ?? undefined
+            );
             setAllExercises(combined);
         } catch (error) {
             console.error('Erro ao carregar exercícios:', error);

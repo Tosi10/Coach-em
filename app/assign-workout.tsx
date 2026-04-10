@@ -2,6 +2,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service';
 import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
@@ -32,18 +33,24 @@ function getAllDayTimes(): string[] {
 
 const ALL_DAY_TIMES = getAllDayTimes();
 
-  const mockExercises: Exercise[] = [
-    { id: 'ex1', name: 'Agachamento', description: 'Agachamento livre', difficulty: 'intermediate', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex2', name: 'Leg Press', description: 'Leg press 45°', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex3', name: 'Extensão de Pernas', description: 'Extensão no aparelho', difficulty: 'beginner', muscleGroups: ['pernas'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex4', name: 'Caminhada Leve', description: '5 minutos de caminhada', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex5', name: 'Alongamento de Pernas', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex6', name: 'Supino Reto', description: 'Supino com barra', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex7', name: 'Supino Inclinado', description: 'Supino inclinado 45°', difficulty: 'intermediate', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex8', name: 'Crucifixo', description: 'Crucifixo com halteres', difficulty: 'beginner', muscleGroups: ['peito'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex9', name: 'Corrida Leve', description: '5 minutos de corrida', difficulty: 'beginner', muscleGroups: ['cardio'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'ex10', name: 'Alongamento de Peito', description: 'Alongamento estático', difficulty: 'beginner', muscleGroups: ['flexibilidade'], createdBy: 'coach1', isGlobal: true, createdAt: new Date(), updatedAt: new Date() },
-];
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function formatDatePtBr(dateStr: string): string {
+  const d = parseLocalDateString(dateStr);
+  return d.toLocaleDateString('pt-BR');
+}
+
+  const mockExercises: Exercise[] = DEFAULT_EXERCISES;
   const mockWorkouts = [
     {
         id: '1',
@@ -224,7 +231,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
     
     // Estado para armazenar a data escolhida (formato: YYYY-MM-DD)
     const [selectedDate, setSelectedDate] = useState<string>(
-      new Date().toISOString().split('T')[0] // Data de hoje como padrão
+      getLocalDateString() // Data de hoje local como padrão
     );
 
     // Estados para recorrência
@@ -233,7 +240,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
     const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number | null>(null); // 0 = Domingo, 1 = Segunda, etc.
     const [recurrenceCount, setRecurrenceCount] = useState<number>(4); // quantidade de treinos
     const [startDate, setStartDate] = useState<string>(
-      new Date().toISOString().split('T')[0]
+      getLocalDateString()
     );
     const [showCalendar, setShowCalendar] = useState<boolean>(false);
     const [showWorkoutModal, setShowWorkoutModal] = useState<boolean>(false);
@@ -305,7 +312,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
     // Quando ativar "Recorrente" ou quando startDate mudar, auto-selecionar o dia da semana
     useEffect(() => {
         if (isRecurring && startDate) {
-            const dateObj = new Date(startDate);
+            const dateObj = parseLocalDateString(startDate);
             const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
             setSelectedDayOfWeek(dayOfWeek);
         }
@@ -338,9 +345,9 @@ const ALL_DAY_TIMES = getAllDayTimes();
                 daysToAdd = 7; // Ir para a próxima semana
             }
             currentDate.setDate(currentDate.getDate() + daysToAdd);
-            console.log(`   - Data inicial não era o dia correto, ajustando para: ${currentDate.toISOString().split('T')[0]}`);
+            console.log(`   - Data inicial não era o dia correto, ajustando para: ${getLocalDateString(currentDate)}`);
         } else {
-            console.log(`   - Data inicial já é o dia correto, usando: ${currentDate.toISOString().split('T')[0]}`);
+            console.log(`   - Data inicial já é o dia correto, usando: ${getLocalDateString(currentDate)}`);
         }
 
         // Gerar exatamente a quantidade de treinos solicitada
@@ -430,7 +437,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
             }
 
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = getLocalDateString();
 
             const newAssignments = datesToAssign.map((date) => {
                 const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
@@ -791,7 +798,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
                                     onPress={() => setShowCalendar(true)}
                                 >
                                     <Text style={themeStyles.text}>
-                                        {selectedDate ? new Date(selectedDate).toLocaleDateString('pt-BR') : 'Selecione uma data'}
+                                        {selectedDate ? formatDatePtBr(selectedDate) : 'Selecione uma data'}
                                     </Text>
                                 </TouchableOpacity>
                                 <Text className="text-xs" style={themeStyles.textTertiary}>
@@ -811,7 +818,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
                                     }}
                                 >
                                     <Text style={themeStyles.text}>
-                                        {startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Selecione a data inicial'}
+                                        {startDate ? formatDatePtBr(startDate) : 'Selecione a data inicial'}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -915,7 +922,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
                                             if (isRecurring) {
                                                 setStartDate(day.dateString);
                                                 // Auto-selecionar o dia da semana baseado na data escolhida
-                                                const selectedDateObj = new Date(day.dateString);
+                                                const selectedDateObj = parseLocalDateString(day.dateString);
                                                 const dayOfWeek = selectedDateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
                                                 setSelectedDayOfWeek(dayOfWeek);
                                             } else {
@@ -923,7 +930,7 @@ const ALL_DAY_TIMES = getAllDayTimes();
                                             }
                                             setShowCalendar(false);
                                         }}
-                                        minDate={new Date().toISOString().split('T')[0]}
+                                        minDate={getLocalDateString()}
                                         theme={{
                                             backgroundColor: theme.colors.background,
                                             calendarBackground: theme.colors.background,

@@ -15,7 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TabTwoScreen() {
@@ -34,6 +34,7 @@ export default function TabTwoScreen() {
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
   const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos'>('proximos');
   const [workoutsToShow, setWorkoutsToShow] = useState(5);
+  const isSchedulingAthleteRemindersRef = useRef(false);
 
   // Estados para CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
@@ -88,7 +89,10 @@ export default function TabTwoScreen() {
       const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(currentAthleteId);
       setAthleteWorkouts(workoutsWithStatus);
 
-      // Agendar lembretes do ATLETA (30 min antes + na hora) para treinos pendentes e futuros
+      // Agendar lembretes do ATLETA (30 min antes + na hora) para treinos pendentes e futuros.
+      // Evita duplicação quando load roda por useEffect + useFocusEffect quase ao mesmo tempo.
+      if (isSchedulingAthleteRemindersRef.current) return;
+      isSchedulingAthleteRemindersRef.current = true;
       try {
         const hasPermission = await requestNotificationPermissions();
         if (!hasPermission) return;
@@ -112,6 +116,8 @@ export default function TabTwoScreen() {
         }
       } catch (notifErr) {
         console.warn('Lembretes do atleta não agendados:', notifErr);
+      } finally {
+        isSchedulingAthleteRemindersRef.current = false;
       }
     } catch (error) {
       console.error('Erro ao carregar treinos do atleta:', error);
