@@ -1,6 +1,31 @@
 # Treina+ — gestão de performance esportiva
 
-App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acompanhamento. Stack: **Expo Router**, **TypeScript**, **NativeWind**, **Firebase** (Auth, Firestore, Storage), **EAS Build** para Android.
+App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acompanhamento. Stack: **Expo Router**, **TypeScript**, **NativeWind**, **Firebase** (Auth, Firestore, Storage), **EAS Build** para Android e iOS.
+
+---
+
+## Última atualização (o que foi feito)
+
+Resumo do estado recente do código (inclui commit em `main` com coach card, sync e UI):
+
+| Tema | Detalhe |
+|------|---------|
+| **Home do atleta** | Card do treinador com **foto**, **nome exibido** e **mensagem** definidos no Perfil do treinador. Leitura em **`coachemAthletes`** (e fallback nos treinos atribuídos). **Não** gravamos isso em `users/{atleta}`: as [regras Firestore](docs/firestore.rules.coachem.production.rules) só permitem o próprio usuário atualizar o próprio `users/{uid}`. |
+| **Perfil do treinador** | Campos *nome para atletas*, *mensagem para atletas*, upload de foto; salvamento com **`syncCoachPublicProfileToAthletes`** espelhando em atletas e treinos. Confirmação com **CustomAlert** (não `Alert` nativo). |
+| **Abas** | Espaçamento superior (safe area + 20px) alinhado entre Home / Treinos / Perfil; header nativo oculto na aba Treinos; ícone **Atletas** ~10% menor na tab bar. |
+| **Loja / jurídico** | Textos em `DOCUMENTACAO_LOJAS.md`, `DESCRICAO_LONGA.md`, `POLITICA_PRIVACIDADE.md`, `TERMOS_DE_USO.md`; páginas estáticas em `hosting/legal/` e `public/` para deploy no **Firebase Hosting** (guia em `hosting/legal/GUIA_DEPLOY_FIREBASE_HOSTING.md`). |
+| **Conta** | Fluxo de atleta **bloqueado** pelo treinador, onboarding/tips, suporte Vision10 no perfil do treinador, etc. (ver histórico de commits). |
+
+---
+
+## Próximos passos (continuação)
+
+Sugestão de ordem para **lançamento** e evolução:
+
+1. **Build em loja** — Concluir `eas build` (iOS/Android) com variáveis `EXPO_PUBLIC_FIREBASE_*` no Expo; **`eas submit`** ou submit automático para TestFlight / Play Console.
+2. **Testes na loja** — Instalar build de produção, login treinador + atleta, card do treinador na Home, bloqueio, treinos, perfil e links jurídicos.
+3. **Firebase Hosting** — Se ainda não deployou: `firebase deploy --only hosting` para URLs públicas de privacidade/termos baterem com o app.
+4. **Opcional pós-MVP** — Polir texto longo no card do treinador (ellipsis / “ver mais”), migrar `expo-av` quando subir SDK, revisar peso dos PNGs, regras de negócio se treinador excluir conta.
 
 ---
 
@@ -76,8 +101,7 @@ O treinador cadastra atleta em **Adicionar atleta** com nome, email e **senha pr
 
 ## Melhorias recomendadas (fora deste README)
 
-- **Imagens:** reduzir peso dos PNGs grandes (ícones e cards) para performance em APK.
-- **Foto de perfil:** campo `photoURL` no tipo `User`; upload no Storage (planejado).
+- **Imagens:** reduzir peso dos PNGs grandes (ícones e cards) para performance em APK/AAB.
 - **Treinador que exclui conta:** avaliar o que fazer com atletas e dados vinculados (regra de negócio / função agendada).
 
 ---
@@ -85,6 +109,9 @@ O treinador cadastra atleta em **Adicionar atleta** com nome, email e **senha pr
 ## Documentação extra no repositório
 
 - **`docs/EMAIL_PASSWORD_RESET.md`** — Gmail + secrets + deploy da função de reset; **checklist** para replicar o mesmo padrão em projetos futuros (mesmo estilo de configuração).
+- **`docs/firestore.rules.coachem.production.rules`** — regras de referência (Auth/`users`/`coachemAthletes`/treinos).
+- **`DOCUMENTACAO_LOJAS.md`**, **`DESCRICAO_LONGA.md`**, **`POLITICA_PRIVACIDADE.md`**, **`TERMOS_DE_USO.md`** — textos para lojas e jurídico.
+- **`hosting/legal/`** — HTML + guia de deploy Firebase Hosting para páginas públicas de privacidade/termos.
 - `CONTEXTO_PROJETO.md`, `GUIA_COMPLETO.md`, `SETUP.md` (quando existirem) — contexto e Firebase.
 - **`functions/README.md`** — deploy das Cloud Functions e referência aos secrets.
 
