@@ -5,6 +5,7 @@
  */
 
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
   const [pwdBusy, setPwdBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const pickProfilePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -127,21 +129,7 @@ export default function ProfileScreen() {
   };
 
   const confirmDeleteAccount = () => {
-    Alert.alert(
-      'Excluir conta',
-      'Esta ação é permanente. Seus dados de perfil serão removidos. Treinos e histórico podem permanecer conforme as regras do app. Deseja continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Continuar',
-          style: 'destructive',
-          onPress: () => {
-            setDeletePwd('');
-            setDeleteModalOpen(true);
-          },
-        },
-      ]
-    );
+    setDeleteConfirmVisible(true);
   };
 
   const submitDeleteAccount = async () => {
@@ -460,6 +448,22 @@ export default function ProfileScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CustomAlert
+        visible={deleteConfirmVisible}
+        title="Excluir conta"
+        message="Esta ação é permanente. Seus dados de perfil serão removidos. Treinos e histórico podem permanecer conforme as regras do app. Deseja continuar?"
+        type="warning"
+        confirmText="Continuar"
+        cancelText="Cancelar"
+        showCancel
+        onConfirm={() => {
+          setDeleteConfirmVisible(false);
+          setDeletePwd('');
+          setDeleteModalOpen(true);
+        }}
+        onCancel={() => setDeleteConfirmVisible(false)}
+      />
     </ScrollView>
   );
 }

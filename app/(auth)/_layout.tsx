@@ -22,6 +22,7 @@ export default function AuthLayout() {
     >
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="blocked" />
     </Stack>
   );
 }

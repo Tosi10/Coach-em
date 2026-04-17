@@ -81,6 +81,10 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (err: any) {
       const msg = err?.message ?? 'Erro ao fazer login';
+      if (msg.toLowerCase().includes('conta de atleta foi bloqueada')) {
+        router.replace('/(auth)/blocked');
+        return;
+      }
       showAlert('Erro ao fazer login', msg, 'error');
     }
   };

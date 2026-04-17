@@ -17,7 +17,7 @@ import {
   UserCredential,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, functions } from './firebase.config';
 import { User, UserType, Coach, Athlete } from '@/src/types';
 import { FirebaseError } from 'firebase/app';
@@ -36,6 +36,36 @@ export interface SignUpData {
 export interface SignInData {
   email: string;
   password: string;
+}
+
+export class BlockedAccountError extends Error {
+  constructor(message = 'Sua conta de atleta foi bloqueada pelo treinador.') {
+    super(message);
+    this.name = 'BlockedAccountError';
+  }
+}
+
+function isBlockedStatus(status: unknown): boolean {
+  if (typeof status !== 'string') return false;
+  const normalized = status.trim().toLowerCase();
+  return normalized === 'bloqueado' || normalized === 'blocked';
+}
+
+async function ensureAthleteIsAllowed(firebaseUser: FirebaseUser, userData: any): Promise<void> {
+  if (userData?.userType !== UserType.ATHLETE) return;
+
+  // Verifica bloqueio no perfil principal de users/{uid}
+  if (isBlockedStatus(userData?.status)) {
+    await signOut(auth);
+    throw new BlockedAccountError();
+  }
+
+  // Verifica também a coleção de atletas gerenciada pelo treinador
+  const athleteDoc = await getDoc(doc(db, 'coachemAthletes', firebaseUser.uid));
+  if (athleteDoc.exists() && isBlockedStatus(athleteDoc.data()?.status)) {
+    await signOut(auth);
+    throw new BlockedAccountError();
+  }
 }
 
 function formatAuthError(error: unknown, fallbackPrefix: string): Error {
@@ -151,8 +181,13 @@ export async function signIn(data: SignInData): Promise<User> {
       return await ensureProfileForExistingAuthUser(firebaseUser);
     }
 
-    return toAppUser(firebaseUser, userDoc.data());
+    const userData = userDoc.data();
+    await ensureAthleteIsAllowed(firebaseUser, userData);
+    return toAppUser(firebaseUser, userData);
   } catch (error: unknown) {
+    if (error instanceof BlockedAccountError) {
+      throw error;
+    }
     throw formatAuthError(error, 'Erro ao fazer login');
   }
 }
@@ -179,8 +214,13 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
 
-    return toAppUser(firebaseUser, userDoc.data());
+    const userData = userDoc.data();
+    await ensureAthleteIsAllowed(firebaseUser, userData);
+    return toAppUser(firebaseUser, userData);
   } catch (error: unknown) {
+    if (error instanceof BlockedAccountError) {
+      throw error;
+    }
     throw formatAuthError(error, 'Erro ao buscar usuário');
   }
 }
@@ -242,12 +282,44 @@ export async function deleteMyAccount(currentPassword: string): Promise<void> {
     const cred = EmailAuthProvider.credential(user.email, currentPassword);
     await reauthenticateWithCredential(user, cred);
     const uid = user.uid;
-    await deleteDoc(doc(db, 'users', uid));
-    const athleteRef = doc(db, 'coachemAthletes', uid);
-    const athleteSnap = await getDoc(athleteRef);
-    if (athleteSnap.exists()) {
-      await deleteDoc(athleteRef);
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data() as Partial<Athlete & Coach> | undefined;
+
+    // Se for atleta, preserva o documento em coachemAthletes para que o treinador
+    // continue enxergando histórico e vínculo do atleta mesmo após remoção da conta.
+    if (userData?.userType === UserType.ATHLETE) {
+      const nowIso = new Date().toISOString();
+      const athleteRef = doc(db, 'coachemAthletes', uid);
+      const athleteSnap = await getDoc(athleteRef);
+
+      if (athleteSnap.exists()) {
+        await updateDoc(athleteRef, {
+          status: 'Conta removida',
+          updatedAt: nowIso,
+          deletedAt: nowIso,
+          canLogin: false,
+        } as any);
+      } else {
+        await setDoc(
+          athleteRef,
+          {
+            coachId: userData?.coachId ?? '',
+            name: userData?.displayName ?? 'Atleta removido',
+            sport: userData?.sport ?? null,
+            status: 'Conta removida',
+            authUid: uid,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            deletedAt: nowIso,
+            canLogin: false,
+          },
+          { merge: true }
+        );
+      }
     }
+
+    await deleteDoc(userRef);
     await deleteUser(user);
   } catch (error: unknown) {
     throw formatAuthError(error, 'Erro ao excluir conta');

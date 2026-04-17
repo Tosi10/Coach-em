@@ -229,6 +229,37 @@ export default function AthleteProfileScreen() {
     );
   };
 
+  const handleToggleAthleteAccess = () => {
+    const isBlocked = String(athlete?.status || '').toLowerCase() === 'bloqueado';
+    const shouldBlock = !isBlocked;
+
+    showAlert(
+      shouldBlock ? 'Bloquear conta do atleta' : 'Desbloquear conta do atleta',
+      shouldBlock
+        ? 'Este atleta não conseguirá mais fazer login no app até ser desbloqueado.'
+        : 'Este atleta voltará a conseguir fazer login normalmente.',
+      'warning',
+      async () => {
+        if (!athleteIdString) return;
+        try {
+          const { setAthleteBlockedStatus } = await import('@/src/services/athletes.service');
+          await setAthleteBlockedStatus(athleteIdString, shouldBlock);
+          await loadAthleteFromFirestore();
+          showAlert(
+            'Sucesso',
+            shouldBlock
+              ? 'Conta do atleta bloqueada com sucesso.'
+              : 'Conta do atleta desbloqueada com sucesso.',
+            'success'
+          );
+        } catch (error) {
+          console.error('Erro ao alterar bloqueio do atleta:', error);
+          showAlert('Erro', 'Não foi possível atualizar o status da conta.', 'error');
+        }
+      }
+    );
+  };
+
   if (!athlete) {
     return (
       <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
@@ -243,6 +274,10 @@ export default function AthleteProfileScreen() {
       </View>
     );
   }
+
+  const normalizedAthleteStatus = String(athlete?.status || '').toLowerCase();
+  const isBlocked = normalizedAthleteStatus === 'bloqueado';
+  const isRemoved = normalizedAthleteStatus === 'conta removida';
 
   return (
     <ScrollView className="flex-1" style={themeStyles.bg}>
@@ -284,6 +319,27 @@ export default function AthleteProfileScreen() {
             <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
               {athlete.name}
             </Text>
+
+            <View
+              className="border px-3 py-1 rounded-lg self-start mb-2"
+              style={{
+                backgroundColor: isRemoved
+                  ? theme.colors.backgroundSecondary
+                  : isBlocked
+                  ? (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)')
+                  : (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.08)'),
+                borderColor: isRemoved ? theme.colors.border : isBlocked ? '#ef444455' : '#10b98155',
+              }}
+            >
+              <Text
+                className="font-semibold text-xs"
+                style={{
+                  color: isRemoved ? theme.colors.textTertiary : isBlocked ? '#ef4444' : '#10b981',
+                }}
+              >
+                {isRemoved ? 'Conta removida' : isBlocked ? 'Bloqueado' : 'Ativo'}
+              </Text>
+            </View>
             
             {/* Status "Treinou Hoje" */}
             {hasTrainedToday ? (
@@ -1041,7 +1097,9 @@ export default function AthleteProfileScreen() {
               ? 'rgba(249, 115, 22, 0.4)' 
               : 'rgba(251, 146, 60, 0.2)',
             borderColor: theme.colors.primary + '50',
+            opacity: isRemoved ? 0.45 : 1,
           }}
+          disabled={isRemoved}
           onPress={() => {
             router.push({
               pathname: '/assign-workout',
@@ -1053,6 +1111,39 @@ export default function AthleteProfileScreen() {
             ➕ Atribuir Treino
           </Text>
         </TouchableOpacity>
+
+        {/* Botão Bloquear/Desbloquear conta do atleta */}
+        {!isRemoved && (
+          <TouchableOpacity
+            className="rounded-xl py-3.5 px-6 mt-3 border"
+            style={{
+              backgroundColor: isBlocked
+                ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)')
+                : (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.14)' : 'rgba(239, 68, 68, 0.08)'),
+              borderColor: isBlocked ? '#10b98155' : '#ef444455',
+            }}
+            onPress={handleToggleAthleteAccess}
+            activeOpacity={0.8}
+          >
+            <Text
+              className="font-semibold text-center"
+              style={{ color: isBlocked ? '#10b981' : '#ef4444' }}
+            >
+              {isBlocked ? '🔓 Desbloquear conta do atleta' : '🔒 Bloquear conta do atleta'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {isRemoved && (
+          <View
+            className="rounded-xl py-3.5 px-4 mt-3 border"
+            style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
+          >
+            <Text className="text-center text-xs" style={themeStyles.textSecondary}>
+              Este atleta removeu a conta de login. Os dados foram mantidos apenas para histórico do treinador.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Custom Alert */}

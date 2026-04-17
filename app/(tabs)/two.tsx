@@ -28,7 +28,18 @@ export default function TabTwoScreen() {
   const [userType, setUserType] = useState<UserType | null>(null);
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null);
   // Atletas derivados dos treinos (Firestore) – só para COACH
-  const [athletes, setAthletes] = useState<Array<{ id: string; name: string; photoURL?: string }>>([]);
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string; photoURL?: string; status?: string }>>([]);
+
+  const getAthleteStatusMeta = (status?: string) => {
+    const normalized = String(status || '').toLowerCase();
+    if (normalized === 'bloqueado') {
+      return { label: 'Bloqueado', color: '#ef4444' };
+    }
+    if (normalized === 'conta removida') {
+      return { label: 'Conta removida', color: theme.colors.textTertiary };
+    }
+    return { label: 'Ativo', color: theme.colors.textSecondary };
+  };
   
   // Estados para treinos do atleta
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
@@ -139,7 +150,14 @@ export default function TabTwoScreen() {
     try {
       const { listAthletesByCoachId } = await import('@/src/services/athletes.service');
       const list = await listAthletesByCoachId(user.id);
-      setAthletes(list.map((a) => ({ id: a.id, name: a.name, photoURL: a.photoURL })));
+      setAthletes(
+        list.map((a) => ({
+          id: a.id,
+          name: a.name,
+          photoURL: a.photoURL,
+          status: a.status,
+        }))
+      );
     } catch (e) {
       setAthletes([]);
     }
@@ -603,8 +621,11 @@ export default function TabTwoScreen() {
                   <Text className="text-lg font-semibold" style={themeStyles.text}>
                     {athlete.name}
                   </Text>
-                  <Text className="mt-1" style={themeStyles.textSecondary}>
-                    Ativo
+                  <Text
+                    className="mt-1 font-medium"
+                    style={{ color: getAthleteStatusMeta(athlete.status).color }}
+                  >
+                    {getAthleteStatusMeta(athlete.status).label}
                   </Text>
                 </View>
               </View>

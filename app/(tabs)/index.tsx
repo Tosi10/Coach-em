@@ -2553,9 +2553,16 @@ export default function HomeScreen() {
           {/* Próximos Treinos */}
           {upcomingWorkouts.length > 0 && (
             <View className="w-full mb-6">
-              <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                📅 Próximos Treinos
-              </Text>
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/IconeAquecimento2.png')}
+                  style={{ width: 40, height: 40, marginRight: 8 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Próximos Treinos
+                </Text>
+              </View>
               
               {upcomingWorkouts.map((workout) => (
                 <TouchableOpacity

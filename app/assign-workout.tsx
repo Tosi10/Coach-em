@@ -259,16 +259,21 @@ function formatDatePtBr(dateStr: string): string {
     const [allWorkouts, setAllWorkouts] = useState<any[]>([]);
     // Nome do atleta (Firestore coachemAthletes) quando athleteId vem pela navegação
     const [athleteName, setAthleteName] = useState<string | null>(null);
+    const [athleteStatus, setAthleteStatus] = useState<string | null>(null);
     // Lista de atletas para seleção quando assign-workout é aberto sem athleteId
     const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string }>>([]);
   
     useEffect(() => {
       if (!athleteId) {
         setAthleteName(null);
+        setAthleteStatus(null);
         return;
       }
       import('@/src/services/athletes.service').then(({ getAthleteById }) =>
-        getAthleteById(athleteId).then((a) => setAthleteName(a?.name ?? null))
+        getAthleteById(athleteId).then((a) => {
+          setAthleteName(a?.name ?? null);
+          setAthleteStatus(a?.status ?? 'Ativo');
+        })
       );
     }, [athleteId]);
 
@@ -285,7 +290,11 @@ function formatDatePtBr(dateStr: string): string {
     }, [athleteId, user?.id]);
 
     const athlete = athleteId
-      ? { id: athleteId, name: athleteName ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}` }
+      ? {
+          id: athleteId,
+          name: athleteName ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}`,
+          status: athleteStatus ?? 'Ativo',
+        }
       : null;
 
     // Carregar templates do Firestore

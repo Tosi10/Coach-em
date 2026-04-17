@@ -142,7 +142,7 @@ export async function createAthleteWithLogin(
 ): Promise<{ athleteId: string }> {
   const createAthleteByCoach = httpsCallable<
     CreateAthleteWithLoginData,
-    { data: { athleteId: string } }
+    { athleteId: string }
   >(functions, 'createAthleteByCoach');
 
   try {
@@ -179,6 +179,32 @@ export async function updateAthlete(
     updatedAt: new Date().toISOString(),
   });
   await updateDoc(ref, payload);
+}
+
+/**
+ * Bloqueia/desbloqueia o acesso de login do atleta no app.
+ * Atualiza status em coachemAthletes e espelha em users/{uid} quando existir.
+ */
+export async function setAthleteBlockedStatus(id: string, blocked: boolean): Promise<void> {
+  const now = new Date().toISOString();
+  const status = blocked ? 'Bloqueado' : 'Ativo';
+
+  // Fonte principal da gestão do atleta no app
+  await updateDoc(doc(db, COLLECTION, id), {
+    status,
+    updatedAt: now,
+  });
+
+  // Espelha no perfil de login (users) para facilitar validações de auth
+  try {
+    await updateDoc(doc(db, 'users', id), {
+      status,
+      blockedAt: blocked ? now : null,
+      updatedAt: now,
+    });
+  } catch {
+    // Pode não existir em casos legados sem conta de Auth vinculada.
+  }
 }
 
 export async function deleteAthlete(id: string): Promise<void> {
