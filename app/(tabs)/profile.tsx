@@ -9,17 +9,20 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
+import { syncCoachPublicProfileToAthletes } from '@/src/services/athletes.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -28,13 +31,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { db } from '@/src/services/firebase.config';
 
 const INPUT_BORDER_WIDTH = 1;
 const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
+const SUPPORT_EMAIL = 'adm.ecg.19@gmail.com';
+const SUPPORT_WHATSAPP_E164 = '5541992522854';
+const PRIVACY_URL = 'https://futeba-96395.web.app/privacy/treinamais';
+const TERMS_URL = 'https://futeba-96395.web.app/terms/treinamais';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -52,6 +62,12 @@ export default function ProfileScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [coachMessageSavedVisible, setCoachMessageSavedVisible] = useState(false);
+  const [coachWelcomeMessage, setCoachWelcomeMessage] = useState('');
+  const [coachPublicName, setCoachPublicName] = useState('');
+  const [savingCoachMessage, setSavingCoachMessage] = useState(false);
+
+  const MAX_COACH_MESSAGE_LENGTH = 180;
 
   const pickProfilePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -72,6 +88,16 @@ export default function ProfileScreen() {
     setPhotoUploading(true);
     try {
       await updateProfilePhoto(result.assets[0].uri);
+      if (isCoach && user?.id) {
+        const freshUserSnap = await getDoc(doc(db, 'users', user.id));
+        const latestPhotoURL =
+          (freshUserSnap.data()?.photoURL as string | undefined) ?? (user as any)?.photoURL;
+        await syncCoachPublicProfileToAthletes(user.id, {
+          coachPhotoURL: latestPhotoURL,
+          coachPublicName: coachPublicName.trim() || user.displayName,
+          coachWelcomeMessage: coachWelcomeMessage.trim(),
+        });
+      }
     } catch (e: any) {
       Alert.alert(
         'Foto de perfil',
@@ -150,7 +176,76 @@ export default function ProfileScreen() {
     }
   };
 
+  const openSupportEmail = async () => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=Suporte%20Treina%2B`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Suporte', `Não foi possível abrir o email. Contato: ${SUPPORT_EMAIL}`);
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const openSupportWhatsApp = async () => {
+    const url = `https://wa.me/${SUPPORT_WHATSAPP_E164}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Suporte', 'Não foi possível abrir o WhatsApp no momento.');
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const openPolicy = async () => {
+    const canOpen = await Linking.canOpenURL(PRIVACY_URL);
+    if (!canOpen) {
+      Alert.alert('Privacidade', 'Não foi possível abrir a Política de Privacidade.');
+      return;
+    }
+    await Linking.openURL(PRIVACY_URL);
+  };
+
+  const openTerms = async () => {
+    const canOpen = await Linking.canOpenURL(TERMS_URL);
+    if (!canOpen) {
+      Alert.alert('Termos', 'Não foi possível abrir os Termos de Uso.');
+      return;
+    }
+    await Linking.openURL(TERMS_URL);
+  };
+
   const isCoach = user?.userType === UserType.COACH;
+
+  const saveCoachWelcomeMessage = async () => {
+    if (!user?.id || !isCoach) return;
+    const normalizedName = coachPublicName.trim();
+    const normalized = coachWelcomeMessage.trim();
+    if (normalized.length > MAX_COACH_MESSAGE_LENGTH) {
+      Alert.alert('Mensagem', `Use no máximo ${MAX_COACH_MESSAGE_LENGTH} caracteres.`);
+      return;
+    }
+    setSavingCoachMessage(true);
+    try {
+      const freshUserSnap = await getDoc(doc(db, 'users', user.id));
+      const latestPhotoURL =
+        (freshUserSnap.data()?.photoURL as string | undefined) ?? (user as any)?.photoURL;
+      await updateDoc(doc(db, 'users', user.id), {
+        publicCoachName: normalizedName || user.displayName,
+        welcomeMessage: normalized,
+        updatedAt: serverTimestamp(),
+      });
+      await syncCoachPublicProfileToAthletes(user.id, {
+        coachPublicName: normalizedName || user.displayName,
+        coachWelcomeMessage: normalized,
+        coachPhotoURL: latestPhotoURL,
+      });
+      setCoachMessageSavedVisible(true);
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message ?? 'Não foi possível salvar a mensagem.');
+    } finally {
+      setSavingCoachMessage(false);
+    }
+  };
 
   const inputStyle = {
     backgroundColor: theme.colors.background,
@@ -159,9 +254,19 @@ export default function ProfileScreen() {
     color: theme.colors.text,
   };
 
+  useEffect(() => {
+    if (isCoach) {
+      setCoachWelcomeMessage((user as any)?.welcomeMessage ?? '');
+      setCoachPublicName((user as any)?.publicCoachName ?? user?.displayName ?? '');
+    }
+  }, [isCoach, user]);
+
   return (
     <ScrollView className="flex-1" style={themeStyles.bg} keyboardShouldPersistTaps="handled">
-      <View className="px-6 pt-14 pb-20">
+      <View
+        className="px-6 pb-20"
+        style={{ paddingTop: insets.top + (isCoach ? 20 : 20) }}
+      >
         <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
           Perfil
         </Text>
@@ -236,6 +341,67 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {isCoach && (
+          <View className="mb-6">
+            <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+              Mensagem para atletas
+            </Text>
+            <View className="rounded-2xl border p-4" style={[themeStyles.card, { borderWidth: 1 }]}>
+              <TextInput
+                value={coachPublicName}
+                onChangeText={setCoachPublicName}
+                placeholder="Nome exibido para seus atletas"
+                placeholderTextColor={theme.colors.textSecondary}
+                style={[
+                  inputStyle,
+                  {
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    marginBottom: 10,
+                  },
+                ]}
+              />
+              <TextInput
+                value={coachWelcomeMessage}
+                onChangeText={(text) => setCoachWelcomeMessage(text.slice(0, MAX_COACH_MESSAGE_LENGTH))}
+                placeholder="Ex: Foco total essa semana. Qualquer dúvida, me chame."
+                placeholderTextColor={theme.colors.textSecondary}
+                multiline
+                textAlignVertical="top"
+                style={[
+                  inputStyle,
+                  {
+                    minHeight: 88,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    marginBottom: 10,
+                  },
+                ]}
+              />
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs" style={themeStyles.textSecondary}>
+                  {coachWelcomeMessage.length}/{MAX_COACH_MESSAGE_LENGTH}
+                </Text>
+                <TouchableOpacity
+                  onPress={saveCoachWelcomeMessage}
+                  disabled={savingCoachMessage}
+                  className="px-4 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    opacity: savingCoachMessage ? 0.6 : 1,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-black">
+                    {savingCoachMessage ? 'Salvando...' : 'Salvar mensagem'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
           Segurança
         </Text>
@@ -260,6 +426,104 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {isCoach && (
+          <>
+            <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+              Suporte Vision10
+            </Text>
+            <View
+              className="rounded-2xl border overflow-hidden mb-6"
+              style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+            >
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4 border-b"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderBottomColor: theme.colors.border,
+                  borderBottomWidth: 1,
+                }}
+                onPress={openSupportEmail}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <FontAwesome name="envelope-o" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
+                  <View className="flex-1">
+                    <Text className="font-semibold" style={themeStyles.text}>
+                      Email de suporte
+                    </Text>
+                    <Text className="text-xs mt-0.5" style={themeStyles.textSecondary} numberOfLines={1}>
+                      {SUPPORT_EMAIL}
+                    </Text>
+                  </View>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4"
+                style={{ backgroundColor: theme.colors.card }}
+                onPress={openSupportWhatsApp}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <FontAwesome name="whatsapp" size={20} color="#25D366" style={{ marginRight: 12 }} />
+                  <View className="flex-1">
+                    <Text className="font-semibold" style={themeStyles.text}>
+                      WhatsApp de suporte
+                    </Text>
+                    <Text className="text-xs mt-0.5" style={themeStyles.textSecondary}>
+                      +55 41 99252-2854
+                    </Text>
+                  </View>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+          Jurídico
+        </Text>
+        <View
+          className="rounded-2xl border overflow-hidden mb-6"
+          style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+        >
+          <TouchableOpacity
+            className="flex-row items-center justify-between px-4 py-4 border-b"
+            style={{
+              backgroundColor: theme.colors.card,
+              borderBottomColor: theme.colors.border,
+              borderBottomWidth: 1,
+            }}
+            onPress={openPolicy}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <FontAwesome name="shield" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
+              <Text className="font-semibold" style={themeStyles.text}>
+                Política de Privacidade
+              </Text>
+            </View>
+            <FontAwesome name="external-link" size={14} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-row items-center justify-between px-4 py-4"
+            style={{ backgroundColor: theme.colors.card }}
+            onPress={openTerms}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <FontAwesome name="file-text-o" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
+              <Text className="font-semibold" style={themeStyles.text}>
+                Termos de Uso
+              </Text>
+            </View>
+            <FontAwesome name="external-link" size={14} color={theme.colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
@@ -463,6 +727,16 @@ export default function ProfileScreen() {
           setDeleteModalOpen(true);
         }}
         onCancel={() => setDeleteConfirmVisible(false)}
+      />
+
+      <CustomAlert
+        visible={coachMessageSavedVisible}
+        title="Mensagem salva"
+        message="Sua mensagem para atletas foi atualizada."
+        type="success"
+        confirmText="OK"
+        onConfirm={() => setCoachMessageSavedVisible(false)}
+        onCancel={() => setCoachMessageSavedVisible(false)}
       />
     </ScrollView>
   );

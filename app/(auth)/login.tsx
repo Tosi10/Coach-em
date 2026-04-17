@@ -265,6 +265,10 @@ export default function LoginScreen() {
                 Não tem uma conta? <Text className="font-semibold">Registre-se</Text>
               </Text>
             </TouchableOpacity>
+
+            <Text className="text-center text-[11px] mt-3" style={themeStyles.textTertiary}>
+              Desenvolvido por <Text style={{ color: theme.colors.primary }}>Vision10</Text>
+            </Text>
           </View>
         </View>
       </ScrollView>

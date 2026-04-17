@@ -1,6 +1,6 @@
 ## Termos de Uso – Treina+
 
-Última atualização: `[[DATA_DA_ULTIMA_ATUALIZACAO]]`
+Última atualização: `17/04/2026`
 
 Estes Termos de Uso regulam o uso do aplicativo **Treina+** (“App”). Ao utilizar o Treina+, você concorda com estes Termos.
 
@@ -38,7 +38,7 @@ O Treina+ é um aplicativo de gestão esportiva que facilita a organização de 
 
 ### 5. Planos, pagamento e acesso
 
-No momento, o Treina+ é oferecido em formato `[[gratuito / teste / beta]]`.  
+No momento, o Treina+ é oferecido em formato `gratuito (fase de validação)`.  
 
 Caso passemos a oferecer planos pagos ou assinaturas, os valores, condições e políticas de cancelamento serão informados de forma clara dentro do app ou nas lojas.
 
@@ -54,7 +54,7 @@ Caso passemos a oferecer planos pagos ou assinaturas, os valores, condições e 
 ### 7. Privacidade
 
 O uso do Treina+ também é regido pela nossa **Política de Privacidade**, disponível em:  
-`[[URL_DA_POLITICA_DE_PRIVACIDADE]]`
+`https://futeba-96395.web.app/privacy/treinamais`
 
 ---
 
@@ -77,6 +77,7 @@ O uso do Treina+ também é regido pela nossa **Política de Privacidade**, disp
 
 Para dúvidas sobre estes Termos de Uso:
 
-- E-mail: **[[SEU_EMAIL_DE_SUPORTE]]**  
-- Responsável pelo app: **[[SEU_NOME_OU_EMPRESA]]**
+- E-mail: **adm.ecg.19@gmail.com**  
+- WhatsApp: **+55 41 99252-2854**  
+- Responsável pelo app: **Vision10**
 

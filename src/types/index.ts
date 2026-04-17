@@ -47,6 +47,7 @@ export interface Coach extends BaseUser {
   bio?: string; // Biografia opcional
   specialization?: string; // Ex: "Futebol", "Atletismo", etc.
   athletes?: string[]; // Array de IDs dos atletas vinculados
+  welcomeMessage?: string; // Mensagem opcional exibida para atletas
 }
 
 /**

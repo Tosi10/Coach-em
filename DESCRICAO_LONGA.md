@@ -32,3 +32,5 @@ Com uma interface moderna em tema escuro, o Treina+ centraliza tudo em um só lu
 
 Comece a usar o **Treina+** e leve a gestão dos seus treinos para o próximo nível.
 
+Aplicativo desenvolvido por **Vision10**.
+

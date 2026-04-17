@@ -1,6 +1,6 @@
 ## Política de Privacidade – Treina+
 
-Última atualização: `[[DATA_DA_ULTIMA_ATUALIZACAO]]`
+Última atualização: `17/04/2026`
 
 Esta Política de Privacidade descreve como o aplicativo **Treina+** (“App”, “nós”, “nosso”) coleta, utiliza e protege as informações dos usuários (“você”).
 
@@ -65,7 +65,7 @@ Dependendo da legislação aplicável na sua região, você pode ter direitos co
 - Solicitar correção de dados incorretos.  
 - Solicitar exclusão da sua conta e dos dados associados, salvo obrigações legais de retenção.
 
-Para exercer esses direitos, entre em contato em: **[[SEU_EMAIL_DE_SUPORTE]]**.
+Para exercer esses direitos, entre em contato em: **adm.ecg.19@gmail.com**.
 
 ---
 
@@ -87,6 +87,7 @@ Recomendamos que você revise esta página de tempos em tempos.
 
 Se você tiver dúvidas sobre esta Política de Privacidade, entre em contato:
 
-- E-mail: **[[SEU_EMAIL_DE_SUPORTE]]**  
-- Responsável pelo app: **[[SEU_NOME_OU_EMPRESA]]**
+- E-mail: **adm.ecg.19@gmail.com**  
+- WhatsApp: **+55 41 99252-2854**  
+- Responsável pelo app: **Vision10**
 

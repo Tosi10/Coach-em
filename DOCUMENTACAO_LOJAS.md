@@ -40,9 +40,11 @@ Sugestão de lista (separadas por vírgula):
 
 ### 4. Informações de contato e suporte
 
-- **Nome do responsável / empresa:** `[[SEU_NOME_OU_EMPRESA]]`
-- **E-mail de suporte:** `[[SEU_EMAIL_DE_SUPORTE]]`
-- **Site / página do app (opcional):** `[[URL_SITE_OU_LANDING_PAGE]]`
+- **Nome do responsável / empresa:** `Vision10`
+- **E-mail de suporte (oficial):** `adm.ecg.19@gmail.com`
+- **WhatsApp de suporte (oficial):** `+55 41 99252-2854`
+- **Canal institucional adicional:** `@vision10` (Instagram)
+- **Site / landing page (quando publicar):** `https://vision10.app`
 
 Esses dados serão usados:
 - No formulário de cadastro nas lojas;
@@ -60,4 +62,14 @@ Use estas frases curtas para colocar em cima dos prints das telas:
 - `Treinos organizados por semana`
 - `Feedbacks e evolução em tempo real`
 - `Tema escuro profissional para o dia a dia`
+
+---
+
+### 6. Observação importante antes da publicação
+
+Para publicação oficial nas lojas, confirme se os dados institucionais abaixo já estão ativos:
+
+- domínio real da empresa (`vision10.app` ou outro definido)
+- caixa de e-mail de suporte funcionando (`adm.ecg.19@gmail.com`)
+- URL pública da política de privacidade
 

@@ -17,9 +17,11 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabTwoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
   const { theme } = useTheme();
@@ -310,7 +312,7 @@ export default function TabTwoScreen() {
           />
         }
       >
-        <View className="px-6 pt-12 pb-20">
+        <View className="px-6 pb-20" style={{ paddingTop: insets.top + 20 }}>
           {/* Título */}
           <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
             Meus Treinos
@@ -545,7 +547,7 @@ export default function TabTwoScreen() {
         />
       }
     >
-      <View className="px-6 pt-12 pb-20">
+      <View className="px-6 pb-20" style={{ paddingTop: insets.top + 20 }}>
         {/* Título */}
         <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
           Meus Atletas

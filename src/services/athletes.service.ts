@@ -25,6 +25,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from './firebase.config';
 
 const COLLECTION = 'coachemAthletes';
+const ASSIGNED_WORKOUTS_COLLECTION = 'coachemAssignedWorkouts';
 
 export interface AthleteDoc {
   id: string;
@@ -205,6 +206,137 @@ export async function setAthleteBlockedStatus(id: string, blocked: boolean): Pro
   } catch {
     // Pode não existir em casos legados sem conta de Auth vinculada.
   }
+}
+
+/**
+ * Espelha informações públicas do treinador nos docs dos atletas vinculados.
+ * Isso permite que o atleta veja nome/mensagem/foto do treinador sem depender
+ * de leitura direta em users/{coachId}.
+ */
+export async function syncCoachPublicProfileToAthletes(
+  coachId: string,
+  data: {
+    coachPublicName?: string;
+    coachWelcomeMessage?: string;
+    coachPhotoURL?: string;
+  }
+): Promise<void> {
+  const now = new Date().toISOString();
+  const updatePayload = removeUndefined({
+    coachPublicName: data.coachPublicName,
+    coachWelcomeMessage: data.coachWelcomeMessage,
+    coachPhotoURL: data.coachPhotoURL,
+    updatedAt: now,
+  });
+
+  const refsToUpdate = new Map<string, any>();
+  const athleteAccountIds = new Set<string>();
+
+  // Caminho principal: atletas vinculados pelo coachId
+  const byCoachQ = query(collection(db, COLLECTION), where('coachId', '==', coachId));
+  const byCoachSnap = await getDocs(byCoachQ);
+  byCoachSnap.docs.forEach((d) => {
+    refsToUpdate.set(d.ref.path, d.ref);
+    const row = d.data() as any;
+    if (typeof d.id === 'string' && d.id.trim()) athleteAccountIds.add(d.id);
+    if (typeof row?.authUid === 'string' && row.authUid.trim()) athleteAccountIds.add(row.authUid);
+  });
+
+  // Caminho robusto: atletas encontrados nos treinos atribuídos desse treinador
+  // (cobre bases legadas onde coachId do atleta pode não estar consistente)
+  const workoutsQ = query(
+    collection(db, ASSIGNED_WORKOUTS_COLLECTION),
+    where('coachId', '==', coachId)
+  );
+  const workoutsSnap = await getDocs(workoutsQ);
+  const athleteIdsFromWorkouts = [
+    ...new Set(
+      workoutsSnap.docs
+        .map((d) => d.data()?.athleteId)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    ),
+  ];
+
+  for (const athleteId of athleteIdsFromWorkouts) {
+    athleteAccountIds.add(athleteId);
+    try {
+      // Tenta por id direto do doc
+      const directRef = doc(db, COLLECTION, athleteId);
+      const directSnap = await getDoc(directRef);
+      if (directSnap.exists()) {
+        refsToUpdate.set(directRef.path, directRef);
+      }
+    } catch {
+      // ignora e tenta por authUid
+    }
+
+    try {
+      // Tenta docs legados com authUid = athleteId
+      const legacyQ = query(collection(db, COLLECTION), where('authUid', '==', athleteId));
+      const legacySnap = await getDocs(legacyQ);
+      legacySnap.docs.forEach((d) => {
+        refsToUpdate.set(d.ref.path, d.ref);
+        const row = d.data() as any;
+        if (typeof d.id === 'string' && d.id.trim()) athleteAccountIds.add(d.id);
+        if (typeof row?.authUid === 'string' && row.authUid.trim()) athleteAccountIds.add(row.authUid);
+      });
+    } catch {
+      // ignora docs sem permissão/ausentes
+    }
+  }
+
+  // Atualiza docs em coachemAthletes quando existirem
+  if (refsToUpdate.size > 0) {
+    await Promise.all(
+      Array.from(refsToUpdate.values()).map((ref) => updateDoc(ref, updatePayload))
+    );
+  }
+
+  // Nota: não gravamos em users/{atleta} — nas regras atuais só o próprio usuário pode
+  // atualizar o próprio users/{uid}. O atleta lê coach* em coachemAthletes.
+
+  // Espelha também nos treinos atribuídos para leitura direta no Home do atleta.
+  // Isso reduz dependência de vínculos legados em coachemAthletes.
+  await Promise.all(
+    workoutsSnap.docs.map((d) =>
+      updateDoc(
+        d.ref,
+        removeUndefined({
+          coachPublicName: data.coachPublicName,
+          coachWelcomeMessage: data.coachWelcomeMessage,
+          coachPhotoURL: data.coachPhotoURL,
+        })
+      )
+    )
+  );
+
+  // E para bases legadas onde treino não tem coachId consistente,
+  // atualiza treinos por athleteId dos atletas vinculados.
+  await Promise.all(
+    Array.from(athleteAccountIds).map(async (athleteUid) => {
+      try {
+        const byAthleteQ = query(
+          collection(db, ASSIGNED_WORKOUTS_COLLECTION),
+          where('athleteId', '==', athleteUid)
+        );
+        const byAthleteSnap = await getDocs(byAthleteQ);
+        await Promise.all(
+          byAthleteSnap.docs.map((d) =>
+            updateDoc(
+              d.ref,
+              removeUndefined({
+                coachPublicName: data.coachPublicName,
+                coachWelcomeMessage: data.coachWelcomeMessage,
+                coachPhotoURL: data.coachPhotoURL,
+              })
+            )
+          )
+        );
+      } catch {
+        // ignora falhas pontuais
+      }
+    })
+  );
 }
 
 export async function deleteAthlete(id: string): Promise<void> {

@@ -175,11 +175,12 @@ export default function TabLayout() {
                 focused={focused}
                 active={atletasActive}
                 inactive={atletasInactive}
-                size={Math.round(TAB_ICON_MAIN * 0.97)}
+                size={Math.round(TAB_ICON_MAIN * 0.97 * 0.9)}
               />
             ) : (
               <TabBarPngIcon focused={focused} active={treinoActive} inactive={treinoInactive} />
             ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen

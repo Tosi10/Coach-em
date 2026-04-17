@@ -22,6 +22,8 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/src/services/firebase.config';
 
 function formatWeekLabel(weekStart: Date): string {
   const weekEnd = new Date(weekStart);
@@ -93,6 +95,12 @@ export default function HomeScreen() {
   
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string; photoURL?: string }>>([]);
+  const [coachHighlight, setCoachHighlight] = useState<{
+    id: string;
+    displayName: string;
+    photoURL?: string;
+    welcomeMessage?: string;
+  } | null>(null);
 
   // Atletas derivados dos treinos; nome vindo do Firestore (coachemAthletes) quando existir
   const getAthletesFromWorkouts = useCallback(() => {
@@ -176,6 +184,81 @@ export default function HomeScreen() {
       if (userType === UserType.COACH) loadAthletesList();
     }, [userType, loadAthletesList])
   );
+
+  /**
+   * Home do atleta: nome/mensagem/foto do treinador vêm de coachemAthletes
+   * (o treinador pode gravar ali; regras não permitem treinador gravar em users/{atleta}).
+   */
+  const loadAthleteCoachCard = useCallback(async () => {
+    const savedType = await AsyncStorage.getItem('userType');
+    if (savedType !== UserType.ATHLETE || !user?.id) {
+      setCoachHighlight(null);
+      return;
+    }
+    try {
+      let d: any = null;
+      const direct = await getDoc(doc(db, 'coachemAthletes', user.id));
+      if (direct.exists()) {
+        d = direct.data();
+      } else {
+        const linked = await getDocs(
+          query(collection(db, 'coachemAthletes'), where('authUid', '==', user.id))
+        );
+        d = linked.docs[0]?.data() ?? null;
+      }
+      if (!d) {
+        const w = workouts.find(
+          (x: any) =>
+            (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
+            (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
+            (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
+        );
+        if (w) {
+          d = {
+            coachPublicName: w.coachPublicName,
+            coachWelcomeMessage: w.coachWelcomeMessage,
+            coachPhotoURL: w.coachPhotoURL,
+          };
+        }
+      }
+      if (!d) {
+        setCoachHighlight(null);
+        return;
+      }
+      let name = typeof d?.coachPublicName === 'string' ? d.coachPublicName.trim() : '';
+      let msg = typeof d?.coachWelcomeMessage === 'string' ? d.coachWelcomeMessage.trim() : '';
+      let photo = typeof d?.coachPhotoURL === 'string' ? d.coachPhotoURL.trim() : '';
+      if (!name && !msg && !photo) {
+        const w = workouts.find(
+          (x: any) =>
+            (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
+            (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
+            (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
+        );
+        if (w) {
+          name = typeof w.coachPublicName === 'string' ? w.coachPublicName.trim() : '';
+          msg = typeof w.coachWelcomeMessage === 'string' ? w.coachWelcomeMessage.trim() : '';
+          photo = typeof w.coachPhotoURL === 'string' ? w.coachPhotoURL.trim() : '';
+        }
+      }
+      if (!name && !msg && !photo) {
+        setCoachHighlight(null);
+        return;
+      }
+      setCoachHighlight({
+        id: 'coach',
+        displayName: name || 'Treinador',
+        photoURL: photo || undefined,
+        welcomeMessage: msg || undefined,
+      });
+    } catch {
+      setCoachHighlight(null);
+    }
+  }, [user?.id, workouts]);
+
+  useEffect(() => {
+    loadAthleteCoachCard();
+  }, [loadAthleteCoachCard]);
 
   // Carregar histórico de peso do atleta
   const loadWeightHistory = useCallback(async () => {
@@ -867,13 +950,15 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadWorkoutStatuses();
-    }, [loadWorkoutStatuses])
+      loadAthleteCoachCard();
+    }, [loadWorkoutStatuses, loadAthleteCoachCard])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await loadWorkoutStatuses();
+      await loadAthleteCoachCard();
       if (userType === UserType.ATHLETE && currentAthleteId) {
         await loadWeightHistory();
       }
@@ -884,7 +969,7 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [loadWorkoutStatuses, loadWeightHistory, userType, currentAthleteId, showToast]);
+  }, [loadWorkoutStatuses, loadAthleteCoachCard, loadWeightHistory, userType, currentAthleteId, showToast]);
 
   const markWorkoutAsCompleted =(workoutId: string) => {
     setWorkouts(workouts.map((workout) => {
@@ -930,13 +1015,15 @@ export default function HomeScreen() {
         - primary-400/500 = Laranja vibrante como accent
       */}
       
-      <View className="items-center mb-0">
-        <Image
-          source={require('../../assets/images/treinaLogo2.png')}
-          style={{ width: 480, height: 192 }}
-          resizeMode="contain"
-        />
-      </View>
+      {userType !== UserType.ATHLETE && (
+        <View className="items-center mb-0">
+          <Image
+            source={require('../../assets/images/treinaLogo2.png')}
+            style={{ width: 480, height: 192 }}
+            resizeMode="contain"
+          />
+        </View>
+      )}
       {userType === UserType.COACH && (
         <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -40 }}>
           Bem vindo Rodrigo ao seu app de gestão esportiva.
@@ -1712,16 +1799,60 @@ export default function HomeScreen() {
         </View>
       ) : userType === UserType.ATHLETE ? (
         //Dashboard do Atleta - Tema Escuro Estilo Zeus (Profissional)
-        <View className="w-full mt-3">
+        <View className="w-full mt-3" style={{ paddingTop: 20 }}>
           {/* Saudação Personalizada */}
           {currentAthleteId && (
-            <View className="mb-6" style={{ marginTop: -35 }}>
-              <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-                Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
-              </Text>
-              <Text className="text-base" style={themeStyles.textSecondary}>
-                Acompanhe seus treinos e seu progresso
-              </Text>
+            <View className="mb-6" style={{ marginTop: 20 }}>
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
+                    Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
+                  </Text>
+                  <Text className="text-base" style={themeStyles.textSecondary}>
+                    Acompanhe seus treinos e seu progresso
+                  </Text>
+                </View>
+                <Image
+                  source={require('../../assets/images/treinaLogo2.png')}
+                  style={{ width: 180, height: 72, marginTop: 2 }}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          )}
+
+          {coachHighlight && (
+            <View
+              className="rounded-2xl border p-4 mb-6 flex-row items-center"
+              style={{
+                ...themeStyles.card,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <View
+                className="w-20 h-20 rounded-full overflow-hidden items-center justify-center mr-3"
+                style={{ backgroundColor: theme.colors.primary + '20' }}
+              >
+                {coachHighlight.photoURL ? (
+                  <Image
+                    source={{ uri: coachHighlight.photoURL }}
+                    style={{ width: 80, height: 80 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <FontAwesome name="user" size={32} color={theme.colors.primary} />
+                )}
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-semibold mb-1" style={themeStyles.text}>
+                  {coachHighlight.displayName}
+                </Text>
+                {coachHighlight.welcomeMessage?.trim() ? (
+                  <Text className="text-xs leading-5" style={themeStyles.textSecondary}>
+                    {coachHighlight.welcomeMessage}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           )}
 
