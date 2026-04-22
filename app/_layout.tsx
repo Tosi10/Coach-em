@@ -8,15 +8,17 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import '../global.css';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ToastProvider } from '@/components/ToastProvider';
 import { AuthProvider } from '@/src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
+import { ResizeMode, Video } from 'expo-av';
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -57,6 +59,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [assetsReady, setAssetsReady] = useState(false);
+  const [introVisible, setIntroVisible] = useState(true);
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     Manrope_400Regular,
@@ -108,7 +111,6 @@ export default function RootLayout() {
       } finally {
         if (!cancelled) {
           setAssetsReady(true);
-          await SplashScreen.hideAsync();
         }
       }
     };
@@ -119,26 +121,75 @@ export default function RootLayout() {
   }, [loaded]);
 
   useEffect(() => {
+    if (!loaded) return;
+    SplashScreen.hideAsync().catch(() => {
+      // no-op
+    });
+  }, [loaded]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (loaded && assetsReady) {
+      timer = setTimeout(() => {
+        setIntroVisible(false);
+      }, 6000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [loaded, assetsReady]);
+
+  useEffect(() => {
     (async () => {
       if (Platform.OS === 'web') return;
       // expo-notifications não é suportado no Expo Go (SDK 53+). Só carrega em development build.
       if (Constants.appOwnership === 'expo') return;
       try {
-        const { setupNotificationChannel, requestNotificationPermissions } = await import('@/src/services/notifications.service');
+        const { setupNotificationChannel, requestNotificationPermissions, syncAthleteWorkoutReminders } = await import('@/src/services/notifications.service');
         await setupNotificationChannel();
         await requestNotificationPermissions();
+
+        const savedType = await AsyncStorage.getItem('userType');
+        const athleteId = await AsyncStorage.getItem('currentAthleteId');
+        if (savedType === 'ATHLETE' && athleteId) {
+          await syncAthleteWorkoutReminders(athleteId, 'workouts');
+        }
       } catch (e) {
         console.warn('Notificações não disponíveis (use um development build):', e);
       }
     })();
   }, []);
 
-  if (!loaded || !assetsReady) {
-    return null;
+  if (!loaded || !assetsReady || introVisible) {
+    return (
+      <View style={styles.introContainer}>
+        <Video
+          source={require('../assets/videos/video_com_fundo_branco.mp4')}
+          shouldPlay
+          isLooping
+          isMuted
+          resizeMode={ResizeMode.CONTAIN}
+          style={styles.introVideo}
+        />
+      </View>
+    );
   }
 
   return <RootLayoutNav />;
 }
+
+const styles = StyleSheet.create({
+  introContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  introVideo: {
+    width: '100%',
+    height: '100%',
+  },
+});
 
 function RootLayoutNavContent() {
   const { theme } = useTheme();

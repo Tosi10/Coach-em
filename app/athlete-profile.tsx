@@ -18,8 +18,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { LineChart } from 'react-native-gifted-charts';
 
 
@@ -59,6 +60,14 @@ export default function AthleteProfileScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
   const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+  const [reportPreset, setReportPreset] = useState<'30' | '90' | 'custom'>('30');
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportDateModalVisible, setReportDateModalVisible] = useState(false);
+  const [reportPickingDate, setReportPickingDate] = useState<'start' | 'end'>('start');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   // Função helper para mostrar alert customizado
   const showAlert = (
@@ -73,6 +82,22 @@ export default function AthleteProfileScreen() {
       setAlertOnConfirm(() => onConfirm);
       setAlertVisible(true);
   };
+
+  const formatBrDate = (value?: string) => {
+    if (!value) return '--';
+    return new Date(value).toLocaleDateString('pt-BR');
+  };
+
+  const applyPresetPeriod = useCallback((preset: '30' | '90') => {
+    const now = new Date();
+    const end = new Date(now);
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end);
+    start.setDate(start.getDate() - (preset === '30' ? 29 : 89));
+    setReportPreset(preset);
+    setReportStartDate(start.toISOString().slice(0, 10));
+    setReportEndDate(end.toISOString().slice(0, 10));
+  }, []);
 
   const loadAthleteFromFirestore = useCallback(async () => {
     if (!athleteIdString) return;
@@ -123,6 +148,10 @@ export default function AthleteProfileScreen() {
     loadAthleteWorkouts();
     loadWeightHistory();
   }, [athleteIdString, loadAthleteWorkouts, loadAthleteFromFirestore]);
+
+  useEffect(() => {
+    applyPresetPeriod('30');
+  }, [applyPresetPeriod]);
 
   // Recarregar treinos e dados do atleta (ex.: foto de perfil) ao voltar a esta tela
   useFocusEffect(
@@ -258,6 +287,39 @@ export default function AthleteProfileScreen() {
         }
       }
     );
+  };
+
+  const handleGeneratePdfReport = async () => {
+    if (!athleteIdString || !reportStartDate || !reportEndDate) {
+      showAlert('Período', 'Selecione o período do relatório.', 'warning');
+      return;
+    }
+    if (new Date(reportStartDate).getTime() > new Date(reportEndDate).getTime()) {
+      showAlert('Período inválido', 'A data inicial deve ser menor ou igual à data final.', 'warning');
+      return;
+    }
+    setIsGeneratingReport(true);
+    try {
+      const { buildAthleteReportData } = await import('@/src/services/athleteReport.service');
+      const { generateAthleteReportPdf, sharePdf } = await import('@/src/services/pdfExport.service');
+
+      const reportData = await buildAthleteReportData(athleteIdString, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+      });
+      const file = await generateAthleteReportPdf(reportData);
+      const shared = await sharePdf(file.uri);
+      if (shared) {
+        showAlert('Relatório PDF', 'Relatório gerado e pronto para compartilhamento.', 'success');
+      } else {
+        showAlert('Relatório PDF', `PDF gerado em: ${file.fileName}`, 'info');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório PDF:', error);
+      showAlert('Erro', error?.message || 'Não foi possível gerar o relatório PDF.', 'error');
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   if (!athlete) {
@@ -432,9 +494,9 @@ export default function AthleteProfileScreen() {
             {/* Seletor de Exercício */}
             {availableExercises.length > 0 ? (
               <>
-                <View className="mb-4">
+                <View className="mb-1">
                   <Text className="text-sm mb-2" style={themeStyles.textSecondary}>Selecione o exercício:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
                     <View className="flex-row gap-2">
                       {availableExercises.map((exercise) => (
                         <TouchableOpacity
@@ -465,7 +527,7 @@ export default function AthleteProfileScreen() {
                 
                 {/* Gráfico de Evolução */}
                 {weightHistory.length > 0 ? (
-                  <View className="rounded-xl p-4 mb-6 border" style={themeStyles.card}>
+                  <View className="rounded-xl p-4 mb-0 border" style={themeStyles.card}>
                     <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
                       {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
                     </Text>
@@ -517,7 +579,6 @@ export default function AthleteProfileScreen() {
                         pointerStripWidth: 2,
                         activatePointersOnLongPress: true,
                         hidePointer1: false,
-                        pointer1Length: 10,
                         autoAdjustPointerLabelPosition: true,
                         pointerLabelComponent: (items: any) => {
                           return (
@@ -595,36 +656,6 @@ export default function AthleteProfileScreen() {
               </View>
             )}
 
-            {/* Último Feedback - dados reais dos treinos concluídos */}
-            {(() => {
-              const workoutsWithFeedback = athleteWorkouts
-                .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji || w.feedback != null))
-                .sort((a: any, b: any) => new Date(b.completedDate || b.date).getTime() - new Date(a.completedDate || a.date).getTime());
-              const lastFeedback = workoutsWithFeedback[0];
-              if (!lastFeedback) return null;
-              const dateStr = lastFeedback.completedDate || lastFeedback.date;
-              const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-              const label = getFeedbackLabel(lastFeedback.feedback, lastFeedback.feedbackEmoji);
-              const feedbackMessage =
-                lastFeedback.feedbackText || (label ? `Sentiu: ${label}` : '');
-              const feedbackIconSrc = getFeedbackIconSource(lastFeedback.feedback, lastFeedback.feedbackEmoji);
-              if (!feedbackMessage && !feedbackIconSrc) return null;
-              return (
-                <View className="rounded-xl p-4 border mb-4" style={themeStyles.card}>
-                  <Text className="font-semibold mb-3" style={themeStyles.text}>
-                    Último Feedback
-                  </Text>
-                  <View className="flex-row items-start gap-2">
-                    {feedbackIconSrc ? (
-                      <Image source={feedbackIconSrc} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                    ) : null}
-                    <Text className="text-sm leading-5 flex-1" style={themeStyles.textSecondary}>
-                      {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })()}
           </View>
         )}
 
@@ -1091,7 +1122,7 @@ export default function AthleteProfileScreen() {
 
         {/* Botão Atribuir Treino */}
         <TouchableOpacity
-          className="rounded-xl py-4 px-6 mt-6 border"
+          className="rounded-xl py-4 px-6 mt-1 border"
           style={{
             backgroundColor: theme.mode === 'dark' 
               ? 'rgba(249, 115, 22, 0.4)' 
@@ -1112,10 +1143,134 @@ export default function AthleteProfileScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* Último Feedback - dados reais dos treinos concluídos */}
+        {(() => {
+          const workoutsWithFeedback = athleteWorkouts
+            .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji || w.feedback != null))
+            .sort((a: any, b: any) => new Date(b.completedDate || b.date).getTime() - new Date(a.completedDate || a.date).getTime());
+          const lastFeedback = workoutsWithFeedback[0];
+          if (!lastFeedback) return null;
+          const dateStr = lastFeedback.completedDate || lastFeedback.date;
+          const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+          const label = getFeedbackLabel(lastFeedback.feedback, lastFeedback.feedbackEmoji);
+          const feedbackMessage =
+            lastFeedback.feedbackText || (label ? `Sentiu: ${label}` : '');
+          const feedbackIconSrc = getFeedbackIconSource(lastFeedback.feedback, lastFeedback.feedbackEmoji);
+          if (!feedbackMessage && !feedbackIconSrc) return null;
+          return (
+            <View className="rounded-xl p-4 border mt-4" style={themeStyles.card}>
+              <Text className="font-semibold mb-3" style={themeStyles.text}>
+                Último Feedback
+              </Text>
+              <View className="flex-row items-start gap-2">
+                {feedbackIconSrc ? (
+                  <Image source={feedbackIconSrc} style={{ width: 28, height: 28 }} resizeMode="contain" />
+                ) : null}
+                <Text className="text-sm leading-5 flex-1" style={themeStyles.textSecondary}>
+                  {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
+
+        <View className="rounded-xl border p-4 mt-4" style={themeStyles.card}>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="font-semibold" style={themeStyles.text}>
+              Relatório PDF do atleta
+            </Text>
+            <Text className="text-xs" style={themeStyles.textSecondary}>
+              Treina+ / Vision10
+            </Text>
+          </View>
+
+          <View className="flex-row mb-3" style={{ gap: 8 }}>
+            <TouchableOpacity
+              className="px-3 py-2 rounded-lg border"
+              style={{
+                borderColor: reportPreset === '30' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: reportPreset === '30' ? theme.colors.primary + '20' : theme.colors.backgroundSecondary,
+              }}
+              onPress={() => applyPresetPeriod('30')}
+            >
+              <Text className="text-xs font-semibold" style={{ color: reportPreset === '30' ? theme.colors.primary : theme.colors.textSecondary }}>
+                30 dias
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="px-3 py-2 rounded-lg border"
+              style={{
+                borderColor: reportPreset === '90' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: reportPreset === '90' ? theme.colors.primary + '20' : theme.colors.backgroundSecondary,
+              }}
+              onPress={() => applyPresetPeriod('90')}
+            >
+              <Text className="text-xs font-semibold" style={{ color: reportPreset === '90' ? theme.colors.primary : theme.colors.textSecondary }}>
+                90 dias
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="px-3 py-2 rounded-lg border"
+              style={{
+                borderColor: reportPreset === 'custom' ? theme.colors.primary : theme.colors.border,
+                backgroundColor: reportPreset === 'custom' ? theme.colors.primary + '20' : theme.colors.backgroundSecondary,
+              }}
+              onPress={() => setReportPreset('custom')}
+            >
+              <Text className="text-xs font-semibold" style={{ color: reportPreset === 'custom' ? theme.colors.primary : theme.colors.textSecondary }}>
+                Personalizado
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row mb-3" style={{ gap: 8 }}>
+            <TouchableOpacity
+              className="flex-1 rounded-lg border px-3 py-2.5"
+              style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
+              onPress={() => {
+                setReportPickingDate('start');
+                setReportDateModalVisible(true);
+              }}
+            >
+              <Text className="text-[11px]" style={themeStyles.textSecondary}>Início</Text>
+              <Text className="text-sm font-semibold" style={themeStyles.text}>{formatBrDate(reportStartDate)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 rounded-lg border px-3 py-2.5"
+              style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
+              onPress={() => {
+                setReportPickingDate('end');
+                setReportDateModalVisible(true);
+              }}
+            >
+              <Text className="text-[11px]" style={themeStyles.textSecondary}>Fim</Text>
+              <Text className="text-sm font-semibold" style={themeStyles.text}>{formatBrDate(reportEndDate)}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            className="rounded-lg py-3 px-4 flex-row items-center justify-center"
+            style={{ backgroundColor: theme.colors.primary, opacity: isGeneratingReport ? 0.7 : 1 }}
+            onPress={handleGeneratePdfReport}
+            disabled={isGeneratingReport}
+          >
+            {isGeneratingReport ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <>
+                <FontAwesome name="file-pdf-o" size={16} color="#000" />
+                <Text className="font-semibold ml-2" style={{ color: '#000' }}>
+                  Gerar relatório PDF
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* Botão Bloquear/Desbloquear conta do atleta */}
         {!isRemoved && (
           <TouchableOpacity
-            className="rounded-xl py-3.5 px-6 mt-3 border"
+            className="rounded-xl py-3.5 px-6 mt-4 border"
             style={{
               backgroundColor: isBlocked
                 ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)')
@@ -1136,7 +1291,7 @@ export default function AthleteProfileScreen() {
 
         {isRemoved && (
           <View
-            className="rounded-xl py-3.5 px-4 mt-3 border"
+            className="rounded-xl py-3.5 px-4 mt-4 border"
             style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
           >
             <Text className="text-center text-xs" style={themeStyles.textSecondary}>
@@ -1163,6 +1318,55 @@ export default function AthleteProfileScreen() {
               setAlertVisible(false);
           }}
       />
+
+      <Modal
+        visible={reportDateModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportDateModalVisible(false)}
+      >
+        <View className="flex-1 justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <View className="rounded-2xl p-4" style={themeStyles.card}>
+            <Text className="font-semibold mb-2" style={themeStyles.text}>
+              Selecionar data de {reportPickingDate === 'start' ? 'início' : 'fim'}
+            </Text>
+            <Calendar
+              onDayPress={(day) => {
+                if (reportPickingDate === 'start') {
+                  setReportStartDate(day.dateString);
+                  if (reportPreset !== 'custom') setReportPreset('custom');
+                } else {
+                  setReportEndDate(day.dateString);
+                  if (reportPreset !== 'custom') setReportPreset('custom');
+                }
+                setReportDateModalVisible(false);
+              }}
+              maxDate={todayDate}
+              markedDates={{
+                ...(reportStartDate ? { [reportStartDate]: { selected: true, selectedColor: theme.colors.primary } } : {}),
+                ...(reportEndDate ? { [reportEndDate]: { selected: true, selectedColor: theme.colors.primary } } : {}),
+              }}
+              theme={{
+                calendarBackground: theme.colors.card,
+                dayTextColor: theme.colors.text,
+                monthTextColor: theme.colors.text,
+                textDisabledColor: theme.colors.textTertiary,
+                selectedDayBackgroundColor: theme.colors.primary,
+                selectedDayTextColor: '#000',
+                todayTextColor: theme.colors.primary,
+                arrowColor: theme.colors.primary,
+              }}
+            />
+            <TouchableOpacity
+              className="mt-3 rounded-lg py-2"
+              style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+              onPress={() => setReportDateModalVisible(false)}
+            >
+              <Text className="text-center font-semibold" style={themeStyles.text}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }

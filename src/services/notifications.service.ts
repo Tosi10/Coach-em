@@ -4,6 +4,7 @@
  */
 
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -128,7 +129,7 @@ export async function scheduleWorkoutRemindersForAthlete(
         content: {
           title: 'Treino em 30 min 💪',
           body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
-          sound: true,
+          sound: 'default',
           channelId,
         },
         trigger: {
@@ -144,7 +145,7 @@ export async function scheduleWorkoutRemindersForAthlete(
       content: {
         title: 'Hora do treino! 💪',
         body: `"${workoutName}" – comece agora.`,
-        sound: true,
+        sound: 'default',
         channelId,
       },
       trigger: {
@@ -158,4 +159,36 @@ export async function scheduleWorkoutRemindersForAthlete(
     console.warn('Erro ao agendar lembretes (atleta):', e);
   }
   return scheduledIds;
+}
+
+/**
+ * Garante que os lembretes do atleta fiquem agendados no dispositivo atual.
+ * Chame no startup/login e também quando carregar treinos.
+ */
+export async function syncAthleteWorkoutReminders(
+  athleteId: string,
+  channelId: string = 'workouts'
+): Promise<void> {
+  if (!athleteId) return;
+  const hasPermission = await requestNotificationPermissions();
+  if (!hasPermission) return;
+  await setupNotificationChannel();
+
+  const { listAssignedWorkoutsByAthleteId } = await import('./assignedWorkouts.service');
+  const workouts = await listAssignedWorkoutsByAthleteId(athleteId);
+  const now = Date.now();
+
+  for (const w of workouts) {
+    if (w.status === 'Concluído' || !w.scheduledTime || !w.date) continue;
+    const workoutAt = parseDateTime(w.date, w.scheduledTime);
+    if (workoutAt.getTime() <= now) continue;
+
+    // chave com data/hora para reagendar automaticamente se treino mudar
+    const key = `workout_${w.id}_${w.date}_${w.scheduledTime}_athlete_reminders_scheduled`;
+    const alreadyScheduled = await AsyncStorage.getItem(key);
+    if (alreadyScheduled === 'true') continue;
+
+    await scheduleWorkoutRemindersForAthlete(w.id, w.date, w.scheduledTime, w.name, channelId);
+    await AsyncStorage.setItem(key, 'true');
+  }
 }

@@ -5,7 +5,7 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
     requestNotificationPermissions,
-    scheduleWorkoutRemindersForAthlete,
+    syncAthleteWorkoutReminders,
     setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
@@ -102,31 +102,14 @@ export default function TabTwoScreen() {
       const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(currentAthleteId);
       setAthleteWorkouts(workoutsWithStatus);
 
-      // Agendar lembretes do ATLETA (30 min antes + na hora) para treinos pendentes e futuros.
-      // Evita duplicação quando load roda por useEffect + useFocusEffect quase ao mesmo tempo.
+      // Garante lembretes locais do atleta (30 min antes + na hora) neste dispositivo.
       if (isSchedulingAthleteRemindersRef.current) return;
       isSchedulingAthleteRemindersRef.current = true;
       try {
+        await setupNotificationChannel();
         const hasPermission = await requestNotificationPermissions();
         if (!hasPermission) return;
-
-        await setupNotificationChannel();
-
-        const now = Date.now();
-        for (const w of workoutsWithStatus) {
-          if (w.status === 'Concluído' || !w.scheduledTime || !w.date) continue;
-
-          const [y, mo, d] = w.date.split('-').map(Number);
-          const [h, min] = w.scheduledTime.split(':').map(Number);
-          const workoutAt = new Date(y, mo - 1, d, h, min, 0, 0);
-          if (workoutAt.getTime() <= now) continue;
-
-          const alreadyScheduled = await AsyncStorage.getItem(`workout_${w.id}_athlete_reminders_scheduled`);
-          if (alreadyScheduled === 'true') continue;
-
-          await scheduleWorkoutRemindersForAthlete(w.id, w.date, w.scheduledTime, w.name, 'workouts');
-          await AsyncStorage.setItem(`workout_${w.id}_athlete_reminders_scheduled`, 'true');
-        }
+        await syncAthleteWorkoutReminders(currentAthleteId, 'workouts');
       } catch (notifErr) {
         console.warn('Lembretes do atleta não agendados:', notifErr);
       } finally {

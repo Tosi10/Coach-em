@@ -11,6 +11,7 @@ import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
+import { db } from '@/src/services/firebase.config';
 import { UserType } from '@/src/types';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -19,11 +20,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/src/services/firebase.config';
 
 function formatWeekLabel(weekStart: Date): string {
   const weekEnd = new Date(weekStart);
@@ -1128,14 +1128,15 @@ export default function HomeScreen() {
           <TouchableOpacity
             className="rounded-xl mt-5 mb-5"
             style={{
-              borderWidth: 1,
+              borderWidth: Platform.OS === 'android' ? 0 : 1,
               borderColor: 'rgba(251, 146, 60, 0.65)',
               shadowColor: '#fb923c',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.25,
               shadowRadius: 6,
-              elevation: 5,
+              elevation: Platform.OS === 'android' ? 0 : 5,
               overflow: 'hidden',
+              backgroundColor: Platform.OS === 'android' ? 'transparent' : undefined,
             }}
             onPress={() => router.push('/coach-calendar')}
             activeOpacity={0.85}
@@ -1148,7 +1149,16 @@ export default function HomeScreen() {
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(251, 146, 60, 0.65)',
+              }}
             >
               <View className="flex-row items-center">
                 <View
@@ -1179,13 +1189,19 @@ export default function HomeScreen() {
               style={{ 
                 ...themeStyles.card,
                 borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
-                backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.01)' : theme.colors.card,
+                backgroundColor:
+                  Platform.OS === 'android'
+                    ? 'transparent'
+                    : theme.mode === 'dark'
+                    ? 'rgba(255,255,255,0.01)'
+                    : theme.colors.card,
                 shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.22,
                 shadowRadius: 6,
                 elevation: 4,
                 overflow: 'hidden',
+                borderWidth: 1,
               }}
               onPress={() => router.push('/exercises-library')}
               activeOpacity={0.7}
@@ -1198,7 +1214,12 @@ export default function HomeScreen() {
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
+                style={{
+                  borderRadius: 12,
+                  paddingVertical: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 <Image
                   source={require('../../assets/images/BibliotecaDeExercicios2.png')}
@@ -1220,13 +1241,19 @@ export default function HomeScreen() {
               style={{ 
                 ...themeStyles.card,
                 borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
-                backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.01)' : theme.colors.card,
+                backgroundColor:
+                  Platform.OS === 'android'
+                    ? 'transparent'
+                    : theme.mode === 'dark'
+                    ? 'rgba(255,255,255,0.01)'
+                    : theme.colors.card,
                 shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.22,
                 shadowRadius: 6,
                 elevation: 4,
                 overflow: 'hidden',
+                borderWidth: 1,
               }}
               onPress={() => router.push('/workouts-library')}
               activeOpacity={0.7}
@@ -1239,7 +1266,12 @@ export default function HomeScreen() {
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ borderRadius: 12, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}
+                style={{
+                  borderRadius: 12,
+                  paddingVertical: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 <Image
                   source={require('../../assets/images/MeusTreinos2.png')}
@@ -1814,7 +1846,7 @@ export default function HomeScreen() {
                 </View>
                 <Image
                   source={require('../../assets/images/treinaLogo2.png')}
-                  style={{ width: 180, height: 72, marginTop: 2 }}
+                  style={{ width: 180, height: 72, marginTop: -15 }}
                   resizeMode="contain"
                 />
               </View>
@@ -1822,33 +1854,25 @@ export default function HomeScreen() {
           )}
 
           {coachHighlight && (
-            <View
-              className="rounded-2xl border p-4 mb-6 flex-row items-center"
-              style={{
-                ...themeStyles.card,
-                borderColor: theme.colors.border,
-              }}
-            >
-              <View
-                className="w-20 h-20 rounded-full overflow-hidden items-center justify-center mr-3"
-                style={{ backgroundColor: theme.colors.primary + '20' }}
-              >
-                {coachHighlight.photoURL ? (
-                  <Image
-                    source={{ uri: coachHighlight.photoURL }}
-                    style={{ width: 80, height: 80 }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <FontAwesome name="user" size={32} color={theme.colors.primary} />
-                )}
-              </View>
+            <View className="mb-6">
               <View className="flex-1">
-                <Text className="text-base font-semibold mb-1" style={themeStyles.text}>
+                <View
+                  className="self-start rounded-full px-2.5 py-0.5 mb-1"
+                  style={{ backgroundColor: theme.colors.primary + '1f' }}
+                >
+                  <Text className="text-[10px] font-semibold" style={{ color: theme.colors.primary }}>
+                    Treinador(a)
+                  </Text>
+                </View>
+                <Text className="text-base font-semibold mb-0.5" style={themeStyles.text}>
                   {coachHighlight.displayName}
                 </Text>
                 {coachHighlight.welcomeMessage?.trim() ? (
-                  <Text className="text-xs leading-5" style={themeStyles.textSecondary}>
+                  <Text
+                    className="text-xs leading-5"
+                    style={themeStyles.textSecondary}
+                    numberOfLines={2}
+                  >
                     {coachHighlight.welcomeMessage}
                   </Text>
                 ) : null}

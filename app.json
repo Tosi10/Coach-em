@@ -9,8 +9,6 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/TreinaLogo2.1.png",
-      "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
     "ios": {
@@ -32,7 +30,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
+        "foregroundImage": "./assets/images/IconeTreinaSemFundo.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -62,10 +60,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0a0a0a",
-          "image": "./assets/images/TreinaLogo2.1.png",
-          "imageWidth": 280,
-          "resizeMode": "contain"
+          "backgroundColor": "#0a0a0a"
         }
       ],
       [
