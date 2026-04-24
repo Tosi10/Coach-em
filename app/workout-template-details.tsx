@@ -304,55 +304,54 @@ export default function WorkoutTemplateDetailsScreen() {
                     <Text className="text-sm mb-4" style={themeStyles.textTertiary}>
                         Criado em: {workout.createdAt}
                     </Text>
-                    
-                    {/* Botões de ação - só aparecem para treinos criados (não mockados) */}
-                    {workout.id.startsWith('workout_') && (
-                        <View className="flex-row gap-3 mt-2">
-                            {/* Botão Editar */}
-                            <TouchableOpacity
-                                className="flex-1 rounded-lg py-3 px-4 border"
-                                style={{ 
-                                    backgroundColor: theme.mode === 'dark' 
-                                        ? 'rgba(249, 115, 22, 0.4)' 
-                                        : 'rgba(251, 146, 60, 0.1)',
-                                    borderColor: theme.colors.primary + '50',
-                                }}
-                                onPress={() => {
-                                    router.push({
-                                        pathname: '/edit-workout',
-                                        params: { workoutId: workoutIdString },
-                                    });
-                                }}
-                            >
-                                <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-                                    ✏️ Editar
-                                </Text>
-                            </TouchableOpacity>
-                            
-                            {/* Botão Deletar */}
-                            <TouchableOpacity
-                                className="flex-1 rounded-lg py-3 px-4 border"
-                                style={{ 
-                                    backgroundColor: theme.mode === 'dark' 
-                                        ? 'rgba(239, 68, 68, 0.2)' 
-                                        : 'rgba(239, 68, 68, 0.1)',
-                                    borderColor: '#ef4444' + '50',
-                                }}
-                                onPress={handleDeleteWorkout}
-                            >
-                                <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
-                                    🗑️ Deletar
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </View>
 
                 {/* Componente WorkoutDetails com os 3 blocos */}
                 <WorkoutDetails
                     blocks={workout.blocks}
-                    workoutName={workout.name}
                 />
+
+                {/* Botões de ação - após os blocos do treino */}
+                {workout.id.startsWith('workout_') && (
+                    <View className="flex-row gap-3 mt-2">
+                        {/* Botão Editar */}
+                        <TouchableOpacity
+                            className="flex-1 rounded-lg py-3 px-4 border"
+                            style={{ 
+                                backgroundColor: theme.mode === 'dark' 
+                                    ? 'rgba(249, 115, 22, 0.4)' 
+                                    : 'rgba(251, 146, 60, 0.1)',
+                                borderColor: theme.colors.primary + '50',
+                            }}
+                            onPress={() => {
+                                router.push({
+                                    pathname: '/edit-workout',
+                                    params: { workoutId: workoutIdString },
+                                });
+                            }}
+                        >
+                            <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
+                                ✏️ Editar
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        {/* Botão Deletar */}
+                        <TouchableOpacity
+                            className="flex-1 rounded-lg py-3 px-4 border"
+                            style={{ 
+                                backgroundColor: theme.mode === 'dark' 
+                                    ? 'rgba(239, 68, 68, 0.2)' 
+                                    : 'rgba(239, 68, 68, 0.1)',
+                                borderColor: '#ef4444' + '50',
+                            }}
+                            onPress={handleDeleteWorkout}
+                        >
+                            <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
+                                🗑️ Deletar
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
             {/* Custom Alert */}

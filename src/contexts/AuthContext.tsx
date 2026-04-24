@@ -85,10 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      await authSignUp(data);
-      const u = await getCurrentUser();
-      if (!u) throw new Error('Perfil não encontrado');
-      setUser(u);
+      const u = await authSignUp(data);
+      setUser(null);
       return u;
     } catch (e: any) {
       setError(e?.message ?? 'Erro ao criar conta');

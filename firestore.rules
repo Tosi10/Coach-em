@@ -1,0 +1,310 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers gerais ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ---------- CooPs helpers ----------
+    function hasCoopsUserDoc() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/coopsUsers/$(request.auth.uid));
+    }
+
+    function myRole() {
+      return hasCoopsUserDoc()
+        ? get(/databases/$(database)/documents/coopsUsers/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && myRole() == 'admin';
+    }
+
+    function isClient() {
+      return isSignedIn() && myRole() == 'client';
+    }
+
+    // ---------- Coach'em helpers ----------
+    function hasCoachEmUserDoc() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function coachEmRole() {
+      return hasCoachEmUserDoc()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType
+        : null;
+    }
+
+    function isCoachEmCoach() {
+      return isSignedIn() && coachEmRole() == 'COACH';
+    }
+
+    function coachOwnsAthlete(athleteId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/coachemAthletes/$(athleteId))
+        && get(/databases/$(database)/documents/coachemAthletes/$(athleteId)).data.coachId == request.auth.uid;
+    }
+
+    /** Treinos atribuídos: ids centrais não podem mudar em update. */
+    function assignedWorkoutCoreIdsUnchanged() {
+      return request.resource.data.athleteId == resource.data.athleteId
+        && request.resource.data.coachId == resource.data.coachId
+        && request.resource.data.workoutTemplateId == resource.data.workoutTemplateId;
+    }
+
+    /** Atleta só pode alterar estes campos no próprio treino atribuído. */
+    function athleteAssignedWorkoutPatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['status', 'completedDate', 'feedback', 'feedbackEmoji', 'feedbackText']);
+    }
+
+    /** Atleta atualiza só estes campos no coachemAthletes (foto, push, timestamps). */
+    function athleteProfilePatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['photoURL', 'updatedAt', 'expoPushToken', 'expoPushTokenUpdatedAt', 'expoPushPlatform']);
+    }
+
+    function treinaExerciseReadable() {
+      return isSignedIn() && (
+        resource.data.createdBy == request.auth.uid
+        || resource.data.isGlobal == true
+        || (
+          hasCoachEmUserDoc()
+          && coachEmRole() == 'ATHLETE'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coachId
+            == resource.data.createdBy
+        )
+      );
+    }
+
+    function treinaWorkoutTemplateReadable() {
+      return isSignedIn() && (
+        resource.data.coachId == request.auth.uid
+        || (
+          hasCoachEmUserDoc()
+          && coachEmRole() == 'ATHLETE'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coachId
+            == resource.data.coachId
+        )
+      );
+    }
+
+    // ---------- Coach'em ----------
+    // Perfil principal por uid
+    match /users/{userId} {
+      // Próprio utilizador OU treinador que “possui” o atleta em coachemAthletes/{userId} (ex.: ler photoURL)
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        coachOwnsAthlete(userId)
+      );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userType in ['COACH', 'ATHLETE']
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string;
+
+      // Não permite escalar userType nem trocar email/createdAt
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userType == resource.data.userType
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      // Exclusão de conta (app Coach'em): só o próprio usuário apaga o próprio doc
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // legado/futuro
+    match /coachemUsers/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Biblioteca de exercícios
+    match /coachemExercises/{docId} {
+      allow read: if treinaExerciseReadable();
+
+      allow create: if isCoachEmCoach()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isCoachEmCoach()
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    // Templates de treino
+    match /coachemWorkoutTemplates/{docId} {
+      allow read: if treinaWorkoutTemplateReadable();
+
+      allow create: if isCoachEmCoach()
+        && request.resource.data.coachId == request.auth.uid;
+
+      allow update, delete: if isCoachEmCoach()
+        && resource.data.coachId == request.auth.uid
+        && request.resource.data.coachId == resource.data.coachId;
+    }
+
+    // Atletas
+    match /coachemAthletes/{athleteId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == athleteId ||
+        resource.data.coachId == request.auth.uid
+      );
+
+      allow create: if isCoachEmCoach()
+        && request.resource.data.coachId == request.auth.uid;
+
+      // Treinador: gestão completa com coachId fixo.
+      // Atleta: doc id = uid OU authUid = uid — só campos seguros (foto, token push).
+      allow update: if (isCoachEmCoach()
+        && resource.data.coachId == request.auth.uid
+        && request.resource.data.coachId == resource.data.coachId)
+        || (
+          resource.data.coachId == request.resource.data.coachId
+          && athleteProfilePatchKeysOnly()
+          && (
+            request.auth.uid == athleteId
+            || ('authUid' in resource.data && resource.data.authUid == request.auth.uid)
+          )
+          && (!('authUid' in resource.data)
+            || request.resource.data.authUid == resource.data.authUid)
+        );
+
+      // Treinador remove atleta; atleta remove o próprio registro ao excluir conta
+      allow delete: if isSignedIn() && (
+        (isCoachEmCoach() && resource.data.coachId == request.auth.uid) ||
+        request.auth.uid == athleteId
+      );
+    }
+
+    // Treinos atribuídos
+    match /coachemAssignedWorkouts/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        resource.data.coachId == request.auth.uid ||
+        coachOwnsAthlete(resource.data.athleteId)
+      );
+
+      allow create: if isCoachEmCoach()
+        && request.resource.data.coachId == request.auth.uid
+        && coachOwnsAthlete(request.resource.data.athleteId);
+
+      allow update: if isSignedIn()
+        && assignedWorkoutCoreIdsUnchanged()
+        && (
+          (isCoachEmCoach() && resource.data.coachId == request.auth.uid)
+          || (
+            resource.data.athleteId == request.auth.uid
+            && athleteAssignedWorkoutPatchKeysOnly()
+          )
+        );
+
+      allow delete: if isCoachEmCoach()
+        && resource.data.coachId == request.auth.uid;
+    }
+
+    // Evolução de carga/peso
+    match /coachemExerciseWeightHistory/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        coachOwnsAthlete(resource.data.athleteId)
+      );
+
+      allow create: if isSignedIn() && (
+        request.resource.data.athleteId == request.auth.uid ||
+        (isCoachEmCoach() && coachOwnsAthlete(request.resource.data.athleteId))
+      );
+
+      allow update, delete: if false;
+    }
+
+    // ---------- CooPs ----------
+    match /coopsUsers/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /coopsRooms/{roomId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /coopsBookings/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (isClient() || isAdmin());
+      allow update, delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+
+    match /coopsPackages/{packageId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /coopsPackagePurchases/{purchaseId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /coopsCreditMovements/{movementId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    match /coopsConversations/{conversationId} {
+      allow read: if isSignedIn() && (
+        (isAdmin() && resource.data.adminId == request.auth.uid) ||
+        (isClient() && resource.data.clientId == request.auth.uid)
+      );
+
+      allow create: if isAdmin()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.participantIds is list
+        && request.resource.data.participantIds.size() == 2
+        && request.resource.data.adminId in request.resource.data.participantIds
+        && request.resource.data.clientId in request.resource.data.participantIds
+        && request.resource.data.participantKey is string;
+
+      allow update: if isSignedIn() &&
+        request.auth.uid in resource.data.participantIds;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid in
+          get(/databases/$(database)/documents/coopsConversations/$(conversationId)).data.participantIds
+        );
+
+        allow create: if isSignedIn()
+          && request.auth.uid in
+            get(/databases/$(database)/documents/coopsConversations/$(conversationId)).data.participantIds
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0;
+
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- Fallback fechado ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

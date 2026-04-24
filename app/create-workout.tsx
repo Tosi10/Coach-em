@@ -182,9 +182,9 @@ export default function CreateWorkoutScreen() {
             return;
         }
 
-        // Validação: cada bloco deve ter pelo menos 1 exercício
-        if (warmUpExercises.length === 0 || workExercises.length === 0 || coolDownExercises.length === 0) {
-            showAlert('Erro', 'Cada bloco deve ter pelo menos 1 exercício.', 'error');
+        // Validação: somente o bloco principal é obrigatório.
+        if (workExercises.length === 0) {
+            showAlert('Erro', 'Nova regra: adicione pelo menos 1 exercício no bloco Principal.', 'error');
             return;
         }
 
@@ -533,7 +533,7 @@ export default function CreateWorkoutScreen() {
                     Criar Novo Treino
                 </Text>
                 <Text className="mb-6" style={themeStyles.textSecondary}>
-                    Crie um treino completo com os 3 blocos obrigatórios
+                    Monte seu treino livremente. Apenas o bloco Principal é obrigatório.
                 </Text>
 
                 {/* Formulário básico */}
@@ -609,6 +609,11 @@ export default function CreateWorkoutScreen() {
                                 <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                                     Tipo de Exercício
                                 </Text>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingRight: 8 }}
+                                >
                                 <View className="flex-row gap-2">
                                     <TouchableOpacity
                                         className="px-4 py-2 rounded-lg"
@@ -676,6 +681,7 @@ export default function CreateWorkoutScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
+                                </ScrollView>
                             </View>
 
                             {/* FILTRO POR GRUPO MUSCULAR */}

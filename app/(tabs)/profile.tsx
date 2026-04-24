@@ -33,15 +33,13 @@ import {
 } from 'react-native';
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/src/services/firebase.config';
+import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
 
 const INPUT_BORDER_WIDTH = 1;
 const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 const SUPPORT_EMAIL = 'adm.ecg.19@gmail.com';
 const SUPPORT_WHATSAPP_E164 = '5541992522854';
-const PRIVACY_URL = 'https://futeba-96395.web.app/privacy/treinamais';
-const TERMS_URL = 'https://futeba-96395.web.app/terms/treinamais';
-
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -197,21 +195,21 @@ export default function ProfileScreen() {
   };
 
   const openPolicy = async () => {
-    const canOpen = await Linking.canOpenURL(PRIVACY_URL);
+    const canOpen = await Linking.canOpenURL(TREINA_PRIVACY_URL);
     if (!canOpen) {
       Alert.alert('Privacidade', 'Não foi possível abrir a Política de Privacidade.');
       return;
     }
-    await Linking.openURL(PRIVACY_URL);
+    await Linking.openURL(TREINA_PRIVACY_URL);
   };
 
   const openTerms = async () => {
-    const canOpen = await Linking.canOpenURL(TERMS_URL);
+    const canOpen = await Linking.canOpenURL(TREINA_TERMS_URL);
     if (!canOpen) {
       Alert.alert('Termos', 'Não foi possível abrir os Termos de Uso.');
       return;
     }
-    await Linking.openURL(TERMS_URL);
+    await Linking.openURL(TREINA_TERMS_URL);
   };
 
   const isCoach = user?.userType === UserType.COACH;

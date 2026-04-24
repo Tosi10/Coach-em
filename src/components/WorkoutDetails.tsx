@@ -10,7 +10,7 @@
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlock, WorkoutBlockData } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 
 /**
  * Props do componente WorkoutDetails
@@ -26,13 +26,26 @@ interface WorkoutDetailsProps {
 function getBlockName(blockType: WorkoutBlock): string {
   switch (blockType) {
     case WorkoutBlock.WARM_UP:
-      return '🔥 Aquecimento';
+      return 'Aquecimento';
     case WorkoutBlock.WORK:
-      return '💪 Parte Principal';
+      return 'Parte Principal';
     case WorkoutBlock.COOL_DOWN:
-      return '🧘 Finalização';
+      return 'Finalização';
     default:
       return 'Bloco';
+  }
+}
+
+function getBlockIcon(blockType: WorkoutBlock) {
+  switch (blockType) {
+    case WorkoutBlock.WARM_UP:
+      return require('../../assets/images/IconeAquecimento2.png');
+    case WorkoutBlock.WORK:
+      return require('../../assets/images/IconeTrabalhoPrincipal2.png');
+    case WorkoutBlock.COOL_DOWN:
+      return require('../../assets/images/IconeFinalizacao2.png');
+    default:
+      return null;
   }
 }
 
@@ -65,9 +78,18 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
               borderColor: theme.colors.primary + '50',
             }}
           >
-            <Text className="text-lg font-bold" style={{ color: theme.colors.primary }}>
-              {getBlockName(block.blockType)}
-            </Text>
+            <View className="flex-row items-center">
+              {getBlockIcon(block.blockType) ? (
+                <Image
+                  source={getBlockIcon(block.blockType)!}
+                  style={{ width: 32, height: 32, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+              ) : null}
+              <Text className="text-lg font-bold" style={{ color: theme.colors.primary }}>
+                {getBlockName(block.blockType)}
+              </Text>
+            </View>
             {block.notes && (
               <Text className="text-sm mt-1" style={themeStyles.textSecondary}>
                 {block.notes}

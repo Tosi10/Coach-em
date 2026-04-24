@@ -333,6 +333,11 @@ export default function ExercisesLibraryScreen() {
           <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
             Tipo
           </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 8 }}
+          >
           <View className="flex-row gap-2">
             <TouchableOpacity
               className="px-4 py-2 rounded-lg"
@@ -387,6 +392,7 @@ export default function ExercisesLibraryScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </View>
 
         {/* Contador de resultados */}

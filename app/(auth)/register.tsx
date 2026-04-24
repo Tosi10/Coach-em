@@ -5,15 +5,14 @@
  * Atletas são criados pelo treinador em "Adicionar atleta".
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -21,6 +20,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { CustomAlert } from '@/components/CustomAlert';
+import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
 import { useAuth } from '@/src/hooks/useAuth';
 import { UserType } from '@/src/types';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -44,6 +46,28 @@ export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [specialization, setSpecialization] = useState('');
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    onConfirm?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'info' | 'warning' = 'info',
+    onConfirm?: () => void
+  ) => {
+    setAlertState({ visible: true, title, message, type, onConfirm });
+  };
 
   const inputStyle = {
     backgroundColor: theme.colors.background,
@@ -54,12 +78,20 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!email || !password || !displayName) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios');
+      showAlert('Erro', 'Por favor, preencha todos os campos obrigatórios.', 'warning');
+      return;
+    }
+    if (!acceptedLegal) {
+      showAlert(
+        'Atenção',
+        'Para criar a conta, marque que leu e aceita os Termos de Uso e a Política de Privacidade.',
+        'warning'
+      );
       return;
     }
 
     try {
-      const user = await signUp({
+      await signUp({
         email,
         password,
         displayName,
@@ -67,14 +99,19 @@ export default function RegisterScreen() {
         bio: bio.trim() || undefined,
         specialization: specialization.trim() || undefined,
       });
-      await AsyncStorage.setItem('userType', user.userType);
-      router.replace('/(tabs)');
+      showAlert(
+        'Confirme seu email',
+        'Enviamos um email de verificação. Confirme antes de entrar no app.',
+        'success',
+        () => router.replace('/(auth)/login')
+      );
     } catch (err: any) {
-      Alert.alert('Erro ao criar conta', err.message);
+      showAlert('Erro ao criar conta', err?.message ?? 'Não foi possível criar a conta.', 'error');
     }
   };
 
   return (
+    <>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       keyboardVerticalOffset={0}
@@ -187,6 +224,45 @@ export default function RegisterScreen() {
               numberOfLines={3}
             />
 
+            <TouchableOpacity
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedLegal }}
+              onPress={() => setAcceptedLegal((v) => !v)}
+              activeOpacity={0.75}
+              className="flex-row items-start mb-5"
+            >
+              <View
+                className="mt-0.5 w-6 h-6 rounded-md items-center justify-center border-2"
+                style={{
+                  borderColor: acceptedLegal ? theme.colors.primary : fieldBorder,
+                  backgroundColor: acceptedLegal ? theme.colors.primary : 'transparent',
+                }}
+              >
+                {acceptedLegal ? (
+                  <FontAwesome name="check" size={14} color="#ffffff" />
+                ) : null}
+              </View>
+              <Text className="flex-1 ml-3 text-sm leading-5" style={{ color: theme.colors.textSecondary }}>
+                Li e aceito os{' '}
+                <Text
+                  onPress={() => Linking.openURL(TREINA_TERMS_URL)}
+                  style={{ color: theme.colors.primary, fontWeight: '600' }}
+                  accessibilityRole="link"
+                >
+                  Termos de Uso
+                </Text>
+                {' e a '}
+                <Text
+                  onPress={() => Linking.openURL(TREINA_PRIVACY_URL)}
+                  style={{ color: theme.colors.primary, fontWeight: '600' }}
+                  accessibilityRole="link"
+                >
+                  Política de Privacidade
+                </Text>
+                .
+              </Text>
+            </TouchableOpacity>
+
             {error ? (
               <View className="mb-4 rounded-lg py-2.5 px-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>
                 <Text className="text-sm text-center" style={{ color: theme.colors.error }}>
@@ -197,9 +273,9 @@ export default function RegisterScreen() {
 
             <TouchableOpacity
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || !acceptedLegal}
               activeOpacity={0.85}
-              style={{ overflow: 'hidden', borderRadius: 14 }}
+              style={{ overflow: 'hidden', borderRadius: 14, opacity: !acceptedLegal && !loading ? 0.55 : 1 }}
             >
               <LinearGradient
                 colors={GRADIENT_ORANGE}
@@ -231,5 +307,17 @@ export default function RegisterScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    <CustomAlert
+      visible={alertState.visible}
+      title={alertState.title}
+      message={alertState.message}
+      type={alertState.type}
+      onConfirm={() => {
+        const onConfirm = alertState.onConfirm;
+        setAlertState((prev) => ({ ...prev, visible: false, onConfirm: undefined }));
+        onConfirm?.();
+      }}
+    />
+    </>
   );
 }

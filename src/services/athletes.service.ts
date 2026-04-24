@@ -163,6 +163,11 @@ export async function createAthleteWithLogin(
     if (code === 'permission-denied') throw new Error('Apenas treinadores podem cadastrar atletas com login.');
     if (code === 'already-exists') throw new Error('Já existe uma conta com este email.');
     if (code === 'invalid-argument') throw new Error(msg || 'Dados inválidos.');
+    if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') {
+      throw new Error(
+        'Limite de cadastros de atletas com email nesta hora. Tente novamente mais tarde.'
+      );
+    }
     if (msg.includes('email-already-exists') || msg.includes('already in use')) {
       throw new Error('Já existe uma conta com este email.');
     }

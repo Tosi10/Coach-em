@@ -6,11 +6,10 @@
 
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useAuth } from '@/src/hooks/useAuth';
-import { UserType } from '@/src/types';
-import { sendPasswordResetEmailTo } from '@/src/services/auth.service';
+import { EmailNotVerifiedError, resendVerificationEmail, sendPasswordResetEmailTo } from '@/src/services/auth.service';
+import { persistSessionAndNavigateHome } from '@/src/utils/navigateAfterAuth';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import { CustomAlert } from '@/components/CustomAlert';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -46,6 +45,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [resendVerificationSending, setResendVerificationSending] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
   const [alertState, setAlertState] = useState<{
     visible: boolean;
     title: string;
@@ -73,19 +74,39 @@ export default function LoginScreen() {
     }
 
     try {
+      setShowResendVerification(false);
       const user = await signIn({ email, password });
-      await AsyncStorage.setItem('userType', user.userType);
-      if (user.userType === UserType.ATHLETE) {
-        await AsyncStorage.setItem('currentAthleteId', user.id);
-      }
-      router.replace('/(tabs)');
+      await persistSessionAndNavigateHome(router.replace, user);
     } catch (err: any) {
       const msg = err?.message ?? 'Erro ao fazer login';
       if (msg.toLowerCase().includes('conta de atleta foi bloqueada')) {
         router.replace('/(auth)/blocked');
         return;
       }
+      if (err instanceof EmailNotVerifiedError || msg.toLowerCase().includes('email') && msg.toLowerCase().includes('confirm')) {
+        setShowResendVerification(true);
+      }
       showAlert('Erro ao fazer login', msg, 'error');
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email || !password) {
+      showAlert('Confirmação de email', 'Digite email e senha para reenviar a confirmação.', 'info');
+      return;
+    }
+    try {
+      setResendVerificationSending(true);
+      await resendVerificationEmail(email, password);
+      showAlert(
+        'Email reenviado',
+        'Enviamos novamente o email de confirmação. Verifique caixa de entrada e spam.',
+        'success'
+      );
+    } catch (err: any) {
+      showAlert('Erro', err?.message ?? 'Não foi possível reenviar o email de confirmação.', 'error');
+    } finally {
+      setResendVerificationSending(false);
     }
   };
 
@@ -218,6 +239,20 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {showResendVerification && (
+              <View className="mb-4">
+                <TouchableOpacity
+                  onPress={handleResendVerification}
+                  disabled={resendVerificationSending || loading}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
+                    {resendVerificationSending ? 'Reenviando confirmação…' : 'Reenviar email de confirmação'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {error ? (
               <View className="mb-4 rounded-lg py-3 px-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>

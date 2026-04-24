@@ -5,8 +5,7 @@
  */
 
 import { useAuthContext } from '@/src/contexts/AuthContext';
-import { UserType } from '@/src/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persistSessionAndNavigateHome } from '@/src/utils/navigateAfterAuth';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -28,11 +27,7 @@ export default function GateScreen() {
         return;
       }
 
-      await AsyncStorage.setItem('userType', user.userType);
-      if (user.userType === UserType.ATHLETE) {
-        await AsyncStorage.setItem('currentAthleteId', user.id);
-      }
-      router.replace('/(tabs)');
+      await persistSessionAndNavigateHome(router.replace, user);
     };
 
     run();

@@ -283,6 +283,10 @@ export default function EditWorkoutScreen() {
         }
 
         // Descrição é opcional, não precisa validar
+        if (workExercises.length === 0) {
+            showAlert('Erro', 'Nova regra: adicione pelo menos 1 exercício no bloco Principal.', 'error');
+            return;
+        }
 
         try {
             const blocks: WorkoutBlockData[] = [
@@ -673,6 +677,11 @@ export default function EditWorkoutScreen() {
                                 <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
                                     Tipo de Exercício
                                 </Text>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingRight: 8 }}
+                                >
                                 <View className="flex-row gap-2">
                                     <TouchableOpacity
                                         className="px-4 py-2 rounded-lg"
@@ -740,6 +749,7 @@ export default function EditWorkoutScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
+                                </ScrollView>
                             </View>
 
                             {/* FILTRO POR GRUPO MUSCULAR */}

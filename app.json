@@ -9,6 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
+      "image": "./assets/images/TreinaLogo2.1.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
     "ios": {
@@ -30,18 +32,15 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconeTreinaSemFundo.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
+        "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "navigationBar": {
         "backgroundColor": "#0a0a0a",
         "barStyle": "light-content"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      }
     },
     "web": {
       "bundler": "metro",
@@ -53,14 +52,17 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O app precisa acessar suas fotos para escolher uma imagem ou vídeo.",
-          "cameraPermission": "O app precisa da câmera para gravar vídeos de exercícios."
+          "photosPermission": "O app precisa acessar fotos e vídeos da galeria para imagem de perfil e vídeos de exercícios.",
+          "cameraPermission": "Não utilizamos a câmera nesta versão; o SDK de mídia pode declarar esta permissão."
         }
       ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0a0a0a"
+          "backgroundColor": "#0a0a0a",
+          "image": "./assets/images/TreinaLogo2.1.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
       ],
       [
@@ -69,7 +71,16 @@
           "backgroundColor": "#0a0a0a",
           "barStyle": "light-content"
         }
-      ]
+      ],
+      [
+        "@sentry/react-native",
+        {
+          "url": "https://sentry.io/",
+          "organization": "v6core",
+          "project": "coachemapp"
+        }
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

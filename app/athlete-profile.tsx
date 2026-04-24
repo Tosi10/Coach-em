@@ -747,7 +747,7 @@ export default function AthleteProfileScreen() {
                               className="border rounded-xl p-4 mb-3"
                               style={{
                                 ...themeStyles.card,
-                                borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
+                                borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : '#000000',
                               }}
                             >
                               <View className="flex-row items-center gap-2">

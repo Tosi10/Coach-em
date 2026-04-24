@@ -1262,6 +1262,33 @@ export default function WorkoutDetailsScreen() {
           </View>
         )}
 
+        {/* Concluir treino no fim do conteúdo (após último bloco/exercício), não fixo na base */}
+        {assignedWorkout.status === 'Pendente' && (
+          <Animated.View
+            style={{
+              transform: [{ scale: pulseAnim }],
+              marginBottom: Math.max(insets.bottom, 24) + 30,
+            }}
+          >
+            <TouchableOpacity
+              className="rounded-lg py-4 px-6"
+              style={{
+                backgroundColor: theme.colors.primary,
+                shadowColor: theme.colors.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={handleMarkAsCompleted}
+            >
+              <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
+                Marcar como Concluído
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* Mensagem se já estiver concluído */}
         {assignedWorkout.status === 'Concluído' && (
           <View className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
@@ -1344,7 +1371,7 @@ export default function WorkoutDetailsScreen() {
                     maxHeight: '94%',
                     minHeight: 0,
                     overflow: 'hidden',
-                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.22)',
+                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.35)' : '#000000',
                   }}
                 >
                   {/* Header do Modal */}
@@ -1787,32 +1814,6 @@ export default function WorkoutDetailsScreen() {
             </Modal>
           );
         })()}
-
-                {/* Botão marcar como concluído (só aparece se estiver pendente) */}
-                {assignedWorkout.status === 'Pendente' && (
-          <Animated.View
-            style={{
-              transform: [{ scale: pulseAnim }],
-            }}
-          >
-            <TouchableOpacity
-              className="rounded-lg py-4 px-6"
-              style={{
-                backgroundColor: theme.colors.primary,
-                shadowColor: theme.colors.primary,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 6,
-              }}
-              onPress={handleMarkAsCompleted}
-            >
-              <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                Marcar como Concluído
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
 
         {/* Modal de Feedback */}
         <Modal

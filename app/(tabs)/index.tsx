@@ -81,6 +81,7 @@ export default function HomeScreen() {
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
+  const homeLightBorderColor = theme.mode === 'light' ? '#000000' : undefined;
   const { width: windowWidth } = useWindowDimensions();
   const chartMaxW = useMemo(() => chartAreaWidth(windowWidth), [windowWidth]);
   const [userType, setUserType] = useState<UserType | null>(null);
@@ -1188,7 +1189,7 @@ export default function HomeScreen() {
               className="rounded-xl flex-1 border"
               style={{ 
                 ...themeStyles.card,
-                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
+                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : '#000000',
                 backgroundColor:
                   Platform.OS === 'android'
                     ? 'transparent'
@@ -1240,7 +1241,7 @@ export default function HomeScreen() {
               className="rounded-xl flex-1 border"
               style={{ 
                 ...themeStyles.card,
-                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 146, 60, 0.35)',
+                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : '#000000',
                 backgroundColor:
                   Platform.OS === 'android'
                     ? 'transparent'
@@ -1302,7 +1303,13 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              <View className="rounded-xl p-3 mb-3 border overflow-hidden" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-3 mb-3 border overflow-hidden"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 <BarChart
                   data={coachWeeklyStats.map((week) => ({
                     value: week.count,
@@ -1333,7 +1340,13 @@ export default function HomeScreen() {
 
               {/* Análise de Tendência */}
               {coachWeeklyTrend && (
-                <View className="rounded-xl p-3 border" style={themeStyles.card}>
+                <View
+                  className="rounded-xl p-3 border"
+                  style={{
+                    ...themeStyles.card,
+                    borderColor: homeLightBorderColor ?? theme.colors.border,
+                  }}
+                >
                   <View className="flex-row justify-between items-center">
                     <View className="flex-1">
                       <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Primeira semana</Text>
@@ -1420,7 +1433,13 @@ export default function HomeScreen() {
               </View>
               
               {/* Gráfico de Barras */}
-              <View className="rounded-xl p-3 mb-2 border overflow-hidden" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-3 mb-2 border overflow-hidden"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 <BarChart
                   data={allAthletesAdherence.map((athlete) => ({
                     value: athlete.rate,
@@ -1456,7 +1475,13 @@ export default function HomeScreen() {
               </View>
 
               {/* Lista de Atletas com Aderência - Clicável */}
-              <View className="rounded-xl p-2 border" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-2 border"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View className="flex-row gap-2">
                     {allAthletesAdherence.map((athlete) => (
@@ -1477,10 +1502,10 @@ export default function HomeScreen() {
                             ? (theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)')
                             : (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)'),
                           borderColor: athlete.rate >= 70
-                            ? 'rgba(16, 185, 129, 0.3)'
+                            ? (theme.mode === 'light' ? 'rgba(16, 185, 129, 0.5)' : 'rgba(16, 185, 129, 0.3)')
                             : athlete.rate >= 50
-                            ? 'rgba(245, 158, 11, 0.3)'
-                            : 'rgba(239, 68, 68, 0.3)',
+                            ? (theme.mode === 'light' ? 'rgba(245, 158, 11, 0.5)' : 'rgba(245, 158, 11, 0.3)')
+                            : (theme.mode === 'light' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.3)'),
                         }}
                       >
                         <Text className="font-semibold text-xs mb-0.5" style={themeStyles.text} numberOfLines={1}>
@@ -1530,7 +1555,13 @@ export default function HomeScreen() {
               </View>
               
               {/* Lista dos 5 Treinos Mais Difíceis */}
-              <View className="rounded-xl p-2 mb-2 border" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-2 mb-2 border"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 {mostDifficultWorkoutsList.map((workout, index) => (
                   <View
                     key={`${workout.workoutName}_${index}`}
@@ -1542,10 +1573,10 @@ export default function HomeScreen() {
                         ? (theme.mode === 'dark' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.05)')
                         : theme.colors.backgroundTertiary,
                       borderColor: index === 0 
-                        ? 'rgba(239, 68, 68, 0.2)'
+                        ? (theme.mode === 'light' ? 'rgba(239, 68, 68, 0.45)' : 'rgba(239, 68, 68, 0.2)')
                         : index === 1
-                        ? 'rgba(249, 115, 22, 0.2)'
-                        : theme.colors.border,
+                        ? (theme.mode === 'light' ? 'rgba(249, 115, 22, 0.45)' : 'rgba(249, 115, 22, 0.2)')
+                        : (homeLightBorderColor ?? theme.colors.border),
                     }}
                   >
                     <View className="flex-1 mr-2">
@@ -1586,7 +1617,13 @@ export default function HomeScreen() {
 
               {/* Gráfico de Distribuição de Dificuldade */}
               {difficultyDistributionChart.length > 0 && (
-                <View className="rounded-xl p-2 border" style={themeStyles.card}>
+                <View
+                  className="rounded-xl p-2 border"
+                  style={{
+                    ...themeStyles.card,
+                    borderColor: homeLightBorderColor ?? theme.colors.border,
+                  }}
+                >
                   <Text className="text-xs mb-2 text-center" style={themeStyles.textSecondary}>
                     Distribuição de Dificuldade
                   </Text>
@@ -1631,7 +1668,13 @@ export default function HomeScreen() {
               <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
                 Últimos 30 dias – treinos concluídos
               </Text>
-              <View className="rounded-xl p-3 mb-2 border overflow-hidden" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-3 mb-2 border overflow-hidden"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 <BarChart
                   data={mostActiveAthletesList.map((athlete, index) => ({
                     value: athlete.count,
@@ -1661,14 +1704,23 @@ export default function HomeScreen() {
                   gradientColor="#60a5fa"
                 />
               </View>
-              <View className="rounded-xl p-2 border" style={themeStyles.card}>
+              <View
+                className="rounded-xl p-2 border"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: homeLightBorderColor ?? theme.colors.border,
+                }}
+              >
                 {mostActiveAthletesList.map((athlete, index) => (
                   <TouchableOpacity
                     key={athlete.athleteId}
                     onPress={() => router.push({ pathname: '/athlete-profile', params: { athleteId: athlete.athleteId } })}
                     activeOpacity={0.7}
                     className="flex-row items-center justify-between p-2.5 rounded-lg mb-1.5 border"
-                    style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundTertiary }}
+                    style={{
+                      borderColor: homeLightBorderColor ?? theme.colors.border,
+                      backgroundColor: theme.colors.backgroundTertiary,
+                    }}
                   >
                     <View className="flex-row items-center gap-2">
                       <View className="w-7 h-7 rounded-full items-center justify-center" style={{ backgroundColor: index === 0 ? 'rgba(234,179,8,0.3)' : theme.colors.card }}>
@@ -1982,7 +2034,7 @@ export default function HomeScreen() {
                   className="border-2 rounded-xl p-5 mb-3"
                   style={{
                     backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.1)' : 'rgba(251, 146, 60, 0.05)',
-                    borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.2)',
+                    borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : '#000000',
                     shadowColor: '#fb923c',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
@@ -2601,7 +2653,7 @@ export default function HomeScreen() {
                   <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
-                      borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)',
+                      borderColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.3)' : '#000000',
                       shadowColor: '#f59e0b',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2641,7 +2693,7 @@ export default function HomeScreen() {
                   <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
-                      borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.2)',
+                      borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : '#000000',
                       shadowColor: '#fb923c',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2674,7 +2726,7 @@ export default function HomeScreen() {
                   <View className="flex-1 min-w-[150px] rounded-xl p-4 border items-center"
                     style={{
                       ...themeStyles.card,
-                      borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
+                      borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : '#000000',
                       shadowColor: '#10b981',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.3,
@@ -2795,7 +2847,7 @@ export default function HomeScreen() {
                   className="border rounded-xl p-4 mb-3"
                   style={{
                     backgroundColor: theme.colors.backgroundTertiary,
-                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                    borderColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : '#000000',
                     shadowColor: '#10b981',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.15,

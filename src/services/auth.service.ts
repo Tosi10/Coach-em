@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   EmailAuthProvider,
+  reload,
   reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
@@ -45,6 +46,15 @@ export class BlockedAccountError extends Error {
   }
 }
 
+export class EmailNotVerifiedError extends Error {
+  email?: string;
+  constructor(message = 'Confirme seu email para acessar o app.', email?: string) {
+    super(message);
+    this.name = 'EmailNotVerifiedError';
+    this.email = email;
+  }
+}
+
 function isBlockedStatus(status: unknown): boolean {
   if (typeof status !== 'string') return false;
   const normalized = status.trim().toLowerCase();
@@ -76,6 +86,7 @@ function formatAuthError(error: unknown, fallbackPrefix: string): Error {
 
   const map: Record<string, string> = {
     'auth/invalid-credential': 'Email ou senha inválidos.',
+    'auth/email-already-in-use': 'Este email já está cadastrado. Faça login ou use "Esqueci minha senha".',
     'auth/user-not-found': 'Usuário não encontrado.',
     'auth/wrong-password': 'Senha incorreta.',
     'auth/invalid-email': 'Email inválido.',
@@ -84,6 +95,8 @@ function formatAuthError(error: unknown, fallbackPrefix: string): Error {
     'auth/too-many-requests': 'Muitas tentativas. Tente novamente em alguns minutos.',
     'auth/network-request-failed': 'Falha de rede. Verifique sua conexão.',
     'permission-denied': 'Sem permissão para acessar os dados do perfil.',
+    'functions/resource-exhausted':
+      'Muitas solicitações de email. Aguarde cerca de uma hora ou tente mais tarde.',
   };
 
   const friendly = map[error.code] ?? error.message;
@@ -143,16 +156,29 @@ export async function signUp(data: SignUpData): Promise<User> {
     };
 
     if (data.userType === UserType.COACH) {
-      (userData as Omit<Coach, 'id'>).bio = data.bio;
-      (userData as Omit<Coach, 'id'>).specialization = data.specialization;
+      if (data.bio !== undefined) {
+        (userData as Omit<Coach, 'id'>).bio = data.bio;
+      }
+      if (data.specialization !== undefined) {
+        (userData as Omit<Coach, 'id'>).specialization = data.specialization;
+      }
       (userData as Omit<Coach, 'id'>).athletes = [];
     } else if (data.userType === UserType.ATHLETE) {
-      (userData as Omit<Athlete, 'id'>).dateOfBirth = data.dateOfBirth;
-      (userData as Omit<Athlete, 'id'>).sport = data.sport;
+      if (data.dateOfBirth !== undefined) {
+        (userData as Omit<Athlete, 'id'>).dateOfBirth = data.dateOfBirth;
+      }
+      if (data.sport !== undefined) {
+        (userData as Omit<Athlete, 'id'>).sport = data.sport;
+      }
     }
 
     const userRef = doc(db, 'users', firebaseUser.uid);
     await setDoc(userRef, userData);
+
+    await sendVerificationEmailTo(data.email);
+
+    // Exige confirmação antes do primeiro acesso.
+    await signOut(auth);
 
     return {
       id: firebaseUser.uid,
@@ -174,6 +200,14 @@ export async function signIn(data: SignInData): Promise<User> {
     );
 
     const firebaseUser: FirebaseUser = userCredential.user;
+    await reload(firebaseUser);
+    if (!firebaseUser.emailVerified) {
+      await signOut(auth);
+      throw new EmailNotVerifiedError(
+        'Seu email ainda não foi confirmado. Abra sua caixa de entrada e confirme antes de entrar.',
+        firebaseUser.email ?? data.email
+      );
+    }
 
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
 
@@ -185,7 +219,7 @@ export async function signIn(data: SignInData): Promise<User> {
     await ensureAthleteIsAllowed(firebaseUser, userData);
     return toAppUser(firebaseUser, userData);
   } catch (error: unknown) {
-    if (error instanceof BlockedAccountError) {
+    if (error instanceof BlockedAccountError || error instanceof EmailNotVerifiedError) {
       throw error;
     }
     throw formatAuthError(error, 'Erro ao fazer login');
@@ -218,10 +252,52 @@ export async function getCurrentUser(): Promise<User | null> {
     await ensureAthleteIsAllowed(firebaseUser, userData);
     return toAppUser(firebaseUser, userData);
   } catch (error: unknown) {
-    if (error instanceof BlockedAccountError) {
+    if (error instanceof BlockedAccountError || error instanceof EmailNotVerifiedError) {
       throw error;
     }
     throw formatAuthError(error, 'Erro ao buscar usuário');
+  }
+}
+
+export async function resendVerificationEmail(email: string, password: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) {
+    throw new Error('Informe email e senha para reenviar a confirmação.');
+  }
+  try {
+    const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+    const firebaseUser = credential.user;
+    await reload(firebaseUser);
+
+    if (firebaseUser.emailVerified) {
+      await signOut(auth);
+      throw new Error('Este email já está confirmado. Você já pode entrar normalmente.');
+    }
+
+    await sendVerificationEmailTo(firebaseUser.email ?? normalizedEmail);
+    await signOut(auth);
+  } catch (error: unknown) {
+    if (error instanceof EmailNotVerifiedError) throw error;
+    throw formatAuthError(error, 'Erro ao reenviar confirmação de email');
+  }
+}
+
+export async function sendVerificationEmailTo(email: string): Promise<void> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) {
+    throw new Error('Informe um email válido.');
+  }
+  try {
+    const sendVerification = httpsCallable<{ email: string }, { ok: boolean }>(
+      functions,
+      'sendEmailVerificationTreina'
+    );
+    await sendVerification({ email: trimmed });
+  } catch (error: unknown) {
+    if (error instanceof FirebaseError && error.code.startsWith('functions/')) {
+      throw new Error(error.message || 'Erro ao enviar email de confirmação.');
+    }
+    throw formatAuthError(error, 'Erro ao enviar email de confirmação');
   }
 }
 
@@ -284,7 +360,7 @@ export async function deleteMyAccount(currentPassword: string): Promise<void> {
     const uid = user.uid;
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
-    const userData = userSnap.data() as Partial<Athlete & Coach> | undefined;
+    const userData = userSnap.data() as Partial<Athlete | Coach> | undefined;
 
     // Se for atleta, preserva o documento em coachemAthletes para que o treinador
     // continue enxergando histórico e vínculo do atleta mesmo após remoção da conta.

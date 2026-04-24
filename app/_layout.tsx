@@ -1,3 +1,4 @@
+import { Sentry } from '@/src/instrumentation/sentry';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
@@ -19,6 +20,7 @@ import { AuthProvider } from '@/src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
 import { ResizeMode, Video } from 'expo-av';
+import { auth } from '@/src/services/firebase.config';
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -57,7 +59,7 @@ const CRITICAL_IMAGES: { name: string; asset: number }[] = [
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const [assetsReady, setAssetsReady] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
   const [loaded, error] = useFonts({
@@ -145,12 +147,23 @@ export default function RootLayout() {
       // expo-notifications não é suportado no Expo Go (SDK 53+). Só carrega em development build.
       if (Constants.appOwnership === 'expo') return;
       try {
-        const { setupNotificationChannel, requestNotificationPermissions, syncAthleteWorkoutReminders } = await import('@/src/services/notifications.service');
+        const {
+          setupNotificationChannel,
+          requestNotificationPermissions,
+          syncAthleteWorkoutReminders,
+          syncUserExpoPushToken,
+        } = await import('@/src/services/notifications.service');
         await setupNotificationChannel();
         await requestNotificationPermissions();
 
         const savedType = await AsyncStorage.getItem('userType');
         const athleteId = await AsyncStorage.getItem('currentAthleteId');
+        const authUid = auth.currentUser?.uid;
+        const tokenUserId = savedType === 'ATHLETE' ? (athleteId || authUid) : authUid;
+        if (tokenUserId) {
+          await syncUserExpoPushToken(tokenUserId);
+        }
+
         if (savedType === 'ATHLETE' && athleteId) {
           await syncAthleteWorkoutReminders(athleteId, 'workouts');
         }
@@ -252,6 +265,14 @@ function RootLayoutNavContent() {
         <StatusBar style={theme.mode === 'dark' ? 'light' : 'dark'} backgroundColor={theme.colors.background} />
         <Stack screenOptions={screenOptions}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="athlete-legal-acceptance"
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="select-user-type" options={{ headerShown: false }} />
@@ -374,3 +395,4 @@ function RootLayoutNav() {
   );
 }
 
+export default Sentry.wrap(RootLayout);

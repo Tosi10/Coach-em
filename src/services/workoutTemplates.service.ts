@@ -20,6 +20,7 @@ import {
   where,
   Timestamp,
 } from 'firebase/firestore';
+import { FirebaseError } from 'firebase/app';
 import { db } from './firebase.config';
 
 const COLLECTION = 'coachemWorkoutTemplates';
@@ -98,7 +99,10 @@ function toAppTemplate(docSnap: DocumentSnapshot): WorkoutTemplateForApp | null 
 export async function listWorkoutTemplatesByCoachId(coachId: string): Promise<WorkoutTemplateForApp[]> {
   const q = query(collection(db, COLLECTION), where('coachId', '==', coachId));
   const snapshot = await getDocs(q);
-  const list = snapshot.docs.map((d) => toAppTemplate(d)!).filter(Boolean);
+  const list = snapshot.docs
+    .map((d) => toAppTemplate(d)!)
+    .filter(Boolean)
+    .filter((template) => template.isActive !== false);
   list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   return list;
 }
@@ -167,5 +171,17 @@ export async function updateWorkoutTemplate(
  */
 export async function deleteWorkoutTemplate(templateId: string): Promise<void> {
   const ref = doc(db, COLLECTION, templateId);
-  await deleteDoc(ref);
+  try {
+    await deleteDoc(ref);
+  } catch (error) {
+    // Em alguns ambientes/regras o delete pode ser bloqueado; fallback para soft-delete.
+    if (error instanceof FirebaseError && error.code === 'permission-denied') {
+      await updateDoc(ref, {
+        isActive: false,
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+    throw error;
+  }
 }

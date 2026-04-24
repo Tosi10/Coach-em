@@ -5,16 +5,115 @@
  * (Firebase Auth + Firestore users + coachemAthletes) para o atleta poder fazer login.
  */
 
-import * as functions from "firebase-functions";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import * as nodemailer from "nodemailer";
+import { Expo, ExpoPushMessage } from "expo-server-sdk";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const auth = admin.auth();
+const expo = new Expo();
+
+/** Apenas Cloud Functions (Admin); clientes não têm match nas rules → negado. */
+const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
+
+const HOUR_MS = 60 * 60 * 1000;
+
+function hourBucket(): number {
+  return Math.floor(Date.now() / HOUR_MS);
+}
+
+function rateDocId(action: string, identity: string): string {
+  const h = crypto
+    .createHash("sha256")
+    .update(`${action}|${identity}`)
+    .digest("hex")
+    .slice(0, 40);
+  return `${action}_${h}_${hourBucket()}`;
+}
+
+function getClientIp(request: CallableRequest): string {
+  const raw = request.rawRequest;
+  if (!raw?.headers) return "unknown";
+  const xff = raw.headers["x-forwarded-for"];
+  const first = Array.isArray(xff) ? xff[0] : xff;
+  if (typeof first === "string" && first.trim()) {
+    return first.split(",")[0].trim().slice(0, 64);
+  }
+  return "unknown";
+}
+
+/**
+ * Limita envios de email por destino e por IP (janela de 1 hora, bucket por hora UTC).
+ */
+async function consumePublicEmailRateLimits(
+  action: "passwordReset" | "emailVerify",
+  email: string,
+  clientIp: string
+): Promise<void> {
+  const maxEmail = action === "passwordReset" ? 4 : 6;
+  const maxIp = action === "passwordReset" ? 20 : 25;
+
+  const emailDoc = rateDocId(action, `email:${email}`);
+  const ipDoc = rateDocId(action, `ip:${clientIp}`);
+
+  await db.runTransaction(async (t) => {
+    const refE = db.collection(RATE_LIMIT_COLLECTION).doc(emailDoc);
+    const refI = db.collection(RATE_LIMIT_COLLECTION).doc(ipDoc);
+    const snapE = await t.get(refE);
+    const snapI = await t.get(refI);
+    const nextE = (snapE.data()?.count as number | undefined) ?? 0;
+    const nextI = (snapI.data()?.count as number | undefined) ?? 0;
+    if (nextE + 1 > maxEmail || nextI + 1 > maxIp) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Muitas solicitações de email. Aguarde cerca de uma hora ou tente mais tarde."
+      );
+    }
+    const ts = admin.firestore.FieldValue.serverTimestamp();
+    t.set(
+      refE,
+      { count: nextE + 1, action, kind: "email", updatedAt: ts },
+      { merge: true }
+    );
+    t.set(
+      refI,
+      { count: nextI + 1, action, kind: "ip", updatedAt: ts },
+      { merge: true }
+    );
+  });
+}
+
+/** Evita treinador a disparar criação+email em massa acidental ou script. */
+async function consumeCreateAthleteEmailRate(coachId: string): Promise<void> {
+  const max = 35;
+  const docId = rateDocId("createAthleteEmail", `coach:${coachId}`);
+  const ref = db.collection(RATE_LIMIT_COLLECTION).doc(docId);
+  await db.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    const next = (snap.data()?.count as number | undefined) ?? 0;
+    if (next + 1 > max) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Limite de cadastros de atletas com email nesta hora. Tente novamente mais tarde."
+      );
+    }
+    t.set(
+      ref,
+      {
+        count: next + 1,
+        action: "createAthleteEmail",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+}
 
 /** URLs em atributos HTML precisam de & escapado para amp; */
 function hrefSafe(url: string): string {
@@ -99,6 +198,73 @@ function buildPasswordResetHtml(resetLink: string): string {
 </html>`;
 }
 
+function buildEmailVerificationHtml(verificationLink: string): string {
+  const link = hrefSafe(verificationLink);
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>Treina+ - Confirmar email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#050505;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Confirme seu email e ative sua conta Treina+.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#0a0a0a 0%,#050505 40%,#0a0a0a 100%);padding:40px 16px 48px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;">
+          <tr>
+            <td style="padding:0 0 20px;text-align:center;">
+              <p style="margin:0;font-size:32px;line-height:1;font-weight:800;letter-spacing:-0.03em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                <span style="color:#fb923c;">Treina</span><span style="color:#fafafa;">+</span>
+              </p>
+              <p style="margin:12px 0 0;font-size:11px;color:#737373;letter-spacing:0.22em;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Performance esportiva</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#111111;border-radius:20px;border:1px solid #262626;box-shadow:0 24px 48px rgba(0,0,0,0.45),0 0 0 1px rgba(251,146,60,0.08) inset;overflow:hidden;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="height:4px;background:linear-gradient(90deg,#ea580c,#f97316,#fb923c);line-height:0;font-size:0;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="padding:36px 32px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                    <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#fb923c;letter-spacing:0.04em;text-transform:uppercase;">Ativação de conta</p>
+                    <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#fafafa;line-height:1.35;letter-spacing:-0.02em;">Confirme seu email</h1>
+                    <p style="margin:0 0 24px;font-size:16px;color:#a3a3a3;line-height:1.65;">Para concluir seu cadastro no <strong style="color:#e5e5e5;font-weight:600;">Treina+</strong>, confirme seu endereço de email no botão abaixo.</p>
+                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                      <tr>
+                        <td align="center" style="padding:8px 0 28px;">
+                          <a href="${link}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%);color:#ffffff !important;text-decoration:none;font-weight:700;font-size:16px;border-radius:14px;letter-spacing:0.02em;box-shadow:0 8px 24px rgba(234,88,12,0.35),0 2px 0 rgba(255,255,255,0.12) inset;">Confirmar meu email</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:0 0 10px;font-size:12px;color:#737373;line-height:1.5;">Se o botão não funcionar, copie e cole este endereço no navegador:</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0d0d0d;border-radius:12px;border:1px solid #262626;">
+                      <tr>
+                        <td style="padding:14px 16px;font-size:11px;color:#a3a3a3;word-break:break-all;line-height:1.55;font-family:ui-monospace,SFMono-Regular,'Segoe UI Mono',Menlo,Consolas,monospace;">${link}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px 32px 32px;border-top:1px solid #1f1f1f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                    <p style="margin:0;font-size:13px;color:#737373;line-height:1.6;text-align:center;">Se você não solicitou este cadastro, pode ignorar este email com segurança.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 const gmailUserSecret = defineSecret("GMAIL_USER");
 const gmailPassSecret = defineSecret("GMAIL_PASS");
 
@@ -161,6 +327,52 @@ async function sendPasswordResetWithGmail(
   }
 }
 
+async function sendEmailVerificationWithGmail(
+  toEmail: string,
+  verificationLink: string,
+  gmailUserRaw: string,
+  gmailPassRaw: string
+): Promise<void> {
+  const { user: gmailUser, pass: gmailPass } = normalizeGmailSecrets(
+    gmailUserRaw,
+    gmailPassRaw
+  );
+  if (!gmailUser || !gmailPass) {
+    console.error("sendEmailVerificationTreina: secrets GMAIL_USER / GMAIL_PASS ausentes.");
+    throw new HttpsError(
+      "failed-precondition",
+      "Envio de email não configurado. Defina os secrets GMAIL_USER e GMAIL_PASS."
+    );
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: gmailUser, pass: gmailPass },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"Treina+" <${gmailUser}>`,
+      to: toEmail,
+      subject: "Treina+ - Confirme seu email",
+      html: buildEmailVerificationHtml(verificationLink),
+      text:
+        `Treina+ — Confirmação de email\n\n` +
+        `Para ativar sua conta, confirme seu email no link abaixo:\n\n` +
+        `${verificationLink}\n\n` +
+        `Se você não solicitou este cadastro, ignore esta mensagem.\n\n` +
+        `— Equipe Treina+`,
+    });
+  } catch (mailErr: unknown) {
+    const raw = mailErr instanceof Error ? mailErr.message : String(mailErr);
+    console.error("sendEmailVerificationTreina sendMail:", raw);
+    throw new HttpsError(
+      "internal",
+      "Não foi possível enviar o email de confirmação. Tente novamente mais tarde."
+    );
+  }
+}
+
 interface CreateAthleteByCoachData {
   displayName: string;
   email: string;
@@ -173,15 +385,16 @@ interface CreateAthleteByCoachData {
  * O atleta poderá fazer login com email e temporaryPassword.
  * athleteId = uid do Auth (usado em coachemAssignedWorkouts).
  *
- * Firebase Functions v2: callable recebe um único parâmetro request com request.data e request.auth.
+ * Firebase Functions v2: callable com secrets Gmail para enviar o mesmo email de confirmação Treina+.
  */
-export const createAthleteByCoach = functions.https.onCall(
+export const createAthleteByCoach = onCall(
+  {
+    region: "us-central1",
+    secrets: [gmailUserSecret, gmailPassSecret],
+  },
   async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "É preciso estar logado."
-      );
+      throw new HttpsError("unauthenticated", "É preciso estar logado.");
     }
 
     const coachId = request.auth.uid;
@@ -189,19 +402,17 @@ export const createAthleteByCoach = functions.https.onCall(
     const { displayName, email, temporaryPassword, sport } = data;
 
     if (!displayName || typeof displayName !== "string" || !displayName.trim()) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Nome do atleta é obrigatório."
-      );
+      throw new HttpsError("invalid-argument", "Nome do atleta é obrigatório.");
     }
     if (!email || typeof email !== "string" || !email.trim()) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Email do atleta é obrigatório."
-      );
+      throw new HttpsError("invalid-argument", "Email do atleta é obrigatório.");
     }
-    if (!temporaryPassword || typeof temporaryPassword !== "string" || temporaryPassword.length < 6) {
-      throw new functions.https.HttpsError(
+    if (
+      !temporaryPassword ||
+      typeof temporaryPassword !== "string" ||
+      temporaryPassword.length < 6
+    ) {
+      throw new HttpsError(
         "invalid-argument",
         "A senha provisória deve ter no mínimo 6 caracteres."
       );
@@ -210,18 +421,17 @@ export const createAthleteByCoach = functions.https.onCall(
     const coachRef = db.collection("users").doc(coachId);
     const coachSnap = await coachRef.get();
     if (!coachSnap.exists) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Perfil do treinador não encontrado."
-      );
+      throw new HttpsError("failed-precondition", "Perfil do treinador não encontrado.");
     }
     const coachData = coachSnap.data();
     if (coachData?.userType !== "COACH") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Apenas treinadores podem cadastrar atletas com login."
       );
     }
+
+    await consumeCreateAthleteEmailRate(coachId);
 
     const name = displayName.trim();
     const emailTrim = email.trim().toLowerCase();
@@ -237,12 +447,9 @@ export const createAthleteByCoach = functions.https.onCall(
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("email-already-exists") || msg.includes("already in use")) {
-        throw new functions.https.HttpsError(
-          "already-exists",
-          "Já existe uma conta com este email."
-        );
+        throw new HttpsError("already-exists", "Já existe uma conta com este email.");
       }
-      throw new functions.https.HttpsError("internal", `Erro ao criar conta: ${msg}`);
+      throw new HttpsError("internal", `Erro ao criar conta: ${msg}`);
     }
 
     const uid = userRecord.uid;
@@ -273,6 +480,31 @@ export const createAthleteByCoach = functions.https.onCall(
       tx.set(db.collection("coachemAthletes").doc(uid), athleteDoc);
     });
 
+    try {
+      const verifyLink = await auth.generateEmailVerificationLink(emailTrim);
+      await sendEmailVerificationWithGmail(
+        emailTrim,
+        verifyLink,
+        gmailUserSecret.value(),
+        gmailPassSecret.value()
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("createAthleteByCoach: falha ao enviar confirmação:", msg);
+      await db.collection("users").doc(uid).delete().catch(() => undefined);
+      await db.collection("coachemAthletes").doc(uid).delete().catch(() => undefined);
+      try {
+        await auth.deleteUser(uid);
+      } catch (delAuth: unknown) {
+        console.error("createAthleteByCoach: rollback auth:", delAuth);
+      }
+      if (err instanceof HttpsError) throw err;
+      throw new HttpsError(
+        "internal",
+        "Não foi possível enviar o email de confirmação para o atleta. Nada foi salvo — tente novamente."
+      );
+    }
+
     return { athleteId: uid };
   }
 );
@@ -296,6 +528,8 @@ export const sendPasswordResetEmailTreina = onCall(
     if (!email || !email.includes("@")) {
       throw new HttpsError("invalid-argument", "Informe um email válido.");
     }
+
+    await consumePublicEmailRateLimits("passwordReset", email, getClientIp(request));
 
     let userExists = false;
     try {
@@ -336,6 +570,188 @@ export const sendPasswordResetEmailTreina = onCall(
         "internal",
         "Não foi possível enviar o email. Tente novamente mais tarde."
       );
+    }
+  }
+);
+
+/**
+ * Confirmação de email com template Treina+ (Gmail via nodemailer).
+ * Não revela existência da conta (retorna ok mesmo quando email não existe).
+ */
+export const sendEmailVerificationTreina = onCall(
+  {
+    region: "us-central1",
+    secrets: [gmailUserSecret, gmailPassSecret],
+  },
+  async (request) => {
+    const raw = (request.data || {}) as { email?: string };
+    const email =
+      typeof raw.email === "string" ? raw.email.trim().toLowerCase() : "";
+    if (!email || !email.includes("@")) {
+      throw new HttpsError("invalid-argument", "Informe um email válido.");
+    }
+
+    await consumePublicEmailRateLimits("emailVerify", email, getClientIp(request));
+
+    let userRecord: admin.auth.UserRecord | null = null;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+    } catch {
+      userRecord = null;
+    }
+
+    if (!userRecord) {
+      return { ok: true };
+    }
+    if (userRecord.emailVerified) {
+      return { ok: true };
+    }
+
+    try {
+      const verifyLink = await auth.generateEmailVerificationLink(email);
+      await sendEmailVerificationWithGmail(
+        email,
+        verifyLink,
+        gmailUserSecret.value(),
+        gmailPassSecret.value()
+      );
+      return { ok: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("sendEmailVerificationTreina:", msg);
+      if (err instanceof HttpsError) throw err;
+      throw new HttpsError(
+        "internal",
+        "Não foi possível enviar o email de confirmação. Tente novamente mais tarde."
+      );
+    }
+  }
+);
+
+function formatDateInTimeZone(date: Date, timeZone: string): string {
+  // sv-SE retorna YYYY-MM-DD, ideal para comparação e query por string.
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function parseWorkoutDateTime(dateStr: string, timeStr: string): Date {
+  // App opera no Brasil; armazenamos horário local e convertemos para offset -03:00.
+  return new Date(`${dateStr}T${timeStr}:00-03:00`);
+}
+
+async function getAthletePushToken(athleteId: string): Promise<string | null> {
+  if (!athleteId) return null;
+  const userSnap = await db.collection("users").doc(athleteId).get();
+  const token = userSnap.get("expoPushToken");
+  if (typeof token !== "string" || !Expo.isExpoPushToken(token)) return null;
+  return token;
+}
+
+async function sendExpoPush(message: ExpoPushMessage): Promise<boolean> {
+  try {
+    const tickets = await expo.sendPushNotificationsAsync([message]);
+    return tickets[0]?.status === "ok";
+  } catch (error) {
+    console.error("dispatchAthleteWorkoutPushReminders sendExpoPush:", error);
+    return false;
+  }
+}
+
+/**
+ * Push remoto para atletas:
+ * - 30 minutos antes do treino
+ * - na hora do treino
+ *
+ * Roda em loop (scheduler) para funcionar com app em background/fechado.
+ */
+export const dispatchAthleteWorkoutPushReminders = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    timeZone: "America/Sao_Paulo",
+    region: "us-central1",
+  },
+  async () => {
+    const now = new Date();
+    const nowMs = now.getTime();
+
+    const yesterday = new Date(nowMs - 24 * 60 * 60 * 1000);
+    const dayAfterTomorrow = new Date(nowMs + 48 * 60 * 60 * 1000);
+    const minDate = formatDateInTimeZone(yesterday, "America/Sao_Paulo");
+    const maxDate = formatDateInTimeZone(dayAfterTomorrow, "America/Sao_Paulo");
+
+    const workoutsSnap = await db
+      .collection("coachemAssignedWorkouts")
+      .where("date", ">=", minDate)
+      .where("date", "<=", maxDate)
+      .get();
+
+    if (workoutsSnap.empty) return;
+
+    const athleteTokenCache = new Map<string, string | null>();
+
+    for (const workoutDoc of workoutsSnap.docs) {
+      const data = workoutDoc.data() as Record<string, unknown>;
+
+      const status = String(data.status ?? "").toLowerCase();
+      if (status === "concluído" || status === "concluido" || status === "completed") continue;
+
+      const athleteId = typeof data.athleteId === "string" ? data.athleteId : "";
+      const workoutName = typeof data.name === "string" ? data.name : "Treino";
+      const dateStr = typeof data.date === "string" ? data.date : "";
+      const timeStr = typeof data.scheduledTime === "string" ? data.scheduledTime : "";
+      if (!athleteId || !dateStr || !timeStr) continue;
+
+      const workoutAt = parseWorkoutDateTime(dateStr, timeStr);
+      if (Number.isNaN(workoutAt.getTime())) continue;
+
+      const msUntilWorkout = workoutAt.getTime() - nowMs;
+      const already30 = !!data.remoteReminder30SentAt;
+      const alreadyStart = !!data.remoteReminderStartSentAt;
+
+      const shouldSend30 = !already30 && msUntilWorkout <= 30 * 60 * 1000 && msUntilWorkout > 25 * 60 * 1000;
+      const shouldSendStart = !alreadyStart && msUntilWorkout <= 0 && msUntilWorkout > -5 * 60 * 1000;
+      if (!shouldSend30 && !shouldSendStart) continue;
+
+      let athleteToken = athleteTokenCache.get(athleteId);
+      if (athleteToken === undefined) {
+        athleteToken = await getAthletePushToken(athleteId);
+        athleteTokenCache.set(athleteId, athleteToken);
+      }
+      if (!athleteToken) continue;
+
+      const updates: Record<string, unknown> = {};
+
+      if (shouldSend30) {
+        const sent = await sendExpoPush({
+          to: athleteToken,
+          title: "Treino em 30 min 💪",
+          body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
+          sound: "default",
+          priority: "high",
+          data: { workoutId: workoutDoc.id, reminderType: "thirty-minutes" },
+        });
+        if (sent) updates.remoteReminder30SentAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      if (shouldSendStart) {
+        const sent = await sendExpoPush({
+          to: athleteToken,
+          title: "Hora do treino! 💪",
+          body: `"${workoutName}" - comece agora.`,
+          sound: "default",
+          priority: "high",
+          data: { workoutId: workoutDoc.id, reminderType: "start" },
+        });
+        if (sent) updates.remoteReminderStartSentAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await workoutDoc.ref.set(updates, { merge: true });
+      }
     }
   }
 );

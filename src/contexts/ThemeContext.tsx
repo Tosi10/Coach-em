@@ -79,11 +79,11 @@ const lightTheme: Theme = {
     textSecondary: '#525252', // Dark gray
     textTertiary: '#737373', // Medium gray
     
-    border: '#e5e5e5',
-    borderSecondary: '#d4d4d4',
+    border: '#000000',
+    borderSecondary: '#000000',
     
     card: '#ffffff',
-    cardBorder: '#e5e5e5',
+    cardBorder: '#000000',
     
     primary: '#fb923c', // Orange accent (mesmo)
     primaryLight: '#fdba74',

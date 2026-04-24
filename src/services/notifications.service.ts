@@ -5,6 +5,8 @@
 
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { db } from './firebase.config';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -190,5 +192,58 @@ export async function syncAthleteWorkoutReminders(
 
     await scheduleWorkoutRemindersForAthlete(w.id, w.date, w.scheduledTime, w.name, channelId);
     await AsyncStorage.setItem(key, 'true');
+  }
+}
+
+function getExpoProjectId(): string | undefined {
+  const easProjectId = (Constants as any)?.easConfig?.projectId;
+  if (typeof easProjectId === 'string' && easProjectId.trim()) return easProjectId.trim();
+
+  const extraProjectId = (Constants as any)?.expoConfig?.extra?.eas?.projectId;
+  if (typeof extraProjectId === 'string' && extraProjectId.trim()) return extraProjectId.trim();
+
+  return undefined;
+}
+
+/**
+ * Registra/atualiza o Expo Push Token no Firestore para envio remoto.
+ * Salva em users/{uid} e também em coachemAthletes/{uid} (quando existir).
+ */
+export async function syncUserExpoPushToken(userId: string): Promise<string | null> {
+  if (!userId) return null;
+
+  const N = await loadNotifications();
+  if (!N) return null;
+
+  const hasPermission = await requestNotificationPermissions();
+  if (!hasPermission) return null;
+
+  const projectId = getExpoProjectId();
+  if (!projectId) {
+    console.warn('Projeto EAS (projectId) não encontrado para gerar Expo Push Token.');
+    return null;
+  }
+
+  try {
+    const tokenResult = await N.getExpoPushTokenAsync({ projectId });
+    const token = tokenResult?.data;
+    if (!token) return null;
+
+    const payload = {
+      expoPushToken: token,
+      expoPushTokenUpdatedAt: serverTimestamp(),
+      expoPushPlatform: Constants.platform?.ios ? 'ios' : Constants.platform?.android ? 'android' : 'unknown',
+    };
+
+    await setDoc(doc(db, 'users', userId), payload, { merge: true });
+    try {
+      await setDoc(doc(db, 'coachemAthletes', userId), payload, { merge: true });
+    } catch {
+      // Usuários que não são atletas podem não ter doc em coachemAthletes.
+    }
+    return token;
+  } catch (error) {
+    console.warn('Falha ao registrar Expo Push Token:', error);
+    return null;
   }
 }
