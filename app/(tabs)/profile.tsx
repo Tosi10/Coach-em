@@ -96,6 +96,7 @@ export default function ProfileScreen() {
           coachWelcomeMessage: coachWelcomeMessage.trim(),
         });
       }
+      Alert.alert('Foto de perfil', 'Foto atualizada com sucesso.');
     } catch (e: any) {
       Alert.alert(
         'Foto de perfil',

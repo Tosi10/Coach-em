@@ -41,25 +41,36 @@ export async function uploadProfilePhoto(localUri: string): Promise<string> {
 
   await updateProfile(user, { photoURL: url });
 
-  const athleteRef = doc(db, COLLECTION_ATHLETES, uid);
-  const athleteSnap = await getDoc(athleteRef);
-  if (athleteSnap.exists()) {
-    await updateDoc(athleteRef, {
-      photoURL: url,
-      updatedAt: serverTimestamp(),
-    });
+  // Espelhamento em coachemAthletes é melhor esforço.
+  // Em algumas regras o usuário pode atualizar users/{uid}, mas não listar/editar atletas legados.
+  // Nesses cenários não devemos quebrar o fluxo nem mostrar erro falso positivo.
+  try {
+    const athleteRef = doc(db, COLLECTION_ATHLETES, uid);
+    const athleteSnap = await getDoc(athleteRef);
+    if (athleteSnap.exists()) {
+      await updateDoc(athleteRef, {
+        photoURL: url,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.warn('Falha ao espelhar foto em coachemAthletes/{uid}:', error);
   }
 
-  // Docs legados: id do documento ≠ uid, mas campo authUid aponta para a conta do atleta
-  const linked = await getDocs(
-    query(collection(db, COLLECTION_ATHLETES), where('authUid', '==', uid))
-  );
-  for (const d of linked.docs) {
-    if (d.id === uid) continue;
-    await updateDoc(d.ref, {
-      photoURL: url,
-      updatedAt: serverTimestamp(),
-    });
+  try {
+    // Docs legados: id do documento != uid, mas campo authUid aponta para a conta do atleta.
+    const linked = await getDocs(
+      query(collection(db, COLLECTION_ATHLETES), where('authUid', '==', uid))
+    );
+    for (const d of linked.docs) {
+      if (d.id === uid) continue;
+      await updateDoc(d.ref, {
+        photoURL: url,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.warn('Falha ao espelhar foto em docs legados de coachemAthletes:', error);
   }
 
   return url;

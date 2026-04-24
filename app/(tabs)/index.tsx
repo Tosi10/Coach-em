@@ -196,66 +196,76 @@ export default function HomeScreen() {
       setCoachHighlight(null);
       return;
     }
-    try {
-      let d: any = null;
-      const direct = await getDoc(doc(db, 'coachemAthletes', user.id));
-      if (direct.exists()) {
-        d = direct.data();
-      } else {
-        const linked = await getDocs(
-          query(collection(db, 'coachemAthletes'), where('authUid', '==', user.id))
-        );
-        d = linked.docs[0]?.data() ?? null;
-      }
-      if (!d) {
-        const w = workouts.find(
-          (x: any) =>
-            (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
-            (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
-            (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
-        );
-        if (w) {
-          d = {
-            coachPublicName: w.coachPublicName,
-            coachWelcomeMessage: w.coachWelcomeMessage,
-            coachPhotoURL: w.coachPhotoURL,
-          };
+
+    let d: any = null;
+
+    // Primeiro tenta docs diretos por id (uid atual e athleteId salvo).
+    // Em rules mais restritas, query por authUid pode falhar para atleta.
+    const candidateIds = Array.from(new Set([currentAthleteId, user.id].filter(Boolean) as string[]));
+    for (const candidateId of candidateIds) {
+      try {
+        const direct = await getDoc(doc(db, 'coachemAthletes', candidateId));
+        if (direct.exists()) {
+          d = direct.data();
+          break;
         }
+      } catch {
+        // Ignora e usa fallback abaixo.
       }
-      if (!d) {
-        setCoachHighlight(null);
-        return;
-      }
-      let name = typeof d?.coachPublicName === 'string' ? d.coachPublicName.trim() : '';
-      let msg = typeof d?.coachWelcomeMessage === 'string' ? d.coachWelcomeMessage.trim() : '';
-      let photo = typeof d?.coachPhotoURL === 'string' ? d.coachPhotoURL.trim() : '';
-      if (!name && !msg && !photo) {
-        const w = workouts.find(
-          (x: any) =>
-            (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
-            (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
-            (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
-        );
-        if (w) {
-          name = typeof w.coachPublicName === 'string' ? w.coachPublicName.trim() : '';
-          msg = typeof w.coachWelcomeMessage === 'string' ? w.coachWelcomeMessage.trim() : '';
-          photo = typeof w.coachPhotoURL === 'string' ? w.coachPhotoURL.trim() : '';
-        }
-      }
-      if (!name && !msg && !photo) {
-        setCoachHighlight(null);
-        return;
-      }
-      setCoachHighlight({
-        id: 'coach',
-        displayName: name || 'Treinador',
-        photoURL: photo || undefined,
-        welcomeMessage: msg || undefined,
-      });
-    } catch {
-      setCoachHighlight(null);
     }
-  }, [user?.id, workouts]);
+
+    // Fallback: usa dados espelhados no treino atribuído.
+    if (!d) {
+      const w = workouts.find(
+        (x: any) =>
+          (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
+          (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
+          (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
+      );
+      if (w) {
+        d = {
+          coachPublicName: w.coachPublicName,
+          coachWelcomeMessage: w.coachWelcomeMessage,
+          coachPhotoURL: w.coachPhotoURL,
+        };
+      }
+    }
+
+    if (!d) {
+      setCoachHighlight(null);
+      return;
+    }
+
+    let name = typeof d?.coachPublicName === 'string' ? d.coachPublicName.trim() : '';
+    let msg = typeof d?.coachWelcomeMessage === 'string' ? d.coachWelcomeMessage.trim() : '';
+    let photo = typeof d?.coachPhotoURL === 'string' ? d.coachPhotoURL.trim() : '';
+
+    if (!name && !msg && !photo) {
+      const w = workouts.find(
+        (x: any) =>
+          (typeof x?.coachPublicName === 'string' && x.coachPublicName.trim()) ||
+          (typeof x?.coachWelcomeMessage === 'string' && x.coachWelcomeMessage.trim()) ||
+          (typeof x?.coachPhotoURL === 'string' && x.coachPhotoURL.trim())
+      );
+      if (w) {
+        name = typeof w.coachPublicName === 'string' ? w.coachPublicName.trim() : '';
+        msg = typeof w.coachWelcomeMessage === 'string' ? w.coachWelcomeMessage.trim() : '';
+        photo = typeof w.coachPhotoURL === 'string' ? w.coachPhotoURL.trim() : '';
+      }
+    }
+
+    if (!name && !msg && !photo) {
+      setCoachHighlight(null);
+      return;
+    }
+
+    setCoachHighlight({
+      id: 'coach',
+      displayName: name || 'Treinador',
+      photoURL: photo || undefined,
+      welcomeMessage: msg || undefined,
+    });
+  }, [currentAthleteId, user?.id, workouts]);
 
   useEffect(() => {
     loadAthleteCoachCard();
