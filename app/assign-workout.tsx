@@ -448,6 +448,11 @@ function formatDatePtBr(dateStr: string): string {
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
             const todayStr = getLocalDateString();
 
+            const normalizedCoachName =
+                (typeof (user as any)?.publicCoachName === 'string' && (user as any).publicCoachName.trim()) ||
+                (typeof user?.displayName === 'string' && user.displayName.trim()) ||
+                'Treinador(a)';
+
             const newAssignments = datesToAssign.map((date) => {
                 const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
                 return {
@@ -460,7 +465,8 @@ function formatDatePtBr(dateStr: string): string {
                     date,
                     scheduledTime,
                     status: 'Pendente',
-                    coach: 'Treinador',
+                    coach: normalizedCoachName,
+                    coachPublicName: normalizedCoachName,
                     dayOfWeek: new Date(date).toLocaleDateString('pt-BR', { weekday: 'long'}),
                     isToday: date === todayStr,
                     isThisWeek: isDateThisWeek(date),

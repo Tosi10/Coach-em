@@ -289,6 +289,30 @@ export default function AthleteProfileScreen() {
     );
   };
 
+  const handleDeleteAthlete = () => {
+    showAlert(
+      'Excluir atleta',
+      'Esta ação remove o atleta da sua lista. Treinos e histórico vinculados podem permanecer para consistência de dados. Deseja continuar?',
+      'warning',
+      async () => {
+        if (!athleteIdString) return;
+        try {
+          const { deleteAthlete } = await import('@/src/services/athletes.service');
+          await deleteAthlete(athleteIdString);
+          showAlert(
+            'Sucesso',
+            'Atleta removido da sua lista com sucesso.',
+            'success',
+            () => router.back()
+          );
+        } catch (error) {
+          console.error('Erro ao excluir atleta:', error);
+          showAlert('Erro', 'Não foi possível excluir o atleta agora. Tente novamente.', 'error');
+        }
+      }
+    );
+  };
+
   const handleGeneratePdfReport = async () => {
     if (!athleteIdString || !reportStartDate || !reportEndDate) {
       showAlert('Período', 'Selecione o período do relatório.', 'warning');
@@ -765,7 +789,7 @@ export default function AthleteProfileScreen() {
                                       {workout.name}
                                     </Text>
                                     <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                      {workout.date} • {workout.dayOfWeek}
+                                      {new Date(workout.date).toLocaleDateString('pt-BR')} • {workout.dayOfWeek}
                                     </Text>
                                     {workout.completedDate && (
                                       <Text className="text-xs" style={themeStyles.textTertiary}>
@@ -1027,7 +1051,7 @@ export default function AthleteProfileScreen() {
                                           {item.workout.name}
                                         </Text>
                                         <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                          {item.workout.date} • {item.workout.dayOfWeek}
+                                          {new Date(item.workout.date).toLocaleDateString('pt-BR')} • {item.workout.dayOfWeek}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
@@ -1174,7 +1198,7 @@ export default function AthleteProfileScreen() {
           );
         })()}
 
-        <View className="rounded-xl border p-4 mt-4" style={themeStyles.card}>
+        <View className="rounded-xl border p-4" style={[themeStyles.card, { marginTop: 74 }]}>
           <View className="flex-row items-center justify-between mb-3">
             <Text className="font-semibold" style={themeStyles.text}>
               Relatório PDF do atleta
@@ -1285,6 +1309,22 @@ export default function AthleteProfileScreen() {
               style={{ color: isBlocked ? '#10b981' : '#ef4444' }}
             >
               {isBlocked ? '🔓 Desbloquear conta do atleta' : '🔒 Bloquear conta do atleta'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {!isRemoved && (
+          <TouchableOpacity
+            className="rounded-xl py-3.5 px-6 mt-3 border"
+            style={{
+              backgroundColor: theme.mode === 'dark' ? 'rgba(127, 29, 29, 0.2)' : 'rgba(239, 68, 68, 0.08)',
+              borderColor: '#ef444455',
+            }}
+            onPress={handleDeleteAthlete}
+            activeOpacity={0.8}
+          >
+            <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
+              🗑️ Excluir atleta
             </Text>
           </TouchableOpacity>
         )}

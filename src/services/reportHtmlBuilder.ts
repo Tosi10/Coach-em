@@ -9,6 +9,13 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#039;');
 }
 
+function formatDateBr(value?: string): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('pt-BR');
+}
+
 function buildFeedbackBars(report: AthleteReportData): string {
   const max = Math.max(1, ...report.metrics.feedbackCounts.map((f) => f.count));
   return report.metrics.feedbackCounts
@@ -52,7 +59,7 @@ function buildWorkoutsTable(report: AthleteReportData): string {
     .map(
       (w) => `<tr>
         <td>${escapeHtml(w.name)}</td>
-        <td>${escapeHtml(w.date)}</td>
+        <td>${escapeHtml(formatDateBr(w.date))}</td>
         <td>${escapeHtml(w.status)}</td>
         <td>${escapeHtml(w.feedbackLabel || '-')}</td>
       </tr>`
@@ -69,7 +76,7 @@ function buildWorkoutsTable(report: AthleteReportData): string {
 }
 
 export function buildAthleteReportHtml(report: AthleteReportData): string {
-  const periodLabel = `${report.period.startDate} a ${report.period.endDate}`;
+  const periodLabel = `${formatDateBr(report.period.startDate)} a ${formatDateBr(report.period.endDate)}`;
   return `
 <!doctype html>
 <html>

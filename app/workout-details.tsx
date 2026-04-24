@@ -11,6 +11,7 @@ import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
+import { db } from '@/src/services/firebase.config';
 import { WorkoutBlockData } from '@/src/types';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
@@ -36,6 +37,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -206,6 +208,7 @@ export default function WorkoutDetailsScreen() {
   
   // Buscar o treino correspondente
   const [assignedWorkout, setAssignedWorkout] = useState<any>(null);
+  const [coachDisplayName, setCoachDisplayName] = useState<string>('Treinador(a)');
   const [workoutTemplate, setWorkoutTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -317,6 +320,29 @@ export default function WorkoutDetailsScreen() {
         }
 
         setAssignedWorkout(found);
+        const workoutCoachPublicName =
+          typeof found?.coachPublicName === 'string' ? found.coachPublicName.trim() : '';
+        const workoutCoachRaw = typeof found?.coach === 'string' ? found.coach.trim() : '';
+        const workoutCoachLower = workoutCoachRaw.toLowerCase();
+        const workoutCoachIsGeneric =
+          !workoutCoachRaw || workoutCoachLower === 'treinador' || workoutCoachLower === 'coach' || workoutCoachLower === 'treinador(a)';
+
+        if (workoutCoachPublicName) {
+          setCoachDisplayName(workoutCoachPublicName);
+        } else if (!workoutCoachIsGeneric) {
+          setCoachDisplayName(workoutCoachRaw);
+        } else {
+          try {
+            const athleteDoc = await getDoc(doc(db, 'coachemAthletes', found.athleteId));
+            const fromAthleteDoc =
+              typeof athleteDoc.data()?.coachPublicName === 'string'
+                ? athleteDoc.data()?.coachPublicName.trim()
+                : '';
+            setCoachDisplayName(fromAthleteDoc || 'Treinador(a)');
+          } catch {
+            setCoachDisplayName('Treinador(a)');
+          }
+        }
 
         const { enrichWorkoutBlocksWithLatestExercises } = await import('@/src/services/exercises.service');
 
@@ -971,10 +997,10 @@ export default function WorkoutDetailsScreen() {
             {assignedWorkout.name}
           </Text>
           <Text className="mb-1" style={themeStyles.textSecondary}>
-            Treinador: {assignedWorkout.coach}
+            Treinador: {coachDisplayName}
           </Text>
           <Text className="mb-4" style={themeStyles.textSecondary}>
-            Data: {assignedWorkout.date} ({assignedWorkout.dayOfWeek})
+            Data: {new Date(assignedWorkout.date).toLocaleDateString('pt-BR')} ({assignedWorkout.dayOfWeek})
             {assignedWorkout.scheduledTime ? ` • ${assignedWorkout.scheduledTime}` : ''}
           </Text>
 

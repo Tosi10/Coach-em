@@ -349,6 +349,31 @@ export async function changePasswordAfterReauth(
   }
 }
 
+export async function updateMyDisplayName(newDisplayName: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Sessão inválida. Faça login novamente.');
+  }
+
+  const normalized = newDisplayName.trim().replace(/\s+/g, ' ');
+  if (normalized.length < 2) {
+    throw new Error('Informe um nome com pelo menos 2 caracteres.');
+  }
+  if (normalized.length > 60) {
+    throw new Error('Use no máximo 60 caracteres para o nome.');
+  }
+
+  try {
+    await updateProfile(user, { displayName: normalized });
+    await updateDoc(doc(db, 'users', user.uid), {
+      displayName: normalized,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error: unknown) {
+    throw formatAuthError(error, 'Erro ao atualizar nome');
+  }
+}
+
 export async function deleteMyAccount(currentPassword: string): Promise<void> {
   const user = auth.currentUser;
   if (!user?.email) {

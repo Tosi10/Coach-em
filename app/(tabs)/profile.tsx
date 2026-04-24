@@ -15,7 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
@@ -43,7 +43,7 @@ const SUPPORT_WHATSAPP_E164 = '5541992522854';
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto } = useAuthContext();
+  const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto, updateDisplayName } = useAuthContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const isDark = theme.mode === 'dark';
@@ -61,9 +61,15 @@ export default function ProfileScreen() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [coachMessageSavedVisible, setCoachMessageSavedVisible] = useState(false);
+  const [nameSavedVisible, setNameSavedVisible] = useState(false);
+  const [photoSavedVisible, setPhotoSavedVisible] = useState(false);
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
   const [coachWelcomeMessage, setCoachWelcomeMessage] = useState('');
   const [coachPublicName, setCoachPublicName] = useState('');
   const [savingCoachMessage, setSavingCoachMessage] = useState(false);
+  const hydratedCoachFieldsUserIdRef = useRef<string | null>(null);
 
   const MAX_COACH_MESSAGE_LENGTH = 180;
 
@@ -96,7 +102,7 @@ export default function ProfileScreen() {
           coachWelcomeMessage: coachWelcomeMessage.trim(),
         });
       }
-      Alert.alert('Foto de perfil', 'Foto atualizada com sucesso.');
+      setPhotoSavedVisible(true);
     } catch (e: any) {
       Alert.alert(
         'Foto de perfil',
@@ -126,6 +132,34 @@ export default function ProfileScreen() {
     setNewPwd('');
     setConfirmPwd('');
     setChangeModalOpen(true);
+  };
+
+  const openNameModal = () => {
+    setNameDraft(user?.displayName ?? '');
+    setNameModalOpen(true);
+  };
+
+  const submitDisplayName = async () => {
+    const normalized = nameDraft.trim().replace(/\s+/g, ' ');
+    if (normalized.length < 2) {
+      Alert.alert('Nome', 'Informe um nome com pelo menos 2 caracteres.');
+      return;
+    }
+    if (normalized.length > 60) {
+      Alert.alert('Nome', 'Use no máximo 60 caracteres.');
+      return;
+    }
+
+    setNameBusy(true);
+    try {
+      await updateDisplayName(normalized);
+      setNameModalOpen(false);
+      setNameSavedVisible(true);
+    } catch (e: any) {
+      Alert.alert('Erro', e?.message ?? 'Não foi possível atualizar o nome.');
+    } finally {
+      setNameBusy(false);
+    }
   };
 
   const submitChangePassword = async () => {
@@ -254,11 +288,19 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    if (isCoach) {
-      setCoachWelcomeMessage((user as any)?.welcomeMessage ?? '');
-      setCoachPublicName((user as any)?.publicCoachName ?? user?.displayName ?? '');
+    if (!isCoach || !user?.id) {
+      hydratedCoachFieldsUserIdRef.current = null;
+      return;
     }
-  }, [isCoach, user]);
+
+    // Hidrata os campos apenas uma vez por usuário logado,
+    // evitando sobrescrever texto enquanto o treinador está digitando.
+    if (hydratedCoachFieldsUserIdRef.current === user.id) return;
+
+    setCoachWelcomeMessage((user as any)?.welcomeMessage ?? '');
+    setCoachPublicName((user as any)?.publicCoachName ?? user?.displayName ?? '');
+    hydratedCoachFieldsUserIdRef.current = user.id;
+  }, [isCoach, user?.id, user?.displayName]);
 
   return (
     <ScrollView className="flex-1" style={themeStyles.bg} keyboardShouldPersistTaps="handled">
@@ -316,6 +358,11 @@ export default function ProfileScreen() {
               <Text className="text-sm" style={themeStyles.textSecondary}>
                 {user?.email}
               </Text>
+              <TouchableOpacity onPress={openNameModal} activeOpacity={0.7} className="mt-2 self-start">
+                <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
+                  Editar nome
+                </Text>
+              </TouchableOpacity>
               <View
                 className="mt-1.5 self-start rounded-lg px-2.5 py-1"
                 style={{ backgroundColor: theme.colors.primary + '20' }}
@@ -363,10 +410,11 @@ export default function ProfileScreen() {
               />
               <TextInput
                 value={coachWelcomeMessage}
-                onChangeText={(text) => setCoachWelcomeMessage(text.slice(0, MAX_COACH_MESSAGE_LENGTH))}
+                onChangeText={setCoachWelcomeMessage}
                 placeholder="Ex: Foco total essa semana. Qualquer dúvida, me chame."
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline
+                maxLength={MAX_COACH_MESSAGE_LENGTH}
                 textAlignVertical="top"
                 style={[
                   inputStyle,
@@ -580,6 +628,60 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Modal visible={nameModalOpen} animationType="slide" transparent onRequestClose={() => setNameModalOpen(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+        >
+          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setNameModalOpen(false)} />
+          <View
+            className="rounded-t-3xl px-5 pt-6 pb-10"
+            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+          >
+            <Text className="text-lg font-semibold mb-2" style={themeStyles.text}>
+              Editar nome
+            </Text>
+            <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
+              Este nome será usado no seu perfil e na saudação do dashboard.
+            </Text>
+            <TextInput
+              className="w-full rounded-xl px-4 py-3 mb-5 text-base"
+              style={inputStyle}
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder="Digite seu nome"
+              placeholderTextColor={theme.colors.textTertiary}
+              maxLength={60}
+            />
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center border"
+                style={{ borderColor: theme.colors.border }}
+                onPress={() => setNameModalOpen(false)}
+                disabled={nameBusy}
+              >
+                <Text className="font-semibold" style={themeStyles.text}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: theme.colors.primary }}
+                onPress={submitDisplayName}
+                disabled={nameBusy}
+              >
+                {nameBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="font-semibold text-white">Salvar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal visible={changeModalOpen} animationType="slide" transparent onRequestClose={() => setChangeModalOpen(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -736,6 +838,26 @@ export default function ProfileScreen() {
         confirmText="OK"
         onConfirm={() => setCoachMessageSavedVisible(false)}
         onCancel={() => setCoachMessageSavedVisible(false)}
+      />
+
+      <CustomAlert
+        visible={nameSavedVisible}
+        title="Perfil"
+        message="Nome atualizado com sucesso."
+        type="success"
+        confirmText="OK"
+        onConfirm={() => setNameSavedVisible(false)}
+        onCancel={() => setNameSavedVisible(false)}
+      />
+
+      <CustomAlert
+        visible={photoSavedVisible}
+        title="Foto de perfil"
+        message="Foto atualizada com sucesso."
+        type="success"
+        confirmText="OK"
+        onConfirm={() => setPhotoSavedVisible(false)}
+        onCancel={() => setPhotoSavedVisible(false)}
       />
     </ScrollView>
   );

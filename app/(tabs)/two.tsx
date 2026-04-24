@@ -437,7 +437,7 @@ export default function TabTwoScreen() {
                               {workout.name}
                             </Text>
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                              {workout.date} • {workout.dayOfWeek}
+                              {new Date(workout.date).toLocaleDateString('pt-BR')} • {workout.dayOfWeek}
                               {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                             </Text>
                             {workout.completedDate && (

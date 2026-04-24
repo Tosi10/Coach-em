@@ -14,6 +14,7 @@ import {
   SignInData,
   signUp as authSignUp,
   SignUpData,
+  updateMyDisplayName,
 } from '@/src/services/auth.service';
 import { uploadProfilePhoto as uploadProfilePhotoToStorage } from '@/src/services/profilePhoto.service';
 import { User, UserType } from '@/src/types';
@@ -31,6 +32,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (currentPassword: string) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
   /** Envia imagem da galeria para Storage e atualiza Firestore + Auth. */
   updateProfilePhoto: (localUri: string) => Promise<void>;
   /** Só em __DEV__: entra como treinador sem Firebase (para usar o app sem configurar o projeto). */
@@ -136,6 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateDisplayName = useCallback(async (displayName: string) => {
+    setError(null);
+    await updateMyDisplayName(displayName);
+    const u = await getCurrentUser();
+    if (u) setUser(u);
+  }, []);
+
   const signInDev = useCallback(() => {
     setError(null);
     const mockUser: User = {
@@ -159,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     changePassword,
     deleteAccount,
+    updateDisplayName,
     updateProfilePhoto,
     ...(__DEV__ ? { signInDev } : {}),
   };

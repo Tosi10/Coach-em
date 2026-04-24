@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
@@ -425,6 +425,27 @@ export default function HomeScreen() {
       })
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [workouts]);
+
+  const getWorkoutCoachName = useCallback(
+    (workout: any): string => {
+      const fromWorkoutPublic =
+        typeof workout?.coachPublicName === 'string' ? workout.coachPublicName.trim() : '';
+      if (fromWorkoutPublic) return fromWorkoutPublic;
+
+      const fromWorkoutCoach = typeof workout?.coach === 'string' ? workout.coach.trim() : '';
+      const normalizedCoach = fromWorkoutCoach.toLowerCase();
+      if (fromWorkoutCoach && normalizedCoach !== 'treinador' && normalizedCoach !== 'coach') {
+        return fromWorkoutCoach;
+      }
+
+      const fromHighlight =
+        typeof coachHighlight?.displayName === 'string' ? coachHighlight.displayName.trim() : '';
+      if (fromHighlight) return fromHighlight;
+
+      return 'Treinador(a)';
+    },
+    [coachHighlight?.displayName]
+  );
 
   const athleteStats = useMemo(() => {
     const thisWeekStart = new Date();
@@ -1165,15 +1186,23 @@ export default function HomeScreen() {
                 paddingHorizontal: 14,
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: 'rgba(251, 146, 60, 0.65)',
+                position: 'relative',
               }}
             >
-              <View className="flex-row items-center">
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
                 <View
-                  className="rounded-full items-center justify-center mr-3"
+                  className="rounded-full items-center justify-center"
                   style={{
                     width: 30,
                     height: 30,
@@ -1182,13 +1211,15 @@ export default function HomeScreen() {
                     borderColor: 'rgba(251,146,60,0.55)',
                   }}
                 >
-                  <FontAwesome name="calendar" size={16} color={theme.colors.primary} />
+                  <FontAwesome name="calendar-check-o" size={16} color={theme.colors.primary} />
                 </View>
-                <Text className="font-bold text-base" style={{ color: theme.colors.primary }}>
-                  Ver minha agenda
-                </Text>
               </View>
-              <FontAwesome name="chevron-right" size={14} color={theme.colors.primary} />
+              <Text className="font-bold text-base text-center" style={{ color: theme.colors.primary }}>
+                Ver minha agenda
+              </Text>
+              <View style={{ position: 'absolute', right: 14 }}>
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.primary} />
+              </View>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -1196,23 +1227,17 @@ export default function HomeScreen() {
           <View className="flex-row gap-5 mb-8">
             {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
-              className="rounded-xl flex-1 border"
+              className="rounded-xl flex-1"
               style={{ 
-                ...themeStyles.card,
-                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : '#000000',
-                backgroundColor:
-                  Platform.OS === 'android'
-                    ? 'transparent'
-                    : theme.mode === 'dark'
-                    ? 'rgba(255,255,255,0.01)'
-                    : theme.colors.card,
+                borderColor: 'rgba(251, 146, 60, 0.65)',
+                backgroundColor: 'transparent',
                 shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.22,
+                shadowOpacity: 0.25,
                 shadowRadius: 6,
-                elevation: 4,
-                overflow: 'hidden',
-                borderWidth: 1,
+                elevation: Platform.OS === 'android' ? 0 : 5,
+                overflow: 'visible',
+                borderWidth: 0,
               }}
               onPress={() => router.push('/exercises-library')}
               activeOpacity={0.7}
@@ -1220,13 +1245,16 @@ export default function HomeScreen() {
               <LinearGradient
                 colors={
                   theme.mode === 'dark'
-                    ? ['rgba(251,146,60,0.12)', 'rgba(251,146,60,0.02)']
-                    : ['rgba(251,146,60,0.10)', 'rgba(251,146,60,0.03)']
+                    ? ['rgba(251,146,60,0.24)', 'rgba(251,146,60,0.12)']
+                    : ['rgba(251,146,60,0.18)', 'rgba(251,146,60,0.08)']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
                   borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: 'rgba(251, 146, 60, 0.65)',
+                  overflow: 'hidden',
                   paddingVertical: 24,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1248,23 +1276,17 @@ export default function HomeScreen() {
 
             {/* Botão Meus Treinos */}
             <TouchableOpacity 
-              className="rounded-xl flex-1 border"
+              className="rounded-xl flex-1"
               style={{ 
-                ...themeStyles.card,
-                borderColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.55)' : '#000000',
-                backgroundColor:
-                  Platform.OS === 'android'
-                    ? 'transparent'
-                    : theme.mode === 'dark'
-                    ? 'rgba(255,255,255,0.01)'
-                    : theme.colors.card,
+                borderColor: 'rgba(251, 146, 60, 0.65)',
+                backgroundColor: 'transparent',
                 shadowColor: '#fb923c',
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.22,
+                shadowOpacity: 0.25,
                 shadowRadius: 6,
-                elevation: 4,
-                overflow: 'hidden',
-                borderWidth: 1,
+                elevation: Platform.OS === 'android' ? 0 : 5,
+                overflow: 'visible',
+                borderWidth: 0,
               }}
               onPress={() => router.push('/workouts-library')}
               activeOpacity={0.7}
@@ -1272,13 +1294,16 @@ export default function HomeScreen() {
               <LinearGradient
                 colors={
                   theme.mode === 'dark'
-                    ? ['rgba(251,146,60,0.12)', 'rgba(251,146,60,0.02)']
-                    : ['rgba(251,146,60,0.10)', 'rgba(251,146,60,0.03)']
+                    ? ['rgba(251,146,60,0.24)', 'rgba(251,146,60,0.12)']
+                    : ['rgba(251,146,60,0.18)', 'rgba(251,146,60,0.08)']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
                   borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: 'rgba(251, 146, 60, 0.65)',
+                  overflow: 'hidden',
                   paddingVertical: 24,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2064,10 +2089,11 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {workout.coach}
+                        Treinador: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-sm" style={themeStyles.textTertiary}>
                         {workout.dayOfWeek}
+                        {workout?.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                       </Text>
                     </View>
                     <View 
@@ -2083,8 +2109,11 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <TouchableOpacity
-                    className="rounded-lg py-3 px-6 mt-2"
-                    style={{ backgroundColor: theme.colors.primary }}
+                    className="rounded-xl py-3 px-6 mt-3 border"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      borderColor: theme.colors.primary,
+                    }}
                     onPress={() => {
                       router.push({
                         pathname: '/workout-details',
@@ -2092,7 +2121,7 @@ export default function HomeScreen() {
                       });
                     }}
                   >
-                    <Text className="font-bold text-center text-base" style={{ color: '#fff' }}>
+                    <Text className="font-bold text-center text-base" style={{ color: '#111111' }}>
                       ▶ Iniciar Treino
                     </Text>
                   </TouchableOpacity>
@@ -2806,10 +2835,11 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {workout.coach}
+                        Treinador: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-sm" style={themeStyles.textSecondary}>
                         {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
+                        {workout?.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                       </Text>
                     </View>
                     <View className="border px-3 py-1 rounded-full"
@@ -2877,7 +2907,7 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {workout.coach}
+                        Treinador: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-xs" style={themeStyles.textTertiary}>
                         {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
