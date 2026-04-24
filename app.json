@@ -4,7 +4,7 @@
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/IconeTreina.png",
+    "icon": "./assets/images/TreinaLogo2.1.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -33,8 +33,8 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/IconeTreina.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
+        "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

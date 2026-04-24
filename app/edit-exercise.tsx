@@ -64,6 +64,21 @@ export default function EditExerciseScreen() {
         const loadExercise = async () => {
             try {
                 if (!exerciseIdString) return;
+                const fallbackDefault = DEFAULT_EXERCISES.find((ex) => ex.id === exerciseIdString);
+                if (fallbackDefault) {
+                    setIsDefaultExercise(true);
+                    setName(fallbackDefault.name || '');
+                    setDescription(fallbackDefault.description || '');
+                    setDifficulty(fallbackDefault.difficulty || 'beginner');
+                    setMuscleGroups(fallbackDefault.muscleGroups || []);
+                    setEquipment(fallbackDefault.equipment || []);
+                    setDuration(fallbackDefault.duration ? fallbackDefault.duration.toString() : '');
+                    setExistingVideoURL(fallbackDefault.videoURL || null);
+                    setVideoUri(null);
+                    setRemoveStoredVideo(false);
+                    return;
+                }
+
                 const exercise = await getExerciseById(exerciseIdString);
                 if (exercise) {
                     setIsDefaultExercise(false);
@@ -77,21 +92,7 @@ export default function EditExerciseScreen() {
                     setVideoUri(null);
                     setRemoveStoredVideo(false);
                 } else {
-                    const fallbackDefault = DEFAULT_EXERCISES.find((ex) => ex.id === exerciseIdString);
-                    if (fallbackDefault) {
-                        setIsDefaultExercise(true);
-                        setName(fallbackDefault.name || '');
-                        setDescription(fallbackDefault.description || '');
-                        setDifficulty(fallbackDefault.difficulty || 'beginner');
-                        setMuscleGroups(fallbackDefault.muscleGroups || []);
-                        setEquipment(fallbackDefault.equipment || []);
-                        setDuration(fallbackDefault.duration ? fallbackDefault.duration.toString() : '');
-                        setExistingVideoURL(fallbackDefault.videoURL || null);
-                        setVideoUri(null);
-                        setRemoveStoredVideo(false);
-                    } else {
-                        showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
-                    }
+                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
                 }
             } catch (error) {
                 console.error('Erro ao carregar exercício:', error);
