@@ -1371,6 +1371,8 @@ export default function WorkoutDetailsScreen() {
               visible={showExerciseModal}
               transparent={true}
               animationType="slide"
+              statusBarTranslucent
+              navigationBarTranslucent
               presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
               onRequestClose={() => setShowExerciseModal(false)}
             >
@@ -1846,6 +1848,8 @@ export default function WorkoutDetailsScreen() {
           visible={showFeedbackModal}
           transparent={true}
           animationType="fade"
+          statusBarTranslucent
+          navigationBarTranslucent
           onRequestClose={() => setShowFeedbackModal(false)}
         >
           <View className="flex-1 bg-black/50 justify-center items-center p-6">

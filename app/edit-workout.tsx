@@ -634,6 +634,9 @@ export default function EditWorkoutScreen() {
                     visible={showExerciseModal}
                     animationType="slide"
                     transparent={true}
+                    statusBarTranslucent
+                    navigationBarTranslucent
+                    presentationStyle="overFullScreen"
                     onRequestClose={() => {
                         setShowExerciseModal(false);
                         setCurrentBlock(null);

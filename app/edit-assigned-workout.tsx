@@ -398,7 +398,15 @@ export default function EditAssignedWorkoutScreen() {
           <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>💾 Salvar alterações</Text>
         </TouchableOpacity>
 
-        <Modal visible={showExerciseModal} animationType="slide" transparent onRequestClose={() => { setShowExerciseModal(false); setCurrentBlock(null); resetFilters(); }}>
+        <Modal
+          visible={showExerciseModal}
+          animationType="slide"
+          transparent
+          statusBarTranslucent
+          navigationBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => { setShowExerciseModal(false); setCurrentBlock(null); resetFilters(); }}
+        >
           <View className="flex-1 bg-black/50 justify-center items-center p-6">
             <View className="rounded-3xl p-6 w-full max-h-[80%] min-h-[70%] border" style={themeStyles.card}>
               <View className="flex-row justify-between items-center mb-4">

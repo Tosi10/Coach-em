@@ -107,6 +107,9 @@ export function CustomAlert({
       transparent
       visible={visible}
       animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={handleCancel}
     >
       <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>

@@ -2,13 +2,14 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createExercise as createExerciseInFirestore } from '@/src/services/exercises.service';
+import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CreateExerciseScreen() {
     const router = useRouter();
@@ -85,7 +86,7 @@ export default function CreateExerciseScreen() {
         }
 
         const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
-        const coachId = user?.id || 'anonymous';
+        const coachId = user?.id || '';
         const payload: Parameters<typeof createExerciseInFirestore>[1] = {
           id: exerciseId,
           name: name.trim(),
@@ -98,6 +99,11 @@ export default function CreateExerciseScreen() {
         };
 
         try {
+            if (!user?.id) {
+              showAlert('Erro', 'Você precisa estar logado para criar exercício.', 'error');
+              return;
+            }
+            await assertCanCreateResource(user.id, 'exercises');
             let videoUploadFailed = false;
             if (videoUri) {
               setUploadingVideo(true);
@@ -136,7 +142,18 @@ export default function CreateExerciseScreen() {
 
     return ( 
         <>
-        <ScrollView className="flex-1" style={themeStyles.bg}>
+        <KeyboardAvoidingView
+            style={[{ flex: 1 }, themeStyles.bg]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+        >
+        <ScrollView
+            className="flex-1"
+            style={themeStyles.bg}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingBottom: 28 }}
+        >
             <View className="px-6 pt-20 pb-20 ">
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity 
@@ -487,6 +504,7 @@ export default function CreateExerciseScreen() {
             </View>
 
         </ScrollView>
+        </KeyboardAvoidingView>
 
         <CustomAlert
             visible={alertVisible}

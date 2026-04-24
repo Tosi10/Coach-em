@@ -8,6 +8,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createAthleteWithLogin } from '@/src/services/athletes.service';
+import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -72,6 +73,7 @@ export default function AddAthleteScreen() {
 
     setSaving(true);
     try {
+      await assertCanCreateResource(user.id, 'athletes');
       await createAthleteWithLogin({
         displayName: nameTrim,
         email: emailTrim,

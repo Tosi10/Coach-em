@@ -4,7 +4,7 @@
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/TreinaLogo2.1.png",
+    "icon": "./assets/images/IconeTreina.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -27,13 +27,14 @@
     "android": {
       "package": "com.coachem.app",
       "versionCode": 1,
+      "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "splash": {
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
-        "backgroundColor": "#0a0a0a"
+        "foregroundImage": "./assets/images/IconeTreina.png",
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

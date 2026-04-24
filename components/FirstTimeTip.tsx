@@ -50,10 +50,13 @@ export const FirstTimeTip: React.FC<FirstTimeTipProps> = ({
       visible={visible}
       animationType="fade"
       transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
       <View
-        className="flex-1 justify-end px-4 pb-10"
+        className="flex-1 justify-center px-4"
         style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
       >
         <View

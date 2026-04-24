@@ -3,6 +3,7 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
+import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -178,6 +179,7 @@ export default function EditExerciseScreen() {
                     showAlert('Erro', 'Não foi possível identificar o treinador para salvar a edição.', 'error');
                     return;
                 }
+                await assertCanCreateResource(user.id, 'exercises');
                 await createExercise(user.id, {
                     id: `exercise_default_${exerciseIdString}_${user.id}`,
                     name: patch.name,

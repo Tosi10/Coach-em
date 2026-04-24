@@ -50,6 +50,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       visible={visible}
       animationType="fade"
       transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View

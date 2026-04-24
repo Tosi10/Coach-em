@@ -10,6 +10,7 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { BetaBadge } from '@/components/BetaBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
@@ -381,6 +382,9 @@ export default function AthleteProfileScreen() {
             Voltar
           </Text>
         </TouchableOpacity>
+        <View className="items-center mb-6">
+          <BetaBadge subtitle="Módulo beta em validação final." />
+        </View>
 
         {/* Seção de perfil do atleta */}
         <View className="flex-row items-center mb-6">
@@ -1363,6 +1367,8 @@ export default function AthleteProfileScreen() {
         visible={reportDateModalVisible}
         transparent
         animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setReportDateModalVisible(false)}
       >
         <View className="flex-1 justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>

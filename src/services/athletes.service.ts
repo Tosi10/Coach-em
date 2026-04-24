@@ -161,6 +161,9 @@ export async function createAthleteWithLogin(
     const msg = err?.message ?? err?.details?.message ?? '';
     if (code === 'unauthenticated') throw new Error('É preciso estar logado.');
     if (code === 'permission-denied') throw new Error('Apenas treinadores podem cadastrar atletas com login.');
+    if (code === 'failed-precondition' && msg.toLowerCase().includes('limite do plano gratuito')) {
+      throw new Error(msg);
+    }
     if (code === 'already-exists') throw new Error('Já existe uma conta com este email.');
     if (code === 'invalid-argument') throw new Error(msg || 'Dados inválidos.');
     if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') {

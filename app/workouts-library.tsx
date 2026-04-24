@@ -4,6 +4,7 @@ import { WorkoutCard } from '@/src/components/WorkoutCard';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
+import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { createWorkoutTemplate, listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -236,6 +237,7 @@ export default function WorkoutLibraryScreen() {
                 showAlert('Erro', 'Você precisa estar logado para duplicar.', 'error');
                 return;
             }
+            await assertCanCreateResource(coachId, 'workoutTemplates');
             await createWorkoutTemplate(coachId, {
                 id: `workout_${Date.now()}`,
                 name: `${workout.name} (Cópia)`,

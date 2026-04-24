@@ -18,6 +18,7 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { listExercisesByCoachId } from '@/src/services/exercises.service';
 import { createWorkoutTemplate } from '@/src/services/workoutTemplates.service';
+import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -219,6 +220,7 @@ export default function CreateWorkoutScreen() {
                 showAlert('Erro', 'Você precisa estar logado para criar um treino.', 'error');
                 return;
             }
+            await assertCanCreateResource(coachId, 'workoutTemplates');
             await createWorkoutTemplate(coachId, {
                 id: newWorkout.id,
                 name: newWorkout.name,
@@ -578,6 +580,9 @@ export default function CreateWorkoutScreen() {
                     visible={selectingForBlock !== null}
                     transparent={true}
                     animationType="fade"
+                    statusBarTranslucent
+                    navigationBarTranslucent
+                    presentationStyle="overFullScreen"
                     onRequestClose={() => {
                         setSelectingForBlock(null);
                         resetFilters(); // Limpar filtros ao fechar
@@ -799,13 +804,20 @@ export default function CreateWorkoutScreen() {
                             {/* Botão Cancelar */}
                             <TouchableOpacity
                                 className="mt-4 rounded-lg py-3 border"
-                                style={themeStyles.cardSecondary}
+                                activeOpacity={0.85}
+                                style={{
+                                  backgroundColor: theme.mode === 'dark'
+                                    ? 'rgba(251, 146, 60, 0.16)'
+                                    : 'rgba(251, 146, 60, 0.1)',
+                                  borderColor: 'rgba(251, 146, 60, 0.75)',
+                                  borderWidth: 1,
+                                }}
                                 onPress={() => {
                                     setSelectingForBlock(null);
                                     resetFilters();
                                 }}
                             >
-                                <Text className="text-center font-semibold" style={themeStyles.text}>
+                                <Text className="text-center font-bold" style={{ color: theme.colors.primary }}>
                                     Cancelar
                                 </Text>
                             </TouchableOpacity>

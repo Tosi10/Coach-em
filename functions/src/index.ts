@@ -23,6 +23,7 @@ const expo = new Expo();
 const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 
 const HOUR_MS = 60 * 60 * 1000;
+const FREE_PLAN_ATHLETES_LIMIT = 3;
 
 function hourBucket(): number {
   return Math.floor(Date.now() / HOUR_MS);
@@ -113,6 +114,19 @@ async function consumeCreateAthleteEmailRate(coachId: string): Promise<void> {
       { merge: true }
     );
   });
+}
+
+async function assertCoachAthleteLimit(coachId: string): Promise<void> {
+  const athletesSnap = await db
+    .collection("coachemAthletes")
+    .where("coachId", "==", coachId)
+    .get();
+  if (athletesSnap.size >= FREE_PLAN_ATHLETES_LIMIT) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Limite do plano gratuito atingido (${FREE_PLAN_ATHLETES_LIMIT} atletas).`
+    );
+  }
 }
 
 /** URLs em atributos HTML precisam de & escapado para amp; */
@@ -432,6 +446,7 @@ export const createAthleteByCoach = onCall(
     }
 
     await consumeCreateAthleteEmailRate(coachId);
+    await assertCoachAthleteLimit(coachId);
 
     const name = displayName.trim();
     const emailTrim = email.trim().toLowerCase();

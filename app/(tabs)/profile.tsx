@@ -5,6 +5,7 @@
  */
 
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { BetaBadge } from '@/components/BetaBadge';
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -84,8 +85,7 @@ export default function ProfileScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
       quality: 0.85,
     });
     if (result.canceled || !result.assets?.[0]?.uri) return;
@@ -626,18 +626,29 @@ export default function ProfileScreen() {
             Esqueceu a senha? Use &quot;Esqueci minha senha&quot; na tela de login para receber o link por email.
           </Text>
         </View>
+        <View className="mt-3">
+          <BetaBadge variant="card" />
+        </View>
       </View>
 
-      <Modal visible={nameModalOpen} animationType="slide" transparent onRequestClose={() => setNameModalOpen(false)}>
+      <Modal
+        visible={nameModalOpen}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setNameModalOpen(false)}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-end"
+          className="flex-1 justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
         >
-          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setNameModalOpen(false)} />
+          <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={() => setNameModalOpen(false)} />
           <View
-            className="rounded-t-3xl px-5 pt-6 pb-10"
-            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+            className="mx-5 rounded-3xl px-5 pt-6 pb-8"
+            style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-2" style={themeStyles.text}>
               Editar nome
@@ -682,16 +693,24 @@ export default function ProfileScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={changeModalOpen} animationType="slide" transparent onRequestClose={() => setChangeModalOpen(false)}>
+      <Modal
+        visible={changeModalOpen}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setChangeModalOpen(false)}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-end"
+          className="flex-1 justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
         >
-          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setChangeModalOpen(false)} />
+          <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={() => setChangeModalOpen(false)} />
           <View
-            className="rounded-t-3xl px-5 pt-6 pb-10"
-            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+            className="mx-5 rounded-3xl px-5 pt-6 pb-8"
+            style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-4" style={themeStyles.text}>
               Alterar senha
@@ -760,16 +779,24 @@ export default function ProfileScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={deleteModalOpen} animationType="slide" transparent onRequestClose={() => setDeleteModalOpen(false)}>
+      <Modal
+        visible={deleteModalOpen}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setDeleteModalOpen(false)}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-end"
+          className="flex-1 justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
         >
-          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setDeleteModalOpen(false)} />
+          <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={() => setDeleteModalOpen(false)} />
           <View
-            className="rounded-t-3xl px-5 pt-6 pb-10"
-            style={{ backgroundColor: theme.colors.card, borderTopWidth: 1, borderColor: theme.colors.border }}
+            className="mx-5 rounded-3xl px-5 pt-6 pb-8"
+            style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.error }}>
               Excluir conta

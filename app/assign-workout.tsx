@@ -676,6 +676,8 @@ function formatDatePtBr(dateStr: string): string {
                             visible={showWorkoutModal}
                             transparent={true}
                             animationType="fade"
+                            statusBarTranslucent
+                            navigationBarTranslucent
                             onRequestClose={() => setShowWorkoutModal(false)}
                         >
                             <View className="flex-1 bg-black/50 justify-center items-center p-6">
@@ -909,6 +911,8 @@ function formatDatePtBr(dateStr: string): string {
                             visible={showCalendar}
                             transparent={true}
                             animationType="slide"
+                            statusBarTranslucent
+                            navigationBarTranslucent
                             onRequestClose={() => setShowCalendar(false)}
                         >
                             <View className="flex-1 bg-black/50 justify-end">
@@ -995,6 +999,8 @@ function formatDatePtBr(dateStr: string): string {
                             visible={showTimeModal}
                             transparent={true}
                             animationType="slide"
+                            statusBarTranslucent
+                            navigationBarTranslucent
                             onRequestClose={() => setShowTimeModal(false)}
                         >
                             <View className="flex-1 bg-black/50 justify-center px-2">

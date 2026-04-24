@@ -6,6 +6,7 @@
  */
 
 import { EmptyState } from '@/components/EmptyState';
+import { BetaBadge } from '@/components/BetaBadge';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
@@ -180,6 +181,30 @@ export default function HomeScreen() {
     else setAthletesList([]);
   }, [userType, loadAthletesList]);
 
+  // Backfill automático do nome/foto/mensagem do treinador para atletas/treinos antigos.
+  // Evita "Treinador(a)" em bases legadas sem coachPublicName.
+  useEffect(() => {
+    if (userType !== UserType.COACH || !user?.id) return;
+
+    const runCoachPublicSync = async () => {
+      try {
+        const { syncCoachPublicProfileToAthletes } = await import('@/src/services/athletes.service');
+        await syncCoachPublicProfileToAthletes(user.id, {
+          coachPublicName:
+            (typeof (user as any)?.publicCoachName === 'string' && (user as any).publicCoachName.trim()) ||
+            user.displayName,
+          coachWelcomeMessage:
+            typeof (user as any)?.welcomeMessage === 'string' ? (user as any).welcomeMessage : '',
+          coachPhotoURL: typeof user?.photoURL === 'string' ? user.photoURL : undefined,
+        });
+      } catch (e) {
+        console.warn('Não foi possível sincronizar perfil público do treinador:', e);
+      }
+    };
+
+    runCoachPublicSync();
+  }, [userType, user?.id, user?.displayName, user?.photoURL]);
+
   useFocusEffect(
     useCallback(() => {
       if (userType === UserType.COACH) loadAthletesList();
@@ -232,6 +257,31 @@ export default function HomeScreen() {
     }
 
     if (!d) {
+      const workoutWithCoachId = workouts.find(
+        (x: any) => typeof x?.coachId === 'string' && x.coachId.trim().length > 0
+      );
+      const coachId = workoutWithCoachId?.coachId;
+      if (coachId) {
+        try {
+          const coachSnap = await getDoc(doc(db, 'users', coachId));
+          if (coachSnap.exists()) {
+            const coachData = coachSnap.data() as any;
+            d = {
+              coachPublicName: coachData?.publicCoachName ?? coachData?.displayName,
+              coachWelcomeMessage: coachData?.welcomeMessage,
+              coachPhotoURL: coachData?.photoURL,
+            };
+          }
+        } catch {
+          // ignora e mantém fallback abaixo
+        }
+      }
+    }
+
+    if (!d) {
+      // Evita "sumir" durante corrida de carregamento do FocusEffect.
+      // Quando os treinos carregarem, o effect com dependência em `workouts` atualiza normalmente.
+      if (workouts.length === 0) return;
       setCoachHighlight(null);
       return;
     }
@@ -982,8 +1032,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadWorkoutStatuses();
-      loadAthleteCoachCard();
-    }, [loadWorkoutStatuses, loadAthleteCoachCard])
+    }, [loadWorkoutStatuses])
   );
 
   const onRefresh = useCallback(async () => {
@@ -1058,9 +1107,12 @@ export default function HomeScreen() {
       )}
       {userType === UserType.COACH && (
         <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -40 }}>
-          Bem vindo Rodrigo ao seu app de gestão esportiva.
+          Bem-vindo{user?.displayName ? `, ${user.displayName}` : ''} ao seu app de gestão esportiva.
         </Text>
       )}
+      <View className="items-center mb-3">
+        <BetaBadge subtitle="Você está usando a versão beta." />
+      </View>
 
       {userType === UserType.COACH ? (
         //Dashboard do Treinador - Tema Escuro Estilo Zeus

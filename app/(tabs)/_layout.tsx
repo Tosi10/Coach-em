@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, Platform, type ImageSourcePropType, type ImageStyle, View } from 'react-native';
+import { Image, Platform, View, type ImageSourcePropType, type ImageStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
