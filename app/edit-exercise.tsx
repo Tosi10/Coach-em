@@ -1,7 +1,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
-import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
 import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
@@ -152,7 +152,15 @@ export default function EditExerciseScreen() {
                 showAlert('Erro', 'Exercício inválido.', 'error');
                 return;
             }
-            const patch = {
+            const patch: {
+                name: string;
+                description: string;
+                difficulty: 'beginner' | 'intermediate' | 'advanced';
+                muscleGroups: string[];
+                equipment: string[];
+                duration?: number;
+                videoURL?: string | null;
+            } = {
                 name: name.trim(),
                 description: description.trim(),
                 difficulty,
@@ -189,7 +197,7 @@ export default function EditExerciseScreen() {
                     muscleGroups: patch.muscleGroups,
                     equipment: patch.equipment,
                     duration: patch.duration,
-                    videoURL: patch.videoURL,
+                    videoURL: patch.videoURL ?? undefined,
                     thumbnailURL: undefined,
                     isGlobal: true,
                 });

@@ -82,6 +82,7 @@ export default function AthleteLegalAcceptanceScreen() {
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
+          justifyContent: 'center',
           paddingTop: Math.max(insets.top, 20),
           paddingBottom: Math.max(insets.bottom, 24),
           paddingHorizontal: 24,

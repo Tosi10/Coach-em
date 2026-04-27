@@ -425,8 +425,11 @@ export default function CreateWorkoutScreen() {
                                             className="border rounded px-3 py-2"
                                             style={{
                                               backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.border,
+                                              borderColor: theme.colors.primary + '80',
                                               color: theme.colors.text,
+                                              fontSize: 18,
+                                              fontWeight: '700',
+                                              textAlign: 'center',
                                             }}
                                             placeholder="Ex: 3"
                                             placeholderTextColor={theme.colors.textTertiary}
@@ -446,8 +449,11 @@ export default function CreateWorkoutScreen() {
                                             className="border rounded px-3 py-2"
                                             style={{
                                               backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.border,
+                                              borderColor: theme.colors.primary + '80',
                                               color: theme.colors.text,
+                                              fontSize: 18,
+                                              fontWeight: '700',
+                                              textAlign: 'center',
                                             }}
                                             placeholder="Ex: 12"
                                             placeholderTextColor={theme.colors.textTertiary}

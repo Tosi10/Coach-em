@@ -5,21 +5,19 @@
  * Cada documento tem coachId e athleteId para consultas por treinador ou atleta.
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  writeBatch,
-  Timestamp,
-  DocumentSnapshot,
-} from 'firebase/firestore';
 import { parseFeedbackLevelFromFirestore } from '@/src/utils/feedbackIcons';
+import {
+    collection,
+    doc,
+    DocumentSnapshot,
+    getDoc,
+    getDocs,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch
+} from 'firebase/firestore';
 import { db } from './firebase.config';
 
 const COLLECTION = 'coachemAssignedWorkouts';
@@ -66,6 +64,7 @@ export interface AssignedWorkoutDoc {
   scheduledTime?: string;
   status: string;
   coach?: string;
+  coachPublicName?: string;
   dayOfWeek?: string;
   isToday?: boolean;
   isThisWeek?: boolean;
@@ -101,6 +100,7 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
     scheduledTime: data.scheduledTime,
     status: normalizeWorkoutStatus(data.status),
     coach: data.coach,
+    coachPublicName: data.coachPublicName,
     dayOfWeek: data.dayOfWeek,
     isToday: data.isToday,
     isThisWeek: data.isThisWeek,

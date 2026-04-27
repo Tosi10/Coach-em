@@ -270,7 +270,14 @@ export default function EditAssignedWorkoutScreen() {
               <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
               <TextInput
                 className="border rounded px-3 py-2"
-                style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.primary + '80',
+                  color: theme.colors.text,
+                  fontSize: 18,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}
                 placeholder="Ex: 3"
                 placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="numeric"
@@ -282,7 +289,14 @@ export default function EditAssignedWorkoutScreen() {
               <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
               <TextInput
                 className="border rounded px-3 py-2"
-                style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.primary + '80',
+                  color: theme.colors.text,
+                  fontSize: 18,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}
                 placeholder="Ex: 12"
                 placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="numeric"

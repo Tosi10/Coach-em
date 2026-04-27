@@ -5,22 +5,21 @@
  * Cada documento pode ter coachId (createdBy) para filtrar por treinador.
  */
 
+import type { Exercise, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import {
-  collection,
-  deleteField,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  DocumentSnapshot,
-  Timestamp,
+    collection,
+    deleteField,
+    doc,
+    DocumentSnapshot,
+    getDoc,
+    getDocs,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { db } from './firebase.config';
-import type { Exercise, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 
 const COLLECTION = 'coachemExercises';
 
@@ -172,7 +171,7 @@ export async function createExercise(
  */
 export async function updateExercise(
   id: string,
-  data: Partial<Omit<Exercise, 'id' | 'createdBy' | 'createdAt'>> & { videoURL?: string | null }
+  data: Partial<Omit<Exercise, 'id' | 'createdBy' | 'createdAt' | 'videoURL'>> & { videoURL?: string | null }
 ): Promise<void> {
   const ref = doc(db, COLLECTION, id);
   const { videoURL, ...rest } = data;

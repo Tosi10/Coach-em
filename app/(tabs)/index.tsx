@@ -5,8 +5,8 @@
  * Vamos explicar TUDO linha por linha!
  */
 
-import { EmptyState } from '@/components/EmptyState';
 import { BetaBadge } from '@/components/BetaBadge';
+import { EmptyState } from '@/components/EmptyState';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
@@ -1876,22 +1876,25 @@ export default function HomeScreen() {
                   </View>
                   
                   <View className="flex-1 mr-3">
-                    <View className="flex-row items-center mb-1">
+                    <View className="mb-1">
                       <Text className="font-semibold flex-1" style={themeStyles.text}>
                         {activity.athleteName} finalizou o '{activity.workoutName}'
                       </Text>
-                      {feedbackIconSrc && (
-                        <Image
-                          source={feedbackIconSrc}
-                          style={{ width: 26, height: 26, marginLeft: 8 }}
-                          resizeMode="contain"
-                        />
-                      )}
                     </View>
                     <Text className="text-xs" style={themeStyles.textSecondary}>
                       {getTimeAgo(activity.completedAt)}
                     </Text>
                   </View>
+
+                  {feedbackIconSrc && (
+                    <View className="items-center justify-center mr-3" style={{ width: 52, height: 52 }}>
+                      <Image
+                        source={feedbackIconSrc}
+                        style={{ width: 52, height: 52 }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
                   
                   <View className="border px-3 py-1 rounded"
                     style={{
@@ -1975,8 +1978,14 @@ export default function HomeScreen() {
           {currentAthleteId && (
             <View className="mb-6" style={{ marginTop: 20 }}>
               <View className="flex-row items-start justify-between">
-                <View className="flex-1 pr-3">
-                  <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
+                <View className="flex-1 pr-2">
+                  <Text
+                    className="text-2xl font-bold mb-2"
+                    style={themeStyles.text}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
                     Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
                   </Text>
                   <Text className="text-base" style={themeStyles.textSecondary}>
@@ -1985,7 +1994,11 @@ export default function HomeScreen() {
                 </View>
                 <Image
                   source={require('../../assets/images/treinaLogo2.png')}
-                  style={{ width: 180, height: 72, marginTop: -15 }}
+                  style={{
+                    width: Platform.OS === 'ios' ? 130 : 180,
+                    height: Platform.OS === 'ios' ? 52 : 72,
+                    marginTop: -15,
+                  }}
                   resizeMode="contain"
                 />
               </View>

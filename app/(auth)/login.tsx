@@ -189,6 +189,9 @@ export default function LoginScreen() {
                 borderWidth: INPUT_BORDER_WIDTH,
                 borderColor: fieldBorder,
                 color: theme.colors.text,
+                height: 56,
+                paddingVertical: 0,
+                textAlignVertical: 'center',
               }}
               placeholder="seu@email.com"
               placeholderTextColor={theme.colors.textTertiary}
@@ -210,6 +213,9 @@ export default function LoginScreen() {
                   borderWidth: INPUT_BORDER_WIDTH,
                   borderColor: fieldBorder,
                   color: theme.colors.text,
+                  height: 56,
+                  paddingVertical: 0,
+                  textAlignVertical: 'center',
                 }}
                 placeholder="••••••••"
                 placeholderTextColor={theme.colors.textTertiary}

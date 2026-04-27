@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { LineChart } from 'react-native-gifted-charts';
 
@@ -67,6 +67,10 @@ export default function AthleteProfileScreen() {
   const [reportDateModalVisible, setReportDateModalVisible] = useState(false);
   const [reportPickingDate, setReportPickingDate] = useState<'start' | 'end'>('start');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [editAthleteModalVisible, setEditAthleteModalVisible] = useState(false);
+  const [editAthleteName, setEditAthleteName] = useState('');
+  const [editAthleteSport, setEditAthleteSport] = useState('');
+  const [savingAthleteData, setSavingAthleteData] = useState(false);
 
   const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -153,6 +157,12 @@ export default function AthleteProfileScreen() {
   useEffect(() => {
     applyPresetPeriod('30');
   }, [applyPresetPeriod]);
+
+  useEffect(() => {
+    if (!athlete) return;
+    setEditAthleteName(athlete.name || '');
+    setEditAthleteSport(athlete.sport && athlete.sport !== '-' ? athlete.sport : '');
+  }, [athlete]);
 
   // Recarregar treinos e dados do atleta (ex.: foto de perfil) ao voltar a esta tela
   useFocusEffect(
@@ -312,6 +322,37 @@ export default function AthleteProfileScreen() {
         }
       }
     );
+  };
+
+  const handleSaveAthleteData = async () => {
+    const name = editAthleteName.trim();
+    const sport = editAthleteSport.trim();
+    if (!name) {
+      showAlert('Nome do atleta', 'Informe o nome do atleta.', 'warning');
+      return;
+    }
+    if (name.length > 60) {
+      showAlert('Nome do atleta', 'Use no máximo 60 caracteres para o nome.', 'warning');
+      return;
+    }
+    if (!athleteIdString) return;
+
+    try {
+      setSavingAthleteData(true);
+      const { updateAthlete } = await import('@/src/services/athletes.service');
+      await updateAthlete(athleteIdString, {
+        name,
+        sport: sport || undefined,
+      });
+      setEditAthleteModalVisible(false);
+      await loadAthleteFromFirestore();
+      showAlert('Dados atualizados', 'Dados do atleta atualizados com sucesso.', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar atleta:', error);
+      showAlert('Erro', 'Não foi possível atualizar os dados do atleta.', 'error');
+    } finally {
+      setSavingAthleteData(false);
+    }
   };
 
   const handleGeneratePdfReport = async () => {
@@ -1295,6 +1336,26 @@ export default function AthleteProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {!isRemoved && (
+          <TouchableOpacity
+            className="rounded-xl py-3.5 px-6 mt-4 border"
+            style={{
+              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.16)' : 'rgba(251, 146, 60, 0.08)',
+              borderColor: theme.colors.primary + '55',
+            }}
+            onPress={() => {
+              setEditAthleteName(athlete.name || '');
+              setEditAthleteSport(athlete.sport && athlete.sport !== '-' ? athlete.sport : '');
+              setEditAthleteModalVisible(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
+              ✏️ Editar dados do atleta
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Botão Bloquear/Desbloquear conta do atleta */}
         {!isRemoved && (
           <TouchableOpacity
@@ -1412,6 +1473,98 @@ export default function AthleteProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={editAthleteModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setEditAthleteModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-center px-5"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
+        >
+          <View className="rounded-2xl p-5 border" style={themeStyles.card}>
+            <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
+              Editar atleta
+            </Text>
+            <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
+              Atualize os dados que aparecem para o treinador e para o perfil do atleta.
+            </Text>
+
+            <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
+              Nome
+            </Text>
+            <TextInput
+              className="rounded-xl border px-4 mb-4 text-base"
+              style={{
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+                height: 54,
+                paddingVertical: 0,
+                textAlignVertical: 'center',
+              }}
+              value={editAthleteName}
+              onChangeText={setEditAthleteName}
+              placeholder="Nome do atleta"
+              placeholderTextColor={theme.colors.textTertiary}
+              editable={!savingAthleteData}
+            />
+
+            <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
+              Esporte
+            </Text>
+            <TextInput
+              className="rounded-xl border px-4 mb-5 text-base"
+              style={{
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+                height: 54,
+                paddingVertical: 0,
+                textAlignVertical: 'center',
+              }}
+              value={editAthleteSport}
+              onChangeText={setEditAthleteSport}
+              placeholder="Ex: Corrida, Musculação, Futebol"
+              placeholderTextColor={theme.colors.textTertiary}
+              editable={!savingAthleteData}
+            />
+
+            <TouchableOpacity
+              className="rounded-xl py-3.5 mb-3"
+              style={{
+                backgroundColor: theme.colors.primary,
+                opacity: savingAthleteData ? 0.7 : 1,
+              }}
+              onPress={handleSaveAthleteData}
+              disabled={savingAthleteData}
+              activeOpacity={0.85}
+            >
+              <Text className="font-bold text-center" style={{ color: '#ffffff' }}>
+                {savingAthleteData ? 'Salvando...' : 'Salvar alterações'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="rounded-xl py-3 border"
+              style={{ borderColor: theme.colors.border }}
+              onPress={() => setEditAthleteModalVisible(false)}
+              disabled={savingAthleteData}
+              activeOpacity={0.8}
+            >
+              <Text className="font-semibold text-center" style={themeStyles.text}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );

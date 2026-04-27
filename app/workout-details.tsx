@@ -1210,16 +1210,40 @@ export default function WorkoutDetailsScreen() {
                               </Text>
                             )}
                             
-                            <View className="flex-row gap-4 flex-wrap">
+                            <View className="flex-row gap-3 flex-wrap">
                               {exercise.sets && (
-                                <Text style={themeStyles.textSecondary}>
-                                  Séries: {exercise.sets}
-                                </Text>
+                                <View
+                                  className="rounded-lg px-3 py-2 border items-center"
+                                  style={{
+                                    backgroundColor: theme.colors.primary + '1f',
+                                    borderColor: theme.colors.primary + '55',
+                                    minWidth: 52,
+                                  }}
+                                >
+                                  <Text className="text-[10px] font-semibold mb-0.5 text-center" style={{ color: theme.colors.primary }}>
+                                    Séries
+                                  </Text>
+                                  <Text className="text-xl font-bold text-center" style={themeStyles.text}>
+                                    {exercise.sets}
+                                  </Text>
+                                </View>
                               )}
                               {exercise.reps && (
-                                <Text style={themeStyles.textSecondary}>
-                                  Repetições: {exercise.reps}
-                                </Text>
+                                <View
+                                  className="rounded-lg px-3 py-2 border items-center"
+                                  style={{
+                                    backgroundColor: theme.colors.primary + '1f',
+                                    borderColor: theme.colors.primary + '55',
+                                    minWidth: 76,
+                                  }}
+                                >
+                                  <Text className="text-[10px] font-semibold mb-0.5 text-center" style={{ color: theme.colors.primary }}>
+                                    Repetições
+                                  </Text>
+                                  <Text className="text-xl font-bold text-center" style={themeStyles.text}>
+                                    {exercise.reps}
+                                  </Text>
+                                </View>
                               )}
                               {exercise.duration && (
                                 <Text style={themeStyles.textSecondary}>
@@ -1467,13 +1491,17 @@ export default function WorkoutDetailsScreen() {
                         {exercise.sets && (
                           <View className="flex-1 min-w-[100px]">
                             <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
-                            <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.sets}</Text>
+                            <Text className="font-bold text-3xl" style={{ color: theme.colors.primary }}>
+                              {exercise.sets}
+                            </Text>
                           </View>
                         )}
                         {exercise.reps && (
                           <View className="flex-1 min-w-[100px]">
                             <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
-                            <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.reps}</Text>
+                            <Text className="font-bold text-3xl" style={{ color: theme.colors.primary }}>
+                              {exercise.reps}
+                            </Text>
                           </View>
                         )}
                         {exercise.duration && (

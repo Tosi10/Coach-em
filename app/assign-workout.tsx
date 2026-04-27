@@ -3,6 +3,7 @@ import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
+import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
 import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service';
 import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
@@ -306,10 +307,10 @@ function formatDatePtBr(dateStr: string): string {
                 return;
             }
             const templates = await listWorkoutTemplatesByCoachId(coachId);
-            setAllWorkouts(templates);
+            setAllWorkouts([...DEFAULT_WORKOUT_TEMPLATES, ...templates]);
         } catch (error) {
             console.error('❌ Erro ao carregar treinos:', error);
-            setAllWorkouts([]);
+            setAllWorkouts([...DEFAULT_WORKOUT_TEMPLATES]);
         }
     }, [user?.id]);
 

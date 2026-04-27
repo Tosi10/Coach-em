@@ -5,31 +5,31 @@
  * Atletas são criados pelo treinador em "Adicionar atleta".
  */
 
+import { BetaBadge } from '@/components/BetaBadge';
+import { CustomAlert } from '@/components/CustomAlert';
+import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { useAuth } from '@/src/hooks/useAuth';
+import { UserType } from '@/src/types';
+import { getThemeStyles } from '@/src/utils/themeStyles';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { BetaBadge } from '@/components/BetaBadge';
-import { CustomAlert } from '@/components/CustomAlert';
-import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
-import { useAuth } from '@/src/hooks/useAuth';
-import { UserType } from '@/src/types';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { getThemeStyles } from '@/src/utils/themeStyles';
 
-const GRADIENT_ORANGE = ['#f97316', '#ea580c'];
+const GRADIENT_ORANGE: readonly [string, string] = ['#f97316', '#ea580c'];
 const INPUT_BORDER_WIDTH = 1;
 const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
@@ -75,6 +75,12 @@ export default function RegisterScreen() {
     borderWidth: INPUT_BORDER_WIDTH,
     borderColor: fieldBorder,
     color: theme.colors.text,
+  };
+  const singleLineInputStyle = {
+    ...inputStyle,
+    height: 56,
+    paddingVertical: 0,
+    textAlignVertical: 'center' as const,
   };
 
   const handleRegister = async () => {
@@ -166,7 +172,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
-              style={inputStyle}
+              style={singleLineInputStyle}
               placeholder="Seu nome"
               placeholderTextColor={theme.colors.textTertiary}
               value={displayName}
@@ -178,7 +184,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
-              style={inputStyle}
+              style={singleLineInputStyle}
               placeholder="seu@email.com"
               placeholderTextColor={theme.colors.textTertiary}
               value={email}
@@ -193,7 +199,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
-              style={inputStyle}
+              style={singleLineInputStyle}
               placeholder="••••••••"
               placeholderTextColor={theme.colors.textTertiary}
               value={password}
@@ -207,7 +213,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
-              style={inputStyle}
+              style={singleLineInputStyle}
               placeholder="Ex: Futebol, Atletismo"
               placeholderTextColor={theme.colors.textTertiary}
               value={specialization}

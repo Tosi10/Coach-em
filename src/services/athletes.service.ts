@@ -183,11 +183,33 @@ export async function updateAthlete(
   data: Partial<Pick<AthleteDoc, 'name' | 'sport' | 'status'>>
 ): Promise<void> {
   const ref = doc(db, COLLECTION, id);
+  const current = await getDoc(ref);
+  const currentData = current.data() as Partial<AthleteDoc> | undefined;
   const payload = removeUndefined({
     ...data,
     updatedAt: new Date().toISOString(),
   });
   await updateDoc(ref, payload);
+
+  // Espelha os dados principais no perfil de login do atleta.
+  // Isso faz o nome novo aparecer também quando o atleta entra no app.
+  const userIdsToUpdate = [...new Set([id, currentData?.authUid].filter(Boolean) as string[])];
+  await Promise.all(
+    userIdsToUpdate.map(async (userId) => {
+      try {
+        await updateDoc(
+          doc(db, 'users', userId),
+          removeUndefined({
+            displayName: data.name?.trim(),
+            sport: data.sport?.trim(),
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      } catch {
+        // Regras antigas/contas legadas podem bloquear esse espelho; coachemAthletes segue como fonte do treinador.
+      }
+    })
+  );
 }
 
 /**

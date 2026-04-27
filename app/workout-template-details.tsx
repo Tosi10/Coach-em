@@ -9,6 +9,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutDetails } from '@/src/components/WorkoutDetails';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
+import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
 import { deleteWorkoutTemplate, getWorkoutTemplateById } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -208,6 +209,11 @@ export default function WorkoutTemplateDetailsScreen() {
         const loadWorkout = async () => {
             try {
                 if (!workoutIdString) return;
+                const defaultWorkout = DEFAULT_WORKOUT_TEMPLATES.find((w) => w.id === workoutIdString);
+                if (defaultWorkout) {
+                    setAllWorkouts([defaultWorkout]);
+                    return;
+                }
                 const workout = await getWorkoutTemplateById(workoutIdString);
                 setAllWorkouts(workout ? [workout] : []);
             } catch (error) {

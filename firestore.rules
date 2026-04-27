@@ -68,6 +68,12 @@ service cloud.firestore {
         .hasOnly(['photoURL', 'updatedAt', 'expoPushToken', 'expoPushTokenUpdatedAt', 'expoPushPlatform']);
     }
 
+    /** Treinador pode corrigir dados básicos do atleta que ele possui. */
+    function coachAthleteUserPatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['displayName', 'sport', 'status', 'blockedAt', 'updatedAt']);
+    }
+
     function treinaExerciseReadable() {
       return isSignedIn() && (
         resource.data.createdBy == request.auth.uid
@@ -110,10 +116,17 @@ service cloud.firestore {
 
       // Não permite escalar userType nem trocar email/createdAt
       allow update: if isSignedIn()
-        && request.auth.uid == userId
         && request.resource.data.userType == resource.data.userType
         && request.resource.data.email == resource.data.email
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          request.auth.uid == userId ||
+          (
+            isCoachEmCoach()
+            && coachOwnsAthlete(userId)
+            && coachAthleteUserPatchKeysOnly()
+          )
+        );
 
       // Exclusão de conta (app Coach'em): só o próprio usuário apaga o próprio doc
       allow delete: if isSignedIn() && request.auth.uid == userId;
