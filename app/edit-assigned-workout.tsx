@@ -5,6 +5,7 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
@@ -265,85 +266,24 @@ export default function EditAssignedWorkoutScreen() {
               <Text className="font-semibold text-xs" style={{ color: '#ffffff' }}>🗑️</Text>
             </TouchableOpacity>
           </View>
-          <View className="flex-row gap-2 mb-2">
-            <View className="flex-1">
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
-              <TextInput
-                className="border rounded px-3 py-2"
-                style={{
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.primary + '80',
-                  color: theme.colors.text,
-                  fontSize: 18,
-                  fontWeight: '700',
-                  textAlign: 'center',
-                }}
-                placeholder="Ex: 3"
-                placeholderTextColor={theme.colors.textTertiary}
-                keyboardType="numeric"
-                value={exercise.sets?.toString() ?? ''}
-                onChangeText={t => handleUpdateExercise(index, blockType, 'sets', t ? parseInt(t) : undefined)}
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
-              <TextInput
-                className="border rounded px-3 py-2"
-                style={{
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.primary + '80',
-                  color: theme.colors.text,
-                  fontSize: 18,
-                  fontWeight: '700',
-                  textAlign: 'center',
-                }}
-                placeholder="Ex: 12"
-                placeholderTextColor={theme.colors.textTertiary}
-                keyboardType="numeric"
-                value={exercise.reps?.toString() ?? ''}
-                onChangeText={t => handleUpdateExercise(index, blockType, 'reps', t ? parseInt(t) : undefined)}
-              />
-            </View>
-          </View>
-          <View className="flex-row gap-2 mb-2">
-            <View className="flex-1">
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração (seg)</Text>
-              <TextInput
-                className="border rounded px-3 py-2"
-                style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-                placeholder="Ex: 60"
-                placeholderTextColor={theme.colors.textTertiary}
-                keyboardType="numeric"
-                value={exercise.duration?.toString() ?? ''}
-                onChangeText={t => handleUpdateExercise(index, blockType, 'duration', t ? parseInt(t) : undefined)}
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (seg)</Text>
-              <TextInput
-                className="border rounded px-3 py-2"
-                style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-                placeholder="Ex: 45"
-                placeholderTextColor={theme.colors.textTertiary}
-                keyboardType="numeric"
-                value={exercise.restTime?.toString() ?? ''}
-                onChangeText={t => handleUpdateExercise(index, blockType, 'restTime', t ? parseInt(t) : undefined)}
-              />
-            </View>
-          </View>
-          <View className="mb-2">
-            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Notas</Text>
-            <TextInput
-              className="border rounded px-3 py-2"
-              style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-              placeholder="Ex: Foco em técnica"
-              placeholderTextColor={theme.colors.textTertiary}
-              value={exercise.notes ?? ''}
-              onChangeText={t => handleUpdateExercise(index, blockType, 'notes', t)}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
+          <WorkoutPrescriptionEditor
+            value={exercise}
+            onChange={(updates) => {
+              if (blockType === WorkoutBlock.WARM_UP) {
+                const list = [...warmUpExercises];
+                list[index] = { ...list[index], ...updates };
+                setWarmUpExercises(list);
+              } else if (blockType === WorkoutBlock.WORK) {
+                const list = [...workExercises];
+                list[index] = { ...list[index], ...updates };
+                setWorkExercises(list);
+              } else {
+                const list = [...coolDownExercises];
+                list[index] = { ...list[index], ...updates };
+                setCoolDownExercises(list);
+              }
+            }}
+          />
         </View>
       ))}
       {exercises.length === 0 && (

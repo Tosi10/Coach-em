@@ -237,12 +237,7 @@ function formatDatePtBr(dateStr: string): string {
 
     // Estados para recorrência
     const [isRecurring, setIsRecurring] = useState<boolean>(false);
-    const [recurrenceType, setRecurrenceType] = useState<'weekly' | 'monthly'>('weekly');
-    const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number | null>(null); // 0 = Domingo, 1 = Segunda, etc.
-    const [recurrenceCount, setRecurrenceCount] = useState<number>(4); // quantidade de treinos
-    const [startDate, setStartDate] = useState<string>(
-      getLocalDateString()
-    );
+    const [recurringDates, setRecurringDates] = useState<string[]>([]);
     const [showCalendar, setShowCalendar] = useState<boolean>(false);
     const [showWorkoutModal, setShowWorkoutModal] = useState<boolean>(false);
     const [showTimeModal, setShowTimeModal] = useState<boolean>(false);
@@ -319,67 +314,8 @@ function formatDatePtBr(dateStr: string): string {
         loadAllWorkouts();
     }, [loadAllWorkouts]);
 
-    // Quando ativar "Recorrente" ou quando startDate mudar, auto-selecionar o dia da semana
-    useEffect(() => {
-        if (isRecurring && startDate) {
-            const dateObj = parseLocalDateString(startDate);
-            const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
-            setSelectedDayOfWeek(dayOfWeek);
-        }
-    }, [isRecurring, startDate]);
-
-    // Função para gerar datas recorrentes baseado na quantidade de treinos
-    const generateRecurringDates = (start: string, dayOfWeek: number, workoutCount: number): string[] => {
-        const dates: string[] = [];
-        
-        // Parse da data inicial (formato YYYY-MM-DD)
-        const [year, month, day] = start.split('-').map(Number);
-        const startDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Usar meio-dia para evitar problemas de timezone
-        
-        console.log(`🔍 Debug generateRecurringDates:`);
-        console.log(`   - Data inicial recebida: ${start}`);
-        console.log(`   - Quantidade de treinos: ${workoutCount}`);
-        console.log(`   - Dia da semana: ${dayOfWeek} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayOfWeek]})`);
-
-        // Encontrar a primeira ocorrência do dia da semana
-        let currentDate = new Date(startDate);
-        
-        // Se a data inicial já é o dia correto, usar ela
-        // Senão, encontrar a próxima ocorrência do dia da semana
-        if (currentDate.getDay() !== dayOfWeek) {
-            // Calcular quantos dias até o próximo dia da semana desejado
-            const currentDay = currentDate.getDay();
-            let daysToAdd = (dayOfWeek - currentDay + 7) % 7;
-            // Se daysToAdd é 0, significa que já é o dia correto (não deveria acontecer aqui)
-            if (daysToAdd === 0) {
-                daysToAdd = 7; // Ir para a próxima semana
-            }
-            currentDate.setDate(currentDate.getDate() + daysToAdd);
-            console.log(`   - Data inicial não era o dia correto, ajustando para: ${getLocalDateString(currentDate)}`);
-        } else {
-            console.log(`   - Data inicial já é o dia correto, usando: ${getLocalDateString(currentDate)}`);
-        }
-
-        // Gerar exatamente a quantidade de treinos solicitada
-        for (let i = 0; i < workoutCount; i++) {
-            // Formatar data como YYYY-MM-DD
-            const yearStr = currentDate.getFullYear();
-            const monthStr = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const dayStr = String(currentDate.getDate()).padStart(2, '0');
-            const dateString = `${yearStr}-${monthStr}-${dayStr}`;
-            
-            dates.push(dateString);
-            console.log(`   - Adicionada data ${i + 1}/${workoutCount}: ${dateString} (${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][currentDate.getDay()]})`);
-            
-            // Avançar para a próxima semana (apenas se não for o último)
-            if (i < workoutCount - 1) {
-                currentDate.setDate(currentDate.getDate() + 7);
-            }
-        }
-
-        console.log(`📅 Total: ${dates.length} datas geradas (de ${dates[0] || 'N/A'} até ${dates[dates.length - 1] || 'N/A'})`);
-        return dates;
-    };
+    const getRecurringSummary = (dates: string[]): string =>
+        `${dates.length} treino${dates.length !== 1 ? 's' : ''} em datas selecionadas manualmente`;
 
     // Função auxiliar para mostrar alertas customizados
     const showAlert = (
@@ -415,12 +351,8 @@ function formatDatePtBr(dateStr: string): string {
 
         // Validar recorrência
         if (isRecurring) {
-            if (!startDate || startDate.trim() === '') {
-                showAlert('Erro', 'Por favor, selecione a data inicial.', 'error');
-                return;
-            }
-            if (selectedDayOfWeek === null) {
-                showAlert('Erro', 'Por favor, selecione o dia da semana.', 'error');
+            if (recurringDates.length === 0) {
+                showAlert('Erro', 'Selecione pelo menos uma data no calendário recorrente.', 'error');
                 return;
             }
         } else {
@@ -440,10 +372,16 @@ function formatDatePtBr(dateStr: string): string {
             let datesToAssign: string[] = [];
 
             if (isRecurring) {
-                console.log(`🔄 Gerando treinos recorrentes:`);
-                datesToAssign = generateRecurringDates(startDate, selectedDayOfWeek!, recurrenceCount);
+                datesToAssign = [...new Set(recurringDates)]
+                    .filter((date) => date >= getLocalDateString())
+                    .sort((a, b) => a.localeCompare(b));
             } else {
                 datesToAssign = [selectedDate];
+            }
+
+            if (datesToAssign.length === 0) {
+                showAlert('Erro', 'Nenhuma data válida foi gerada para esse padrão de recorrência.', 'error');
+                return;
             }
 
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
@@ -499,10 +437,8 @@ function formatDatePtBr(dateStr: string): string {
                 console.warn('Lembretes não agendados:', notifErr);
             }
             
-            console.log('💾 Treinos salvos! Total:', newAssignments.length);
-
-            const message = isRecurring 
-                ? `Treino "${workout.name}" atribuído para ${athlete.name} em ${newAssignments.length} datas (${recurrenceCount} treinos)`
+            const message = isRecurring
+                ? `Treino "${workout.name}" atribuído para ${athlete.name}: ${getRecurringSummary(datesToAssign)}.`
                 : `Treino "${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`;
 
             showAlert(
@@ -826,82 +762,42 @@ function formatDatePtBr(dateStr: string): string {
                         ) : (
                             // Recorrente
                             <View>
-                                {/* Data inicial */}
-                                <Text className="font-semibold mb-2" style={themeStyles.text}>Data Inicial:</Text>
+                                <Text className="font-semibold mb-2" style={themeStyles.text}>Datas recorrentes:</Text>
                                 <TouchableOpacity
                                     className="border rounded-lg px-4 py-3 mb-4"
                                     style={themeStyles.card}
-                                    onPress={() => {
-                                        setShowCalendar(true);
-                                    }}
+                                    onPress={() => setShowCalendar(true)}
                                 >
                                     <Text style={themeStyles.text}>
-                                        {startDate ? formatDatePtBr(startDate) : 'Selecione a data inicial'}
+                                        {recurringDates.length > 0
+                                            ? `${recurringDates.length} data${recurringDates.length !== 1 ? 's' : ''} selecionada${recurringDates.length !== 1 ? 's' : ''}`
+                                            : 'Selecionar datas no calendário'}
                                     </Text>
                                 </TouchableOpacity>
 
-                                {/* Dia da semana */}
-                                <Text className="font-semibold mb-2" style={themeStyles.text}>Dia da Semana:</Text>
-                                <View className="flex-row flex-wrap gap-2 mb-4">
-                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
-                                        <TouchableOpacity
-                                            key={index}
-                                            className="py-2 px-4 rounded-lg border-2"
-                                            style={{
-                                              backgroundColor: selectedDayOfWeek === index
-                                                ? theme.colors.primary
-                                                : theme.colors.card,
-                                              borderColor: selectedDayOfWeek === index
-                                                ? theme.colors.primary
-                                                : theme.colors.border,
-                                            }}
-                                            onPress={() => setSelectedDayOfWeek(index)}
-                                        >
-                                            <Text className="font-semibold" style={{
-                                              color: selectedDayOfWeek === index 
-                                                ? (theme.mode === 'dark' ? '#000' : '#fff')
-                                                : theme.colors.text
-                                            }}>
-                                                {day}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-
-                                {/* Quantidade de treinos */}
-                                <Text className="font-semibold mb-2" style={themeStyles.text}>Quantidade de treinos:</Text>
-                                <View className="flex-row items-center gap-4 mb-4">
-                                    <TouchableOpacity
-                                        className="border rounded-lg w-12 h-12 items-center justify-center"
-                                        style={themeStyles.card}
-                                        onPress={() => setRecurrenceCount(Math.max(1, recurrenceCount - 1))}
-                                    >
-                                        <Text className="text-xl font-bold" style={themeStyles.text}>-</Text>
-                                    </TouchableOpacity>
-                                    <Text className="text-xl font-semibold min-w-[60px] text-center" style={themeStyles.text}>
-                                        {recurrenceCount}
-                                    </Text>
-                                    <TouchableOpacity
-                                        className="border rounded-lg w-12 h-12 items-center justify-center"
-                                        style={themeStyles.card}
-                                        onPress={() => setRecurrenceCount(recurrenceCount + 1)}
-                                    >
-                                        <Text className="text-xl font-bold" style={themeStyles.text}>+</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                {/* Preview das datas */}
-                                {startDate && selectedDayOfWeek !== null && (
+                                {recurringDates.length > 0 && (
                                     <View className="rounded-lg p-3 mb-2" style={themeStyles.cardSecondary}>
                                         <Text className="text-xs mb-1" style={themeStyles.textSecondary}>
-                                            Serão criados exatamente {recurrenceCount} treino{recurrenceCount !== 1 ? 's' : ''} toda{' '}
-                                            {['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][selectedDayOfWeek]}
+                                            {getRecurringSummary(recurringDates)}
                                         </Text>
-                                        {recurrenceCount > 1 && (
-                                            <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
-                                                Período aproximado: {recurrenceCount} semana{recurrenceCount !== 1 ? 's' : ''}
+                                        <Text className="text-xs" style={themeStyles.textTertiary}>
+                                            {recurringDates
+                                                .slice()
+                                                .sort((a, b) => a.localeCompare(b))
+                                                .slice(0, 6)
+                                                .map(formatDatePtBr)
+                                                .join(' • ')}
+                                            {recurringDates.length > 6 ? ' ...' : ''}
+                                        </Text>
+                                        <TouchableOpacity
+                                            className="mt-3 py-2 px-3 rounded-lg border self-start"
+                                            style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.card }}
+                                            onPress={() => setRecurringDates([])}
+                                        >
+                                            <Text className="text-xs font-semibold" style={themeStyles.textSecondary}>
+                                                Limpar datas
                                             </Text>
-                                        )}
+                                        </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
@@ -916,8 +812,8 @@ function formatDatePtBr(dateStr: string): string {
                             navigationBarTranslucent
                             onRequestClose={() => setShowCalendar(false)}
                         >
-                            <View className="flex-1 bg-black/50 justify-end">
-                                <View className="rounded-t-3xl p-6 border-t" style={themeStyles.card}>
+                            <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                                <View className="rounded-3xl p-6 border w-full max-w-md" style={themeStyles.card}>
                                     <View className="flex-row justify-between items-center mb-4">
                                         <Text className="text-xl font-bold" style={themeStyles.text}>
                                             Selecionar Data
@@ -931,24 +827,31 @@ function formatDatePtBr(dateStr: string): string {
                                         </TouchableOpacity>
                                     </View>
                                     <Calendar
-                                        current={isRecurring ? startDate : selectedDate}
-                                        markedDates={{
-                                            [isRecurring ? startDate : selectedDate]: {
-                                                selected: true,
-                                                selectedColor: '#fb923c',
-                                            }
-                                        }}
+                                        current={isRecurring ? (recurringDates[0] || selectedDate) : selectedDate}
+                                        markedDates={
+                                            isRecurring
+                                                ? recurringDates.reduce<Record<string, { selected: boolean; selectedColor: string }>>((acc, date) => {
+                                                    acc[date] = { selected: true, selectedColor: '#fb923c' };
+                                                    return acc;
+                                                }, {})
+                                                : {
+                                                    [selectedDate]: {
+                                                        selected: true,
+                                                        selectedColor: '#fb923c',
+                                                    },
+                                                }
+                                        }
                                         onDayPress={(day) => {
                                             if (isRecurring) {
-                                                setStartDate(day.dateString);
-                                                // Auto-selecionar o dia da semana baseado na data escolhida
-                                                const selectedDateObj = parseLocalDateString(day.dateString);
-                                                const dayOfWeek = selectedDateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
-                                                setSelectedDayOfWeek(dayOfWeek);
+                                                setRecurringDates((prev) =>
+                                                    prev.includes(day.dateString)
+                                                        ? prev.filter((d) => d !== day.dateString)
+                                                        : [...prev, day.dateString].sort((a, b) => a.localeCompare(b))
+                                                );
                                             } else {
                                                 setSelectedDate(day.dateString);
+                                                setShowCalendar(false);
                                             }
-                                            setShowCalendar(false);
                                         }}
                                         minDate={getLocalDateString()}
                                         theme={{

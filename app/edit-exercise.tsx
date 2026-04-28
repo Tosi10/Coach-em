@@ -1,13 +1,16 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { AppVideoPlayer } from '@/components/AppVideoPlayer';
+import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
 import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
+import type { WorkoutExercise } from '@/src/types';
+import { inferPrescriptionType } from '@/src/utils/workoutPrescription';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -29,7 +32,6 @@ export default function EditExerciseScreen() {
     const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
     const [equipment, setEquipment] = useState<string[]>([]);
-    const [duration, setDuration] = useState('');
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
     const [loading, setLoading] = useState(true);
@@ -38,6 +40,11 @@ export default function EditExerciseScreen() {
     const [removeStoredVideo, setRemoveStoredVideo] = useState(false);
     const [uploadingVideo, setUploadingVideo] = useState(false);
     const [isDefaultExercise, setIsDefaultExercise] = useState(false);
+    const [defaultPrescription, setDefaultPrescription] = useState<WorkoutExercise>({
+        exerciseId: 'preview',
+        order: 1,
+        prescriptionType: 'strength',
+    });
 
     // Estados para CustomAlert
     const [alertVisible, setAlertVisible] = useState(false);
@@ -72,10 +79,14 @@ export default function EditExerciseScreen() {
                     setDifficulty(fallbackDefault.difficulty || 'beginner');
                     setMuscleGroups(fallbackDefault.muscleGroups || []);
                     setEquipment(fallbackDefault.equipment || []);
-                    setDuration(fallbackDefault.duration ? fallbackDefault.duration.toString() : '');
                     setExistingVideoURL(fallbackDefault.videoURL || null);
                     setVideoUri(null);
                     setRemoveStoredVideo(false);
+                    setDefaultPrescription({
+                        exerciseId: 'preview',
+                        order: 1,
+                        prescriptionType: 'strength',
+                    });
                     return;
                 }
 
@@ -87,10 +98,23 @@ export default function EditExerciseScreen() {
                     setDifficulty(exercise.difficulty || 'beginner');
                     setMuscleGroups(exercise.muscleGroups || []);
                     setEquipment(exercise.equipment || []);
-                    setDuration(exercise.duration ? exercise.duration.toString() : '');
                     setExistingVideoURL(exercise.videoURL || null);
                     setVideoUri(null);
                     setRemoveStoredVideo(false);
+                    setDefaultPrescription({
+                        exerciseId: 'preview',
+                        order: 1,
+                        prescriptionType: exercise.defaultPrescription?.prescriptionType || 'strength',
+                        protocolName: exercise.defaultPrescription?.protocolName,
+                        rounds: exercise.defaultPrescription?.rounds,
+                        roundRest: exercise.defaultPrescription?.roundRest,
+                        intervalProtocol: exercise.defaultPrescription?.intervalProtocol,
+                        sets: exercise.defaultPrescription?.sets,
+                        reps: exercise.defaultPrescription?.reps,
+                        duration: exercise.defaultPrescription?.duration,
+                        restTime: exercise.defaultPrescription?.restTime,
+                        notes: exercise.defaultPrescription?.notes,
+                    });
                 } else {
                     showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
                 }
@@ -158,7 +182,24 @@ export default function EditExerciseScreen() {
                 difficulty: 'beginner' | 'intermediate' | 'advanced';
                 muscleGroups: string[];
                 equipment: string[];
-                duration?: number;
+                defaultPrescription?: {
+                    prescriptionType?: 'strength' | 'timed' | 'interval' | 'circuit' | 'free';
+                    protocolName?: string;
+                    rounds?: number;
+                    roundRest?: number;
+                    intervalProtocol?: {
+                        id: string;
+                        name: string;
+                        duration: number;
+                        intensity?: 'low' | 'moderate' | 'high' | 'rest';
+                        notes?: string;
+                    }[];
+                    sets?: number;
+                    reps?: number;
+                    duration?: number;
+                    restTime?: number;
+                    notes?: string;
+                };
                 videoURL?: string | null;
             } = {
                 name: name.trim(),
@@ -166,20 +207,34 @@ export default function EditExerciseScreen() {
                 difficulty,
                 muscleGroups,
                 equipment: equipment.length > 0 ? equipment : ['Nenhum'],
-                duration: duration ? parseInt(duration, 10) : undefined,
             };
 
+            const normalizedPrescriptionType = inferPrescriptionType(defaultPrescription);
+            const hasProtocol = (defaultPrescription.intervalProtocol || []).length > 0;
+            const hasAnyPrescription =
+                hasProtocol ||
+                !!defaultPrescription.sets ||
+                !!defaultPrescription.reps ||
+                !!defaultPrescription.duration ||
+                !!defaultPrescription.restTime ||
+                !!defaultPrescription.notes?.trim();
+            patch.defaultPrescription = hasAnyPrescription
+                ? {
+                    prescriptionType: normalizedPrescriptionType,
+                    protocolName: defaultPrescription.protocolName,
+                    rounds: defaultPrescription.rounds,
+                    roundRest: defaultPrescription.roundRest,
+                    intervalProtocol: defaultPrescription.intervalProtocol,
+                    sets: defaultPrescription.sets,
+                    reps: defaultPrescription.reps,
+                    duration: defaultPrescription.duration,
+                    restTime: defaultPrescription.restTime,
+                    notes: defaultPrescription.notes,
+                  }
+                : undefined;
+
             let newVideoUploadFailed = false;
-            if (videoUri) {
-                setUploadingVideo(true);
-                const url = await uploadExerciseVideo(videoUri, exerciseIdString!);
-                setUploadingVideo(false);
-                if (url) {
-                    patch.videoURL = url;
-                } else {
-                    newVideoUploadFailed = true;
-                }
-            } else if (removeStoredVideo) {
+            if (removeStoredVideo) {
                 patch.videoURL = null;
             }
 
@@ -189,19 +244,40 @@ export default function EditExerciseScreen() {
                     return;
                 }
                 await assertCanCreateResource(user.id, 'exercises');
+                const copiedExerciseId = `exercise_default_${exerciseIdString}_${user.id}`;
                 await createExercise(user.id, {
-                    id: `exercise_default_${exerciseIdString}_${user.id}`,
+                    id: copiedExerciseId,
                     name: patch.name,
                     description: patch.description,
                     difficulty: patch.difficulty,
                     muscleGroups: patch.muscleGroups,
                     equipment: patch.equipment,
-                    duration: patch.duration,
-                    videoURL: patch.videoURL ?? undefined,
+                    defaultPrescription: patch.defaultPrescription,
+                    videoURL: removeStoredVideo ? undefined : existingVideoURL ?? undefined,
                     thumbnailURL: undefined,
                     isGlobal: true,
                 });
+                if (videoUri) {
+                    setUploadingVideo(true);
+                    const url = await uploadExerciseVideo(videoUri, copiedExerciseId);
+                    setUploadingVideo(false);
+                    if (url) {
+                        await updateExercise(copiedExerciseId, { videoURL: url });
+                    } else {
+                        newVideoUploadFailed = true;
+                    }
+                }
             } else {
+                if (videoUri) {
+                    setUploadingVideo(true);
+                    const url = await uploadExerciseVideo(videoUri, exerciseIdString);
+                    setUploadingVideo(false);
+                    if (url) {
+                        patch.videoURL = url;
+                    } else {
+                        newVideoUploadFailed = true;
+                    }
+                }
                 await updateExercise(exerciseIdString!, patch);
             }
             if (newVideoUploadFailed) {
@@ -448,23 +524,21 @@ export default function EditExerciseScreen() {
                     </View>
                 </View>
 
-                {/* Duração */}
-                <View className="mb-4">
+                <View className="mb-5 rounded-xl p-4 border" style={themeStyles.cardSecondary}>
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Duração (segundos)
+                        Prescrição padrão para este exercício (opcional)
                     </Text>
-                    <TextInput
-                        className="border rounded-lg px-4 py-3"
-                        style={{
-                          backgroundColor: theme.colors.card,
-                          borderColor: theme.colors.border,
-                          color: theme.colors.text,
-                        }}
-                        placeholder="Ex: 60"
-                        placeholderTextColor={theme.colors.textTertiary}
-                        keyboardType="numeric"
-                        value={duration}
-                        onChangeText={setDuration}
+                    <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
+                        Essa configuração aparece automaticamente quando o exercício for adicionado em um treino.
+                    </Text>
+                    <WorkoutPrescriptionEditor
+                        value={defaultPrescription}
+                        onChange={(updates) =>
+                            setDefaultPrescription((prev) => ({
+                                ...prev,
+                                ...updates,
+                            }))
+                        }
                     />
                 </View>
 
@@ -478,11 +552,11 @@ export default function EditExerciseScreen() {
                     </Text>
                     {existingVideoURL && !videoUri && !removeStoredVideo && (
                         <View className="rounded-xl overflow-hidden mb-3 border" style={{ borderColor: theme.colors.border }}>
-                            <Video
+                            <AppVideoPlayer
                                 source={{ uri: existingVideoURL }}
                                 style={{ width: '100%', height: 180 }}
-                                useNativeControls
-                                resizeMode={ResizeMode.CONTAIN}
+                                nativeControls
+                                contentFit="contain"
                                 shouldPlay={false}
                             />
                         </View>

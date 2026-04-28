@@ -10,7 +10,8 @@
 
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
+import { Auth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { Functions, getFunctions } from 'firebase/functions';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
@@ -51,16 +52,20 @@ if (getApps().length === 0) {
  * - Firestore: Banco de dados NoSQL
  * - Storage: Armazenamento de arquivos (vídeos, imagens)
  */
-// Inicializar Auth com persistência AsyncStorage para React Native
 let auth: Auth;
 try {
-  // Em React Native, inicializar explicitamente com AsyncStorage para persistir sessão.
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-  });
+  const getReactNativePersistence = (FirebaseAuth as unknown as {
+    getReactNativePersistence?: (storage: unknown) => unknown;
+  }).getReactNativePersistence;
+  if (typeof getReactNativePersistence === 'function') {
+    auth = FirebaseAuth.initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage) as any,
+    });
+  } else {
+    auth = FirebaseAuth.getAuth(app);
+  }
 } catch {
-  // Quando já foi inicializado (ex.: hot reload), reutilizar instância existente.
-  auth = getAuth(app);
+  auth = FirebaseAuth.getAuth(app);
 }
 
 export { auth };

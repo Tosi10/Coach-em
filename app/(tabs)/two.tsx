@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabTwoScreen() {
@@ -45,8 +46,9 @@ export default function TabTwoScreen() {
   
   // Estados para treinos do atleta
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
-  const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos'>('proximos');
+  const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos' | 'calendario'>('calendario');
   const [workoutsToShow, setWorkoutsToShow] = useState(5);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const isSchedulingAthleteRemindersRef = useRef(false);
 
   // Estados para CustomAlert
@@ -204,6 +206,39 @@ export default function TabTwoScreen() {
 
   // Se for ATLETA, mostrar treinos
   if (userType === UserType.ATHLETE) {
+    const workoutsByDate = athleteWorkouts.reduce<Record<string, any[]>>((acc, workout: any) => {
+      const key = workout.date;
+      if (!key) return acc;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(workout);
+      return acc;
+    }, {});
+
+    const selectedDateWorkouts = (workoutsByDate[selectedCalendarDate] || []).sort((a: any, b: any) => {
+      const aTime = a.scheduledTime || '23:59';
+      const bTime = b.scheduledTime || '23:59';
+      return aTime.localeCompare(bTime);
+    });
+
+    const markedDates = Object.entries(workoutsByDate).reduce<Record<string, any>>((acc, [date, workouts]) => {
+      const hasCompleted = workouts.some((w: any) => w.status === 'Concluído');
+      const hasPending = workouts.some((w: any) => w.status !== 'Concluído');
+      let dotColor = '#fb923c';
+      if (hasPending) dotColor = '#fb923c';
+      else if (hasCompleted) dotColor = '#10b981';
+      acc[date] = {
+        marked: true,
+        dotColor,
+      };
+      return acc;
+    }, {});
+
+    markedDates[selectedCalendarDate] = {
+      ...(markedDates[selectedCalendarDate] || {}),
+      selected: true,
+      selectedColor: theme.colors.primary,
+    };
+
     // Historico deve mostrar apenas treinos realmente concluidos.
     // Treino atrasado (data/hora passada) nao significa treino feito.
     const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído');
@@ -304,7 +339,7 @@ export default function TabTwoScreen() {
             Visualize seus treinos agendados e histórico de treinos realizados
           </Text>
 
-          {/* Sub-tabs: Próximos e Histórico */}
+          {/* Sub-tabs: Próximos, Histórico e Calendário */}
           <View className="flex-row mb-4" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
             <TouchableOpacity
               className="flex-1 py-2 border-b-2"
@@ -328,6 +363,24 @@ export default function TabTwoScreen() {
             <TouchableOpacity
               className="flex-1 py-2 border-b-2"
               style={{
+                borderBottomColor: workoutSubTab === 'calendario' ? theme.colors.primary : 'transparent',
+              }}
+              onPress={() => {
+                setWorkoutSubTab('calendario');
+              }}
+            >
+              <Text
+                className="text-center font-semibold"
+                style={{
+                  color: workoutSubTab === 'calendario' ? theme.colors.text : theme.colors.textTertiary
+                }}
+              >
+                Calendário
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 py-2 border-b-2"
+              style={{
                 borderBottomColor: workoutSubTab === 'historico' ? theme.colors.primary : 'transparent',
               }}
               onPress={() => {
@@ -346,6 +399,122 @@ export default function TabTwoScreen() {
             </TouchableOpacity>
           </View>
 
+          {workoutSubTab === 'calendario' ? (
+            <>
+              <View className="rounded-xl p-4 border mb-4" style={themeStyles.card}>
+                <Calendar
+                  current={selectedCalendarDate}
+                  markedDates={markedDates}
+                  onDayPress={(day) => setSelectedCalendarDate(day.dateString)}
+                  theme={{
+                    backgroundColor: theme.colors.background,
+                    calendarBackground: theme.colors.background,
+                    textSectionTitleColor: theme.colors.textTertiary,
+                    selectedDayBackgroundColor: theme.colors.primary,
+                    selectedDayTextColor: theme.mode === 'dark' ? '#000' : '#fff',
+                    todayTextColor: theme.colors.primary,
+                    dayTextColor: theme.colors.text,
+                    textDisabledColor: theme.colors.textTertiary,
+                    dotColor: theme.colors.primary,
+                    selectedDotColor: theme.mode === 'dark' ? '#000' : '#fff',
+                    arrowColor: theme.colors.primary,
+                    monthTextColor: theme.colors.text,
+                    indicatorColor: theme.colors.primary,
+                    textDayFontWeight: '600',
+                    textMonthFontWeight: 'bold',
+                    textDayHeaderFontWeight: '600',
+                    textDayFontSize: 14,
+                    textMonthFontSize: 16,
+                    textDayHeaderFontSize: 12,
+                  }}
+                />
+                <View className="flex-row mt-3 justify-between">
+                  <Text className="text-xs" style={{ color: '#fb923c' }}>• Pendente</Text>
+                  <Text className="text-xs" style={{ color: '#10b981' }}>• Concluído</Text>
+                </View>
+              </View>
+
+              {selectedDateWorkouts.length === 0 ? (
+                <EmptyState
+                  icon="calendar"
+                  message={`Nenhum treino em ${new Date(selectedCalendarDate + 'T12:00:00').toLocaleDateString('pt-BR')}.`}
+                />
+              ) : (
+                <>
+                  <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
+                    {selectedDateWorkouts.length} treino{selectedDateWorkouts.length !== 1 ? 's' : ''} em {new Date(selectedCalendarDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  </Text>
+                  {selectedDateWorkouts.map((workout: any) => {
+                    const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
+                    const feedbackIconSize = 56;
+                    return (
+                      <View
+                        key={workout.id}
+                        className="border rounded-xl p-4 mb-3"
+                        style={{
+                          ...themeStyles.card,
+                          borderColor: workout.status === 'Concluído'
+                            ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)')
+                            : theme.colors.border,
+                        }}
+                      >
+                        <TouchableOpacity
+                          className="flex-row justify-between items-start"
+                          onPress={() => {
+                            router.push({
+                              pathname: '/workout-details',
+                              params: { workoutId: workout.id },
+                            });
+                          }}
+                        >
+                          <View className="flex-1 pr-3">
+                            <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
+                              {workout.name}
+                            </Text>
+                            <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
+                              {workout.dayOfWeek}
+                              {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
+                            </Text>
+                            {workout.completedDate ? (
+                              <Text className="text-xs" style={themeStyles.textTertiary}>
+                                Feedback registrado {workout.feedback ? `• Nível ${workout.feedback}/5` : ''}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <View className="items-center mr-1">
+                            <View
+                              className="border px-3 py-1 rounded-full mb-2"
+                              style={{
+                                backgroundColor: workout.status === 'Concluído'
+                                  ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)')
+                                  : (theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.1)'),
+                                borderColor: workout.status === 'Concluído' ? '#10b98155' : '#fb923c55',
+                              }}
+                            >
+                              <Text
+                                className="text-xs font-semibold"
+                                style={{ color: workout.status === 'Concluído' ? '#10b981' : '#fb923c' }}
+                              >
+                                {workout.status}
+                              </Text>
+                            </View>
+                            {workout.status === 'Concluído' && feedbackIconSrc ? (
+                              <Image
+                                source={feedbackIconSrc}
+                                style={{ width: feedbackIconSize, height: feedbackIconSize }}
+                                resizeMode="contain"
+                              />
+                            ) : null}
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+            </>
+          ) : (
+          <>
           {/* Lista de treinos */}
           {workoutsToDisplay.length === 0 ? (
             <EmptyState
@@ -448,7 +617,7 @@ export default function TabTwoScreen() {
                           </View>
                         </TouchableOpacity>
                         
-                        <View className="items-end">
+                        <View className="items-center mr-1">
                           {workout.status === 'Concluído' && (
                             <>
                               <View className="border px-3 py-1 rounded-full mb-2"
@@ -465,7 +634,7 @@ export default function TabTwoScreen() {
                               {feedbackIconSrc && (
                                 <Image
                                   source={feedbackIconSrc}
-                                  style={{ width: 30, height: 30 }}
+                                  style={{ width: 56, height: 56 }}
                                   resizeMode="contain"
                                 />
                               )}
@@ -492,6 +661,8 @@ export default function TabTwoScreen() {
                 </TouchableOpacity>
               )}
             </>
+          )}
+          </>
           )}
         </View>
 

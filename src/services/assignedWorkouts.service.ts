@@ -19,6 +19,7 @@ import {
     writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase.config';
+import { enrichWorkoutBlocksWithLatestExercises } from './exercises.service';
 
 const COLLECTION = 'coachemAssignedWorkouts';
 
@@ -118,6 +119,13 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
   };
 }
 
+async function hydrateAssignedWorkout(workout: AssignedWorkoutDoc): Promise<AssignedWorkoutDoc> {
+  return {
+    ...workout,
+    blocks: await enrichWorkoutBlocksWithLatestExercises(workout.blocks || []),
+  };
+}
+
 /**
  * Cria vários treinos atribuídos em batch (ex.: atribuição recorrente).
  */
@@ -148,7 +156,7 @@ export async function createAssignedWorkouts(
 export async function listAssignedWorkoutsByAthleteId(athleteId: string): Promise<AssignedWorkoutDoc[]> {
   const q = query(collection(db, COLLECTION), where('athleteId', '==', athleteId));
   const snapshot = await getDocs(q);
-  const list = snapshot.docs.map((d) => docToAssigned(d));
+  const list = await Promise.all(snapshot.docs.map((d) => hydrateAssignedWorkout(docToAssigned(d))));
   list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return list;
 }
@@ -159,7 +167,7 @@ export async function listAssignedWorkoutsByAthleteId(athleteId: string): Promis
 export async function listAssignedWorkoutsByCoachId(coachId: string): Promise<AssignedWorkoutDoc[]> {
   const q = query(collection(db, COLLECTION), where('coachId', '==', coachId));
   const snapshot = await getDocs(q);
-  const list = snapshot.docs.map((d) => docToAssigned(d));
+  const list = await Promise.all(snapshot.docs.map((d) => hydrateAssignedWorkout(docToAssigned(d))));
   list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return list;
 }
@@ -170,7 +178,7 @@ export async function listAssignedWorkoutsByCoachId(coachId: string): Promise<As
 export async function getAssignedWorkoutById(id: string): Promise<AssignedWorkoutDoc | null> {
   const ref = doc(db, COLLECTION, id);
   const snapshot = await getDoc(ref);
-  return snapshot.exists() ? docToAssigned(snapshot) : null;
+  return snapshot.exists() ? hydrateAssignedWorkout(docToAssigned(snapshot)) : null;
 }
 
 /**

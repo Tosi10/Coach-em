@@ -70,6 +70,25 @@ export interface Athlete extends BaseUser {
  */
 export type User = Coach | Athlete;
 
+export type ExerciseDefaultPrescription = {
+  prescriptionType?: 'strength' | 'timed' | 'interval' | 'circuit' | 'free';
+  protocolName?: string;
+  rounds?: number;
+  roundRest?: number;
+  intervalProtocol?: {
+    id: string;
+    name: string;
+    duration: number;
+    intensity?: 'low' | 'moderate' | 'high' | 'rest';
+    notes?: string;
+  }[];
+  sets?: number;
+  reps?: number;
+  duration?: number;
+  restTime?: number;
+  notes?: string;
+};
+
 /**
  * Interface para Exercícios
  * 
@@ -86,6 +105,7 @@ export interface Exercise {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   muscleGroups: string[]; // Ex: ["pernas", "core"]
   equipment?: string[]; // Equipamentos necessários
+  defaultPrescription?: ExerciseDefaultPrescription;
   createdBy: string; // ID do treinador que criou
   isGlobal: boolean; // Se é um exercício global ou pessoal
   createdAt: Date | string;
@@ -112,6 +132,17 @@ export enum WorkoutBlock {
 export interface WorkoutExercise {
   exerciseId: string; // Referência ao Exercise
   exercise?: Exercise; // Exercício populado (opcional para queries)
+  prescriptionType?: 'strength' | 'timed' | 'interval' | 'circuit' | 'free';
+  protocolName?: string;
+  rounds?: number;
+  roundRest?: number;
+  intervalProtocol?: {
+    id: string;
+    name: string;
+    duration: number; // Em segundos
+    intensity?: 'low' | 'moderate' | 'high' | 'rest';
+    notes?: string;
+  }[];
   sets?: number;
   reps?: number;
   duration?: number; // Em segundos

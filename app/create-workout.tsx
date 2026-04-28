@@ -13,6 +13,7 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
@@ -22,12 +23,20 @@ import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios padrão de academia para iniciar os treinos do treinador.
 const mockExercises: Exercise[] = DEFAULT_EXERCISES;
+
+const normalizeSearchText = (value: string) =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
 
 export default function CreateWorkoutScreen() {
     const router = useRouter();
@@ -95,6 +104,18 @@ export default function CreateWorkoutScreen() {
         loadAllExercises();
     }, [loadAllExercises]);
 
+    useFocusEffect(
+        useCallback(() => {
+            loadAllExercises();
+        }, [loadAllExercises])
+    );
+
+    useEffect(() => {
+        if (selectingForBlock) {
+            loadAllExercises();
+        }
+    }, [selectingForBlock, loadAllExercises]);
+
     const getExerciseType = (exercise: Exercise): 'warmup' | 'work' | 'cooldown' => {
         const groups = exercise.muscleGroups || [];
 
@@ -118,11 +139,18 @@ export default function CreateWorkoutScreen() {
         let filtered = allExercises;
 
         if(searchExerciseText.trim()) {
-            const searchLower = searchExerciseText.toLowerCase();
-            filtered = filtered.filter(ex =>
-                ex.name.toLowerCase().includes(searchLower) ||
-                ex.description?.toLowerCase().includes(searchLower)
-            );
+            const searchNormalized = normalizeSearchText(searchExerciseText);
+            filtered = filtered.filter(ex => {
+                const haystack = [
+                    ex.name,
+                    ex.description || '',
+                    ...(ex.muscleGroups || []),
+                    ...(ex.equipment || []),
+                ]
+                    .join(' ')
+                    .trim();
+                return normalizeSearchText(haystack).includes(searchNormalized);
+            });
         }
 
         if(selectedMuscleGroup) {
@@ -257,15 +285,21 @@ export default function CreateWorkoutScreen() {
         if (!exercise) return;
 
         // Criar o objeto WorkoutExercise
+        const defaultPrescription = exercise.defaultPrescription;
         const workoutExercise: WorkoutExercise = {
             exerciseId: exercise.id,
             exercise: exercise,
-            sets: undefined,
-            reps: undefined,
-            duration: undefined,
-            restTime: undefined,
+            prescriptionType: defaultPrescription?.prescriptionType,
+            protocolName: defaultPrescription?.protocolName,
+            rounds: defaultPrescription?.rounds,
+            roundRest: defaultPrescription?.roundRest,
+            intervalProtocol: defaultPrescription?.intervalProtocol,
+            sets: defaultPrescription?.sets,
+            reps: defaultPrescription?.reps,
+            duration: defaultPrescription?.duration,
+            restTime: defaultPrescription?.restTime,
             order: 0, // Será calculado depois
-            notes: '',
+            notes: defaultPrescription?.notes || '',
         };
 
         // Adicionar ao bloco correto
@@ -416,100 +450,10 @@ export default function CreateWorkoutScreen() {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Campos de configuração do exercício */}
-                                <View className="flex-row gap-3 mb-2">
-                                    {/* Séries */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
-                                        <TextInput
-                                            className="border rounded px-3 py-2"
-                                            style={{
-                                              backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.primary + '80',
-                                              color: theme.colors.text,
-                                              fontSize: 18,
-                                              fontWeight: '700',
-                                              textAlign: 'center',
-                                            }}
-                                            placeholder="Ex: 3"
-                                            placeholderTextColor={theme.colors.textTertiary}
-                                            keyboardType="numeric"
-                                            value={workoutExercise.sets?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { sets: value });
-                                            }}
-                                        />
-                                    </View>
-
-                                    {/* Repetições */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
-                                        <TextInput
-                                            className="border rounded px-3 py-2"
-                                            style={{
-                                              backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.primary + '80',
-                                              color: theme.colors.text,
-                                              fontSize: 18,
-                                              fontWeight: '700',
-                                              textAlign: 'center',
-                                            }}
-                                            placeholder="Ex: 12"
-                                            placeholderTextColor={theme.colors.textTertiary}
-                                            keyboardType="numeric"
-                                            value={workoutExercise.reps?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { reps: value });
-                                            }}
-                                        />
-                                    </View>
-                                </View>
-
-                                <View className="flex-row gap-3">
-                                    {/* Duração (segundos) */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração (s)</Text>
-                                        <TextInput
-                                            className="border rounded px-3 py-2"
-                                            style={{
-                                              backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.border,
-                                              color: theme.colors.text,
-                                            }}
-                                            placeholder="Ex: 60"
-                                            placeholderTextColor={theme.colors.textTertiary}
-                                            keyboardType="numeric"
-                                            value={workoutExercise.duration?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { duration: value });
-                                            }}
-                                        />
-                                    </View>
-
-                                    {/* Descanso (segundos) */}
-                                    <View className="flex-1">
-                                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (s)</Text>
-                                        <TextInput
-                                            className="border rounded px-3 py-2"
-                                            style={{
-                                              backgroundColor: theme.colors.card,
-                                              borderColor: theme.colors.border,
-                                              color: theme.colors.text,
-                                            }}
-                                            placeholder="Ex: 45"
-                                            placeholderTextColor={theme.colors.textTertiary}
-                                            keyboardType="numeric"
-                                            value={workoutExercise.restTime?.toString() || ''}
-                                            onChangeText={(text) => {
-                                                const value = text === '' ? undefined : parseInt(text);
-                                                updateExerciseInBlock(index, blockType, { restTime: value });
-                                            }}
-                                        />
-                                    </View>
-                                </View>
+                                <WorkoutPrescriptionEditor
+                                    value={workoutExercise}
+                                    onChange={(updates) => updateExerciseInBlock(index, blockType, updates)}
+                                />
                             </View>
                         );
                     })

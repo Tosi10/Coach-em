@@ -7,18 +7,21 @@
 
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 import { CustomAlert } from '@/components/CustomAlert';
+import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { db } from '@/src/services/firebase.config';
-import { WorkoutBlockData } from '@/src/types';
+import { WorkoutBlockData, type WorkoutExercise } from '@/src/types';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { formatClock, formatDuration } from '@/src/utils/timeFormat';
+import { getProtocolTotalDuration, inferPrescriptionType, PRESCRIPTION_LABELS } from '@/src/utils/workoutPrescription';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ResizeMode, Video } from 'expo-av';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -38,6 +41,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doc, getDoc } from 'firebase/firestore';
+
+const BEEP_URL = 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg';
 
 
 // Função para buscar os treinos templates (mesma estrutura de workouts-library.tsx)
@@ -225,6 +230,23 @@ export default function WorkoutDetailsScreen() {
   
   // Animação de pulse para o botão
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const beepPlayer = useAudioPlayer(BEEP_URL);
+
+  const playBeep = useCallback(() => {
+    try {
+      beepPlayer.seekTo(0);
+      beepPlayer.play();
+    } catch {
+      // fallback silencioso: mantém apenas vibração.
+    }
+  }, [beepPlayer]);
+
+  useEffect(() => {
+    setAudioModeAsync({
+      playsInSilentMode: false,
+      shouldPlayInBackground: false,
+    }).catch(() => undefined);
+  }, []);
   
   // Função helper para mostrar alert customizado
   const showAlert = (
@@ -265,6 +287,13 @@ export default function WorkoutDetailsScreen() {
   const [warmUpTime, setWarmUpTime] = useState(0); // Tempo restante em segundos (countdown)
   const [warmUpTotal, setWarmUpTotal] = useState(0); // Tempo total em segundos
   const [isRunningWarmUp, setIsRunningWarmUp] = useState(false);
+
+  // Estados para timer intervalado/circuito
+  const [protocolPhaseIndex, setProtocolPhaseIndex] = useState(0);
+  const [protocolTimeLeft, setProtocolTimeLeft] = useState(0);
+  const [protocolTotalElapsed, setProtocolTotalElapsed] = useState(0);
+  const [isRunningProtocol, setIsRunningProtocol] = useState(false);
+  const [activeProtocolExerciseId, setActiveProtocolExerciseId] = useState<string | null>(null);
   
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
@@ -506,6 +535,7 @@ export default function WorkoutDetailsScreen() {
             setIsResting(false);
             // Vibrar quando o timer acabar
             Vibration.vibrate(400);
+            playBeep();
             // Mostrar alerta
             showAlert('Descanso Concluído', 'Hora de continuar o treino!', 'success');
             return 0;
@@ -518,7 +548,7 @@ export default function WorkoutDetailsScreen() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isResting, restTime]);
+  }, [isResting, restTime, playBeep]);
 
   // Timer de duração (alongamento) - contador progressivo
   useEffect(() => {
@@ -531,6 +561,7 @@ export default function WorkoutDetailsScreen() {
             setIsRunningDuration(false);
             // Vibrar quando o timer acabar
             Vibration.vibrate(400);
+            playBeep();
             // Mostrar alerta
             showAlert('Tempo Concluído', 'Alongamento completo!', 'success');
             return durationTotal;
@@ -543,7 +574,7 @@ export default function WorkoutDetailsScreen() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunningDuration, durationTime, durationTotal]);
+  }, [isRunningDuration, durationTime, durationTotal, playBeep]);
 
   // Timer de aquecimento - contador regressivo (countdown)
   useEffect(() => {
@@ -556,6 +587,7 @@ export default function WorkoutDetailsScreen() {
             setIsRunningWarmUp(false);
             // Vibrar quando o timer acabar (padrão: 400ms)
             Vibration.vibrate(400);
+            playBeep();
             // Mostrar alerta
             showAlert('Aquecimento Concluído', 'Hora de começar o treino!', 'success');
             return 0;
@@ -568,7 +600,103 @@ export default function WorkoutDetailsScreen() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunningWarmUp, warmUpTime]);
+  }, [isRunningWarmUp, warmUpTime, playBeep]);
+
+  const getProtocolSequence = useCallback((exercise: WorkoutExercise) => {
+    const phases = exercise.intervalProtocol || [];
+    const rounds = Math.max(1, Number(exercise.rounds) || 1);
+    const roundRest = Math.max(0, Number(exercise.roundRest) || 0);
+    return Array.from({ length: rounds }).flatMap((_, roundIndex) => {
+      const sequence = phases.map((phase) => ({ ...phase, roundIndex }));
+      if (roundRest > 0 && roundIndex < rounds - 1) {
+        sequence.push({
+          id: `round_rest_${roundIndex}`,
+          name: `Intervalo entre rounds (${formatDuration(roundRest)})`,
+          duration: roundRest,
+          roundIndex,
+        });
+      }
+      return sequence;
+    });
+  }, []);
+
+  const resetProtocolTimer = useCallback(() => {
+    setIsRunningProtocol(false);
+    setProtocolPhaseIndex(0);
+    setProtocolTimeLeft(0);
+    setProtocolTotalElapsed(0);
+    setActiveProtocolExerciseId(null);
+  }, []);
+
+  const startProtocolTimer = useCallback((exerciseId: string, exercise: WorkoutExercise) => {
+    const sequence = getProtocolSequence(exercise);
+    if (sequence.length === 0) return;
+    setActiveProtocolExerciseId(exerciseId);
+    setProtocolPhaseIndex(0);
+    setProtocolTimeLeft(sequence[0].duration);
+    setProtocolTotalElapsed(0);
+    setIsRunningProtocol(true);
+  }, [getProtocolSequence]);
+
+  const pauseProtocolTimer = useCallback(() => {
+    setIsRunningProtocol(false);
+  }, []);
+
+  const resumeProtocolTimer = useCallback(() => {
+    if (activeProtocolExerciseId && protocolTimeLeft > 0) {
+      setIsRunningProtocol(true);
+    }
+  }, [activeProtocolExerciseId, protocolTimeLeft]);
+
+  useEffect(() => {
+    if (!isRunningProtocol || !activeProtocolExerciseId || !workoutTemplate?.blocks) return;
+
+    const currentExercise =
+      currentBlockIndex === null || currentExerciseIndex === null
+        ? null
+        : workoutTemplate.blocks[currentBlockIndex]?.exercises?.[currentExerciseIndex];
+    if (!currentExercise) return;
+    const sequence = getProtocolSequence(currentExercise);
+    if (sequence.length === 0) return;
+
+    const interval = setInterval(() => {
+      setProtocolTimeLeft((prev) => {
+        if (prev > 1) {
+          setProtocolTotalElapsed((elapsed) => elapsed + 1);
+          return prev - 1;
+        }
+
+        const nextIndex = protocolPhaseIndex + 1;
+        setProtocolTotalElapsed((elapsed) => elapsed + 1);
+        if (nextIndex >= sequence.length) {
+          setIsRunningProtocol(false);
+          setProtocolPhaseIndex(0);
+          setProtocolTimeLeft(0);
+          setActiveProtocolExerciseId(null);
+          Vibration.vibrate(500);
+          playBeep();
+          showAlert('Protocolo concluído', 'Intervalado finalizado com sucesso.', 'success');
+          return 0;
+        }
+
+        setProtocolPhaseIndex(nextIndex);
+        Vibration.vibrate(150);
+        playBeep();
+        return sequence[nextIndex].duration;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    activeProtocolExerciseId,
+    currentBlockIndex,
+    currentExerciseIndex,
+    getProtocolSequence,
+    isRunningProtocol,
+    protocolPhaseIndex,
+    workoutTemplate?.blocks,
+    playBeep,
+  ]);
 
   // Função para calcular o índice total do exercício (considerando todos os blocos)
   const getTotalExerciseIndex = useCallback((blockIndex: number, exerciseIndex: number): number => {
@@ -1245,11 +1373,16 @@ export default function WorkoutDetailsScreen() {
                                   </Text>
                                 </View>
                               )}
-                              {exercise.duration && (
+                              {exercise.duration && !exercise.intervalProtocol?.length && (
                                 <Text style={themeStyles.textSecondary}>
-                                  Duração: {Math.floor(exercise.duration / 60)}min
+                                  Duração: {formatDuration(exercise.duration)}
                                 </Text>
                               )}
+                              {exercise.intervalProtocol?.length ? (
+                                <Text style={themeStyles.textSecondary}>
+                                  {exercise.protocolName || 'Intervalado'}: {formatDuration(getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest }))}
+                                </Text>
+                              ) : null}
                               {exercise.restTime && (
                                 <Text style={themeStyles.textSecondary}>
                                   Descanso: {exercise.restTime}s
@@ -1438,6 +1571,7 @@ export default function WorkoutDetailsScreen() {
                         setIsRunningWarmUp(false);
                         setWarmUpTime(0);
                         setWarmUpTotal(0);
+                        resetProtocolTimer();
                         setShowExerciseModal(false);
                       }}
                       hitSlop={14}
@@ -1476,11 +1610,11 @@ export default function WorkoutDetailsScreen() {
                     {/* Vídeo do Exercício - player dentro do app (mobile) */}
                     {exercise.exercise?.videoURL && (
                       <View className="rounded-xl overflow-hidden mb-4" style={themeStyles.cardSecondary}>
-                        <Video
+                        <AppVideoPlayer
                           source={{ uri: exercise.exercise.videoURL }}
                           style={{ width: '100%', height: 200 }}
-                          useNativeControls
-                          resizeMode={ResizeMode.CONTAIN}
+                          nativeControls
+                          contentFit="contain"
                           shouldPlay={false}
                         />
                       </View>
@@ -1504,7 +1638,7 @@ export default function WorkoutDetailsScreen() {
                             </Text>
                           </View>
                         )}
-                        {exercise.duration && (
+                        {exercise.duration && !exercise.intervalProtocol?.length && (
                           <View className="flex-1 min-w-[100px]">
                             <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração</Text>
                             <Text className="font-semibold text-lg" style={themeStyles.text}>
@@ -1518,6 +1652,14 @@ export default function WorkoutDetailsScreen() {
                             <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.restTime}s</Text>
                           </View>
                         )}
+                        {exercise.intervalProtocol?.length ? (
+                          <View className="flex-1 min-w-[100px]">
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Protocolo</Text>
+                            <Text className="font-semibold text-lg" style={themeStyles.text}>
+                              {formatDuration(getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest }))}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                       
                       {exercise.notes && (
@@ -1528,6 +1670,87 @@ export default function WorkoutDetailsScreen() {
                         </View>
                       )}
                     </View>
+
+                    {exercise.intervalProtocol?.length ? (() => {
+                      const sequence = getProtocolSequence(exercise);
+                      const totalProtocol = getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest });
+                      const currentPhase = sequence[protocolPhaseIndex];
+                      const nextPhase = sequence[protocolPhaseIndex + 1];
+                      const isThisProtocolActive = activeProtocolExerciseId === exerciseUniqueId;
+                      const progress = totalProtocol > 0
+                        ? Math.min(100, ((isThisProtocolActive ? protocolTotalElapsed : 0) / totalProtocol) * 100)
+                        : 0;
+
+                      return (
+                        <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
+                          <Text className="font-semibold mb-1" style={themeStyles.text}>
+                            Timer intervalado
+                          </Text>
+                          <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
+                            {exercise.protocolName || PRESCRIPTION_LABELS[inferPrescriptionType(exercise)]} - {exercise.rounds || 1} round(s) - {formatDuration(totalProtocol)}
+                          </Text>
+
+                          <View className="rounded-xl p-4 mb-3 items-center" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>
+                              {isThisProtocolActive && currentPhase ? `Fase ${protocolPhaseIndex + 1} de ${sequence.length}` : 'Pronto para iniciar'}
+                            </Text>
+                            <Text className="text-xl font-bold mb-2 text-center" style={themeStyles.text}>
+                              {isThisProtocolActive && currentPhase ? currentPhase.name : exercise.protocolName || 'Protocolo intervalado'}
+                            </Text>
+                            <Text className="text-5xl font-bold" style={{ color: theme.colors.primary }}>
+                              {isThisProtocolActive ? formatClock(protocolTimeLeft) : formatClock(sequence[0]?.duration || 0)}
+                            </Text>
+                            {isThisProtocolActive && nextPhase ? (
+                              <Text className="text-xs mt-2" style={themeStyles.textSecondary}>
+                                Próxima: {nextPhase.name}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
+                            <View
+                              className="h-2 rounded-full"
+                              style={{ backgroundColor: theme.colors.primary, width: `${progress}%` }}
+                            />
+                          </View>
+
+                          <View className="flex-row gap-2">
+                            {!isThisProtocolActive ? (
+                              <TouchableOpacity
+                                className="flex-1 rounded-lg px-4 py-3 items-center"
+                                style={{ backgroundColor: theme.colors.primary }}
+                                onPress={() => startProtocolTimer(exerciseUniqueId, exercise)}
+                              >
+                                <Text className="font-semibold" style={{ color: '#ffffff' }}>Iniciar</Text>
+                              </TouchableOpacity>
+                            ) : isRunningProtocol ? (
+                              <TouchableOpacity
+                                className="flex-1 rounded-lg px-4 py-3 items-center border"
+                                style={{ borderColor: theme.colors.primary }}
+                                onPress={pauseProtocolTimer}
+                              >
+                                <Text className="font-semibold" style={{ color: theme.colors.primary }}>Pausar</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                className="flex-1 rounded-lg px-4 py-3 items-center"
+                                style={{ backgroundColor: theme.colors.primary }}
+                                onPress={resumeProtocolTimer}
+                              >
+                                <Text className="font-semibold" style={{ color: '#ffffff' }}>Continuar</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                              className="rounded-lg px-4 py-3 items-center border"
+                              style={{ borderColor: '#ef4444' }}
+                              onPress={resetProtocolTimer}
+                            >
+                              <Text className="font-semibold" style={{ color: '#ef4444' }}>Reset</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })() : null}
                     
                     {/* Timer de Descanso (para exercícios com restTime) */}
                     {exercise.restTime && (
@@ -1559,7 +1782,7 @@ export default function WorkoutDetailsScreen() {
                     )}
                     
                     {/* Timer de Duração (para exercícios de aquecimento) - REGRESSIVO */}
-                    {exercise.duration && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'WARM_UP' && (
+                    {exercise.duration && !exercise.intervalProtocol?.length && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'WARM_UP' && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
                         <Text className="font-semibold mb-3" style={themeStyles.text}>🔥 Timer de Aquecimento</Text>
                         {isRunningWarmUp ? (
@@ -1606,7 +1829,7 @@ export default function WorkoutDetailsScreen() {
                     )}
                     
                     {/* Timer de Duração (para exercícios de alongamento/desaquecimento) */}
-                    {exercise.duration && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'COOL_DOWN' && (
+                    {exercise.duration && !exercise.intervalProtocol?.length && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'COOL_DOWN' && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
                         <Text className="font-semibold mb-3" style={themeStyles.text}>🧘 Timer de Alongamento</Text>
                         {isRunningDuration ? (
@@ -1650,7 +1873,7 @@ export default function WorkoutDetailsScreen() {
                     {(() => {
                       const blockType = workoutTemplate?.blocks[currentBlockIndex]?.blockType;
                       const durationSec = exercise.duration ?? (exercise.exercise?.duration ? Number(exercise.exercise.duration) : 0);
-                      const showWorkDurationTimer = blockType === 'WORK' && durationSec > 0;
+                      const showWorkDurationTimer = blockType === 'WORK' && durationSec > 0 && !exercise.intervalProtocol?.length;
                       if (!showWorkDurationTimer) return null;
                       return (
                         <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
@@ -1702,9 +1925,10 @@ export default function WorkoutDetailsScreen() {
                     {(() => {
                       const exerciseName = (exercise?.exercise?.name ?? '').toLowerCase();
                       const blockType = workoutTemplate?.blocks[currentBlockIndex ?? 0]?.blockType ?? '';
+                      const isIntervalExercise = (exercise?.intervalProtocol?.length ?? 0) > 0;
                       const noLoadKeywords = ['corrida', 'alongamento', 'aquecimento', 'desaquecimento', 'caminhada', 'esteira', 'stretch', 'descanso'];
                       const isNoLoadExercise = noLoadKeywords.some(kw => exerciseName.includes(kw)) || blockType === 'WARM_UP' || blockType === 'COOL_DOWN';
-                      const showWeightLoad = assignedWorkout.status === 'Pendente' && !isNoLoadExercise;
+                      const showWeightLoad = assignedWorkout.status === 'Pendente' && !isNoLoadExercise && !isIntervalExercise;
                       if (!showWeightLoad) return null;
                       return (
                         <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>

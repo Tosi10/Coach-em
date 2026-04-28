@@ -1,9 +1,12 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { createExercise as createExerciseInFirestore } from '@/src/services/exercises.service';
+import { createExercise as createExerciseInFirestore, updateExercise } from '@/src/services/exercises.service';
 import { assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
+import type { Exercise, WorkoutExercise } from '@/src/types';
+import { inferPrescriptionType } from '@/src/utils/workoutPrescription';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,11 +25,15 @@ export default function CreateExerciseScreen() {
     const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
     const [equipment, setEquipment] = useState<string[]>([]);
-    const [duration, setDuration] = useState('');
     const [newMuscleGroup, setNewMuscleGroup] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
     const [videoUri, setVideoUri] = useState<string | null>(null);
     const [uploadingVideo, setUploadingVideo] = useState(false);
+    const [defaultPrescription, setDefaultPrescription] = useState<WorkoutExercise>({
+      exerciseId: 'preview',
+      order: 1,
+      prescriptionType: 'strength',
+    });
 
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
@@ -87,6 +94,16 @@ export default function CreateExerciseScreen() {
 
         const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
         const coachId = user?.id || '';
+        const normalizedPrescriptionType = inferPrescriptionType(defaultPrescription);
+        const hasProtocol = (defaultPrescription.intervalProtocol || []).length > 0;
+        const hasAnyPrescription =
+          hasProtocol ||
+          !!defaultPrescription.sets ||
+          !!defaultPrescription.reps ||
+          !!defaultPrescription.duration ||
+          !!defaultPrescription.restTime ||
+          !!defaultPrescription.notes?.trim();
+
         const payload: Parameters<typeof createExerciseInFirestore>[1] = {
           id: exerciseId,
           name: name.trim(),
@@ -94,7 +111,20 @@ export default function CreateExerciseScreen() {
           difficulty,
           muscleGroups,
           equipment: equipment.length > 0 ? equipment : ['Nenhum'],
-          duration: duration ? parseInt(duration, 10) : undefined,
+          defaultPrescription: hasAnyPrescription
+            ? ({
+                prescriptionType: normalizedPrescriptionType,
+                protocolName: defaultPrescription.protocolName,
+                rounds: defaultPrescription.rounds,
+                roundRest: defaultPrescription.roundRest,
+                intervalProtocol: defaultPrescription.intervalProtocol,
+                sets: defaultPrescription.sets,
+                reps: defaultPrescription.reps,
+                duration: defaultPrescription.duration,
+                restTime: defaultPrescription.restTime,
+                notes: defaultPrescription.notes,
+              } as Exercise['defaultPrescription'])
+            : undefined,
           isGlobal: true,
         };
 
@@ -104,19 +134,19 @@ export default function CreateExerciseScreen() {
               return;
             }
             await assertCanCreateResource(user.id, 'exercises');
+            await createExerciseInFirestore(coachId, payload);
+
             let videoUploadFailed = false;
             if (videoUri) {
               setUploadingVideo(true);
               const videoURL = await uploadExerciseVideo(videoUri, exerciseId);
               setUploadingVideo(false);
               if (videoURL) {
-                payload.videoURL = videoURL;
+                await updateExercise(exerciseId, { videoURL });
               } else {
                 videoUploadFailed = true;
               }
             }
-
-            await createExerciseInFirestore(coachId, payload);
 
             if (videoUploadFailed) {
               showAlert(
@@ -287,24 +317,22 @@ export default function CreateExerciseScreen() {
 
                 </View>
 
-                <View className="mb-4">
+                <View className="mb-5 rounded-xl p-4 border" style={themeStyles.cardSecondary}>
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Duração (segundos)
+                        Prescrição padrão para este exercício (opcional)
                     </Text>
-                    <TextInput
-                     className="border rounded-lg px-4 py-3"
-                     style={{
-                       backgroundColor: theme.colors.card,
-                       borderColor: theme.colors.border,
-                       color: theme.colors.text,
-                     }}
-                     placeholder="Ex: 60"
-                     placeholderTextColor={theme.colors.textTertiary}
-                     value={duration}
-                     onChangeText={setDuration}
-                     keyboardType="numeric"
+                    <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
+                        Essa configuração aparece automaticamente quando o exercício for adicionado em um treino.
+                    </Text>
+                    <WorkoutPrescriptionEditor
+                        value={defaultPrescription}
+                        onChange={(updates) =>
+                          setDefaultPrescription((prev) => ({
+                            ...prev,
+                            ...updates,
+                          }))
+                        }
                     />
-
                 </View>
 
                 <View className="mb-4">

@@ -73,7 +73,7 @@ export default function ExercisesLibraryScreen() {
 
   useEffect(() => {
     loadSavedExercises();
-  }, []);
+  }, [loadSavedExercises]);
   
   // E mantenha o useFocusEffect também:
   useFocusEffect(
@@ -143,14 +143,32 @@ export default function ExercisesLibraryScreen() {
     return 'work';
   };
 
+  const normalizeSearchValue = (value: unknown): string =>
+    String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+  const getExerciseSearchText = (exercise: (typeof allExercises)[number]): string => {
+    const searchableFields = [
+      exercise.name,
+      exercise.description,
+      exercise.difficulty,
+      ...(exercise.muscleGroups || []),
+      ...(exercise.equipment || []),
+    ];
+    return normalizeSearchValue(searchableFields.join(' '));
+  };
+
   // FUNÇÃO: Filtrar exercícios
   const filteredExercises = allExercises.filter((exercise) => {
     // FILTRO 1: Busca por texto
     if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
-      const nameMatch = exercise.name?.toLowerCase().includes(searchLower) || false;
-      const descMatch = exercise.description?.toLowerCase().includes(searchLower) || false;
-      if (!nameMatch && !descMatch) return false;
+      const searchLower = normalizeSearchValue(searchText);
+      const exerciseSearchText = getExerciseSearchText(exercise);
+      const searchTerms = searchLower.split(/\s+/).filter(Boolean);
+      if (!searchTerms.every((term) => exerciseSearchText.includes(term))) return false;
     }
 
     // FILTRO 2: Grupo muscular

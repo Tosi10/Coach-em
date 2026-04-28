@@ -1,4 +1,5 @@
 import { CustomAlert } from '@/components/CustomAlert';
+import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
@@ -405,108 +406,25 @@ export default function EditWorkoutScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Campos para configurar o exercício */}
-                        <View className="flex-row gap-2 mb-2">
-                            <View className="flex-1">
-                                <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
-                                <TextInput
-                                    className="border rounded px-3 py-2"
-                                    style={{
-                                      backgroundColor: theme.colors.card,
-                                      borderColor: theme.colors.border,
-                                      color: theme.colors.text,
-                                    }}
-                                    placeholder="Ex: 3"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                    keyboardType="numeric"
-                                    value={exercise.sets?.toString() || ''}
-                                    onChangeText={(text) => {
-                                        const value = text ? parseInt(text) : undefined;
-                                        handleUpdateExercise(index, blockType, 'sets', value);
-                                    }}
-                                />
-                            </View>
-                            <View className="flex-1">
-                                <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
-                                <TextInput
-                                    className="border rounded px-3 py-2"
-                                    style={{
-                                      backgroundColor: theme.colors.card,
-                                      borderColor: theme.colors.border,
-                                      color: theme.colors.text,
-                                    }}
-                                    placeholder="Ex: 12"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                    keyboardType="numeric"
-                                    value={exercise.reps?.toString() || ''}
-                                    onChangeText={(text) => {
-                                        const value = text ? parseInt(text) : undefined;
-                                        handleUpdateExercise(index, blockType, 'reps', value);
-                                    }}
-                                />
-                            </View>
-                        </View>
-
-                        <View className="flex-row gap-2 mb-2">
-                            <View className="flex-1">
-                                <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração (seg)</Text>
-                                <TextInput
-                                    className="border rounded px-3 py-2"
-                                    style={{
-                                      backgroundColor: theme.colors.card,
-                                      borderColor: theme.colors.border,
-                                      color: theme.colors.text,
-                                    }}
-                                    placeholder="Ex: 60"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                    keyboardType="numeric"
-                                    value={exercise.duration?.toString() || ''}
-                                    onChangeText={(text) => {
-                                        const value = text ? parseInt(text) : undefined;
-                                        handleUpdateExercise(index, blockType, 'duration', value);
-                                    }}
-                                />
-                            </View>
-                            <View className="flex-1">
-                                <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (seg)</Text>
-                                <TextInput
-                                    className="border rounded px-3 py-2"
-                                    style={{
-                                      backgroundColor: theme.colors.card,
-                                      borderColor: theme.colors.border,
-                                      color: theme.colors.text,
-                                    }}
-                                    placeholder="Ex: 45"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                    keyboardType="numeric"
-                                    value={exercise.restTime?.toString() || ''}
-                                    onChangeText={(text) => {
-                                        const value = text ? parseInt(text) : undefined;
-                                        handleUpdateExercise(index, blockType, 'restTime', value);
-                                    }}
-                                />
-                            </View>
-                        </View>
-
-                        <View className="mb-2">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Notas</Text>
-                            <TextInput
-                                className="border rounded px-3 py-2"
-                                style={{
-                                  backgroundColor: theme.colors.card,
-                                  borderColor: theme.colors.border,
-                                  color: theme.colors.text,
-                                }}
-                                placeholder="Ex: Foco em técnica"
-                                placeholderTextColor={theme.colors.textTertiary}
-                                value={exercise.notes || ''}
-                                onChangeText={(text) => {
-                                    handleUpdateExercise(index, blockType, 'notes', text);
-                                }}
-                                multiline
-                                numberOfLines={2}
-                            />
-                        </View>
+                        <WorkoutPrescriptionEditor
+                            value={exercise}
+                            onChange={(updates) => {
+                                const updated = { ...exercise, ...updates };
+                                if (blockType === WorkoutBlock.WARM_UP) {
+                                    const list = [...warmUpExercises];
+                                    list[index] = updated;
+                                    setWarmUpExercises(list);
+                                } else if (blockType === WorkoutBlock.WORK) {
+                                    const list = [...workExercises];
+                                    list[index] = updated;
+                                    setWorkExercises(list);
+                                } else {
+                                    const list = [...coolDownExercises];
+                                    list[index] = updated;
+                                    setCoolDownExercises(list);
+                                }
+                            }}
+                        />
                     </View>
                 ))}
 

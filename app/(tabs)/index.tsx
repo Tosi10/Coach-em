@@ -70,6 +70,40 @@ function computeLineChartLayout(n: number, chartWidth: number) {
   };
 }
 
+function getWorkoutIntervalSeconds(workout: any): { hasInterval: boolean; totalSeconds: number } {
+  const blocks = Array.isArray(workout?.blocks) ? workout.blocks : [];
+  let totalSeconds = 0;
+  let hasInterval = false;
+
+  for (const block of blocks) {
+    const exercises = Array.isArray(block?.exercises) ? block.exercises : [];
+    for (const exercise of exercises) {
+      const protocol = Array.isArray(exercise?.intervalProtocol) ? exercise.intervalProtocol : [];
+      const isIntervalExercise =
+        protocol.length > 0 ||
+        exercise?.prescriptionType === 'interval' ||
+        exercise?.prescriptionType === 'circuit';
+
+      if (!isIntervalExercise) continue;
+      hasInterval = true;
+
+      const durationFromField = typeof exercise?.duration === 'number' ? exercise.duration : 0;
+      if (durationFromField > 0) {
+        totalSeconds += durationFromField;
+        continue;
+      }
+
+      const rounds = Math.max(1, Number(exercise?.rounds) || 1);
+      const roundRest = Math.max(0, Number(exercise?.roundRest) || 0);
+      const phaseSum = protocol.reduce((sum: number, phase: any) => sum + (Number(phase?.duration) || 0), 0);
+      const computed = phaseSum > 0 ? phaseSum * rounds + roundRest * Math.max(0, rounds - 1) : 0;
+      totalSeconds += computed;
+    }
+  }
+
+  return { hasInterval, totalSeconds };
+}
+
 /**
  * O QUE É ISSO?
  * 
@@ -541,6 +575,53 @@ export default function HomeScreen() {
     };
   }, [workouts]);
 
+  const athleteIntervalStats = useMemo(() => {
+    const assignedIntervalWorkouts = workouts.filter((w: any) => getWorkoutIntervalSeconds(w).hasInterval);
+    const completedIntervalWorkouts = assignedIntervalWorkouts.filter((w: any) => w.status === 'Concluído');
+    const minutesTotal = completedIntervalWorkouts.reduce((sum: number, workout: any) => {
+      const interval = getWorkoutIntervalSeconds(workout);
+      return sum + interval.totalSeconds / 60;
+    }, 0);
+    const avgFeedback = completedIntervalWorkouts
+      .map((w: any) => Number(w.feedback))
+      .filter((n: number) => Number.isFinite(n) && n >= 1 && n <= 5);
+
+    const weeklyMap = new Map<string, number>();
+    completedIntervalWorkouts.forEach((workout: any) => {
+      const doneAt = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
+      const weekStart = new Date(doneAt);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const key = weekStart.toISOString().split('T')[0];
+      const interval = getWorkoutIntervalSeconds(workout);
+      weeklyMap.set(key, (weeklyMap.get(key) || 0) + interval.totalSeconds / 60);
+    });
+
+    const weeklyMinutes = Array.from(weeklyMap.entries())
+      .map(([weekStart, minutes]) => ({
+        weekStart: new Date(weekStart),
+        label: formatWeekLabel(new Date(weekStart)),
+        minutes: Math.round(minutes),
+      }))
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
+      .slice(-8);
+
+    const completionRate = assignedIntervalWorkouts.length
+      ? Math.round((completedIntervalWorkouts.length / assignedIntervalWorkouts.length) * 100)
+      : 0;
+
+    return {
+      assignedCount: assignedIntervalWorkouts.length,
+      completedCount: completedIntervalWorkouts.length,
+      completionRate,
+      totalMinutes: Math.round(minutesTotal),
+      averageFeedback: avgFeedback.length
+        ? (avgFeedback.reduce((sum: number, n: number) => sum + n, 0) / avgFeedback.length).toFixed(1)
+        : null,
+      weeklyMinutes,
+    };
+  }, [workouts]);
+
   const averagePerWeekDisplay = useMemo(() => {
     if (weeklyFrequency.length === 0) return '0';
     const total = weeklyFrequency.reduce((sum, week) => sum + week.count, 0);
@@ -704,6 +785,71 @@ export default function HomeScreen() {
     return weeklyData.slice(-8);
   }, [workouts]);
 
+  const coachIntervalStats = useMemo(() => {
+    const athletes = getAthletesFromWorkouts();
+    const athleteNameMap = new Map<string, string>(athletes.map((a) => [a.id, a.name]));
+    const intervalAssigned = workouts.filter((w: any) => getWorkoutIntervalSeconds(w).hasInterval);
+    const intervalCompleted = intervalAssigned.filter((w: any) => w.status === 'Concluído');
+    const totalMinutes = intervalCompleted.reduce((sum: number, workout: any) => {
+      const interval = getWorkoutIntervalSeconds(workout);
+      return sum + interval.totalSeconds / 60;
+    }, 0);
+
+    const byAthlete = new Map<string, { assigned: number; completed: number; minutes: number }>();
+    intervalAssigned.forEach((workout: any) => {
+      const athleteId = workout.athleteId || workout.coach;
+      if (!athleteId) return;
+      const entry = byAthlete.get(athleteId) || { assigned: 0, completed: 0, minutes: 0 };
+      entry.assigned += 1;
+      if (workout.status === 'Concluído') {
+        entry.completed += 1;
+        entry.minutes += getWorkoutIntervalSeconds(workout).totalSeconds / 60;
+      }
+      byAthlete.set(athleteId, entry);
+    });
+
+    const topAthletes = Array.from(byAthlete.entries())
+      .map(([athleteId, stats]) => ({
+        athleteId,
+        athleteName: athleteNameMap.get(athleteId) || 'Atleta',
+        assigned: stats.assigned,
+        completed: stats.completed,
+        rate: stats.assigned ? Math.round((stats.completed / stats.assigned) * 100) : 0,
+        minutes: Math.round(stats.minutes),
+      }))
+      .filter((item) => item.assigned > 0)
+      .sort((a, b) => b.rate - a.rate || b.completed - a.completed)
+      .slice(0, 3);
+
+    const weeklyMap = new Map<string, number>();
+    intervalCompleted.forEach((workout: any) => {
+      const doneAt = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
+      const weekStart = new Date(doneAt);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const key = weekStart.toISOString().split('T')[0];
+      weeklyMap.set(key, (weeklyMap.get(key) || 0) + 1);
+    });
+
+    const weeklyCompleted = Array.from(weeklyMap.entries())
+      .map(([weekStart, count]) => ({
+        weekStart: new Date(weekStart),
+        label: formatWeekLabel(new Date(weekStart)),
+        count,
+      }))
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
+      .slice(-8);
+
+    return {
+      assignedCount: intervalAssigned.length,
+      completedCount: intervalCompleted.length,
+      completionRate: intervalAssigned.length ? Math.round((intervalCompleted.length / intervalAssigned.length) * 100) : 0,
+      totalMinutes: Math.round(totalMinutes),
+      topAthletes,
+      weeklyCompleted,
+    };
+  }, [workouts, getAthletesFromWorkouts]);
+
   const coachWeeklyTrend = useMemo(() => {
     if (coachWeeklyStats.length < 2) return null;
     const firstWeek = coachWeeklyStats[0];
@@ -805,7 +951,7 @@ export default function HomeScreen() {
   const difficultyDistributionChart = useMemo(() => {
     const withFeedback = workouts.filter((w: any) => {
       const hasFeedback = (w as any).feedback !== undefined && (w as any).feedback !== null;
-      return (
+  return (
         w.status === 'Concluído' &&
         hasFeedback &&
         (w as any).feedback >= 1 &&
@@ -837,6 +983,15 @@ export default function HomeScreen() {
       return completedDate === today;
     });
   }, [workouts]);
+
+  const barLayoutAthleteInterval = useMemo(
+    () => computeBarChartLayout(athleteIntervalStats.weeklyMinutes.length || 1, chartMaxW),
+    [athleteIntervalStats.weeklyMinutes.length, chartMaxW]
+  );
+  const barLayoutCoachInterval = useMemo(
+    () => computeBarChartLayout(coachIntervalStats.weeklyCompleted.length || 1, chartMaxW),
+    [coachIntervalStats.weeklyCompleted.length, chartMaxW]
+  );
 
   const athletesWhoTrainedTodayList = useMemo(() => {
     const recentCompleted = workouts.filter((w: any) => {
@@ -1108,7 +1263,7 @@ export default function HomeScreen() {
       {userType === UserType.COACH && (
         <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -40 }}>
           Bem-vindo{user?.displayName ? `, ${user.displayName}` : ''} ao seu app de gestão esportiva.
-        </Text>
+      </Text>
       )}
       <View className="items-center mb-3">
         <BetaBadge subtitle="Você está usando a versão beta." />
@@ -1128,7 +1283,7 @@ export default function HomeScreen() {
               />
               <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
                 Panorama Semanal
-              </Text>
+      </Text>
             </View>
             <View className="flex-row gap-3">
               {/* Card: Ativos Hoje */}
@@ -1175,7 +1330,7 @@ export default function HomeScreen() {
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {weeklyStatsCoach.completedToday}
-                </Text>
+      </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Treinos Concluídos
                 </Text>
@@ -1200,7 +1355,7 @@ export default function HomeScreen() {
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
                   {weeklyStatsCoach.pendingWorkouts}
-                </Text>
+          </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
                   Pendentes
                 </Text>
@@ -1273,10 +1428,10 @@ export default function HomeScreen() {
                 <FontAwesome name="chevron-right" size={14} color={theme.colors.primary} />
               </View>
             </LinearGradient>
-          </TouchableOpacity>
+        </TouchableOpacity>
 
           {/* Botões principais - estilo premium da marca Treina+ */}
-          <View className="flex-row gap-5 mb-8">
+          <View className="flex-row gap-3 mb-8">
             {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
               className="rounded-xl flex-1"
@@ -1307,24 +1462,29 @@ export default function HomeScreen() {
                   borderWidth: 1,
                   borderColor: 'rgba(251, 146, 60, 0.65)',
                   overflow: 'hidden',
-                  paddingVertical: 24,
+                  minHeight: 220,
+                  paddingVertical: 18,
+                  paddingHorizontal: 8,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 <Image
                   source={require('../../assets/images/BibliotecaDeExercicios2.png')}
-                  style={{ width: 128, height: 92, marginBottom: 12 }}
+                  style={{ width: 112, height: 82, marginBottom: 10 }}
                   resizeMode="contain"
                 />
                 <Text 
-                  className="font-bold text-center text-base tracking-tight"
+                  className="font-bold text-center text-sm tracking-tight"
                   style={themeStyles.text}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.86}
                 >
                   Biblioteca de Exercícios
-                </Text>
+          </Text>
               </LinearGradient>
-            </TouchableOpacity>
+        </TouchableOpacity>
 
             {/* Botão Meus Treinos */}
             <TouchableOpacity 
@@ -1356,25 +1516,30 @@ export default function HomeScreen() {
                   borderWidth: 1,
                   borderColor: 'rgba(251, 146, 60, 0.65)',
                   overflow: 'hidden',
-                  paddingVertical: 24,
+                  minHeight: 220,
+                  paddingVertical: 18,
+                  paddingHorizontal: 8,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 <Image
                   source={require('../../assets/images/MeusTreinos2.png')}
-                  style={{ width: 128, height: 90, marginBottom: 12 }}
+                  style={{ width: 112, height: 80, marginBottom: 10 }}
                   resizeMode="contain"
                 />
                 <Text 
-                  className="font-bold text-center text-base tracking-tight"
+                  className="font-bold text-center text-sm tracking-tight"
                   style={themeStyles.text}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.86}
                 >
                   Meus Treinos
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
+      </View>
 
           {/* Gráfico de Treinos Concluídos por Semana */}
           {coachWeeklyStats.length > 0 && (
@@ -1388,7 +1553,7 @@ export default function HomeScreen() {
                 <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
                   Treinos Concluídos por Semana
                 </Text>
-              </View>
+    </View>
               
               <View
                 className="rounded-xl p-3 mb-3 border overflow-hidden"
@@ -1626,6 +1791,75 @@ export default function HomeScreen() {
               </View>
             </View>
           )}
+
+          <View className="mb-5">
+            <View className="flex-row items-center mb-3">
+              <Image
+                source={require('../../assets/images/Coracao2.png')}
+                style={{ width: 36, height: 36 }}
+                resizeMode="contain"
+              />
+              <Text className="text-lg font-bold ml-2" style={themeStyles.text}>
+                Intervalados (Equipe)
+              </Text>
+            </View>
+            <View className="flex-row gap-3 mb-3">
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.completedCount}</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Concluídos</Text>
+              </View>
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.completionRate}%</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Taxa Conclusão</Text>
+              </View>
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.totalMinutes}</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Minutos Totais</Text>
+              </View>
+            </View>
+
+            {coachIntervalStats.weeklyCompleted.length > 0 ? (
+              <View className="rounded-xl p-3 border mb-3 overflow-hidden" style={themeStyles.card}>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Sessões intervaladas por semana</Text>
+                <BarChart
+                  data={coachIntervalStats.weeklyCompleted.map((week) => ({
+                    value: week.count,
+                    label: week.label,
+                    frontColor: '#fb923c',
+                    topLabelText: week.count.toString(),
+                    topLabelTextStyle: { color: '#fb923c', fontSize: 10, fontWeight: 'bold' },
+                  }))}
+                  width={barLayoutCoachInterval.width}
+                  height={120}
+                  barWidth={barLayoutCoachInterval.barWidth}
+                  spacing={barLayoutCoachInterval.spacing}
+                  hideRules
+                  xAxisThickness={1}
+                  xAxisColor={theme.colors.borderSecondary}
+                  yAxisThickness={1}
+                  yAxisColor={theme.colors.borderSecondary}
+                  yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
+                  noOfSections={4}
+                  maxValue={Math.max(...coachIntervalStats.weeklyCompleted.map((w) => w.count), 1) + 1}
+                />
+              </View>
+            ) : null}
+
+            {coachIntervalStats.topAthletes.length > 0 ? (
+              <View className="rounded-xl p-3 border" style={themeStyles.card}>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Top atletas (intervalado)</Text>
+                {coachIntervalStats.topAthletes.map((athlete) => (
+                  <View key={athlete.athleteId} className="flex-row items-center justify-between py-2">
+                    <Text className="text-sm flex-1 pr-2" style={themeStyles.text}>{athlete.athleteName}</Text>
+                    <Text className="text-xs" style={themeStyles.textSecondary}>
+                      {athlete.completed}/{athlete.assigned} • {athlete.rate}% • {athlete.minutes} min
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
 
           {/* Treinos Mais Difíceis (Baseado no Feedback) */}
           {mostDifficultWorkoutsList.length > 0 && (
@@ -2195,114 +2429,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Gráfico de Frequência de Treinos */}
-          {completedWorkouts.length > 0 && (
-            <View className="w-full mb-6">
-              <View className="flex-row items-center mb-4">
-                <Image
-                  source={require('../../assets/images/IconeTaxadeaderencia2.png')}
-                  style={{ width: 42, height: 42, marginRight: 10 }}
-                  resizeMode="contain"
-                />
-                <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Frequência de Treinos
-                </Text>
-              </View>
-              
-              {weeklyFrequency.length > 0 ? (
-                <>
-                  <View className="rounded-xl p-4 mb-4 border overflow-hidden" style={themeStyles.card}>
-                    <BarChart
-                      data={weeklyFrequency.map((week, index) => ({
-                        value: week.count,
-                        label: week.label,
-                        frontColor: '#fb923c',
-                        topLabelText: week.count.toString(),
-                        topLabelTextStyle: { color: '#fb923c', fontSize: 11, fontWeight: 'bold' },
-                      }))}
-                      width={barLayoutWeeklyFrequency.width}
-                      height={140}
-                      barWidth={barLayoutWeeklyFrequency.barWidth}
-                      spacing={weeklyFrequencySpacing}
-                      hideRules
-                      xAxisThickness={1}
-                      xAxisColor={theme.colors.borderSecondary}
-                      yAxisThickness={1}
-                      yAxisColor={theme.colors.borderSecondary}
-                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
-                      noOfSections={4}
-                      maxValue={Math.max(...weeklyFrequency.map(w => w.count)) + 2}
-                      isAnimated
-                      animationDuration={800}
-                      showGradient
-                      gradientColor="#ff8c42"
-                    />
-                  </View>
-
-                  {/* Estatísticas */}
-                  <View className="rounded-xl p-4 border" style={themeStyles.card}>
-                    <View className="flex-row justify-between items-start mb-3" style={{ flexWrap: 'wrap', gap: 12 }}>
-                      <View className="flex-1 min-w-[140px]">
-                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
-                        <Text className="font-bold text-xl" style={themeStyles.text}>
-                          {averagePerWeekDisplay} treinos
-                        </Text>
-                      </View>
-                      
-                      {weekComparison && (
-                        <View className="flex-1 items-end min-w-0" style={{ maxWidth: '100%' }}>
-                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
-                          <View className="flex-row flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-                            <Text className="font-bold text-xl" style={themeStyles.text}>
-                              {weekComparison?.current}
-                            </Text>
-                            <Text className="text-sm font-semibold" style={{
-                              color: (weekComparison?.difference || 0) > 0
-                                ? '#10b981'
-                                : (weekComparison?.difference || 0) < 0
-                                ? '#ef4444'
-                                : theme.colors.textTertiary
-                            }}>
-                              {(weekComparison?.difference || 0) > 0 ? '+' : ''}
-                              {weekComparison?.difference} 
-                              {weekComparison?.difference !== 0 && (
-                                <Text className="text-xs">
-                                  {' '}({weekComparison?.percentage}%)
-                                </Text>
-                              )}
-                            </Text>
-                          </View>
-                          <Text className="text-[10px] mt-1 text-right" style={themeStyles.textTertiary}>
-                            vs semana anterior
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    
-                    {/* Sequência destacada */}
-                    <View className="mt-3 pt-3" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center gap-2">
-                          <FontAwesome name="fire" size={16} color="#f59e0b" />
-                          <Text className="text-sm" style={themeStyles.textSecondary}>Sequência Atual</Text>
-                        </View>
-                        <Text className="font-bold text-lg" style={themeStyles.text}>
-                          {athleteStats.streak} dias consecutivos
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <EmptyState
-                  icon="bar-chart"
-                  message="Complete treinos para ver sua frequência semanal aqui."
-                />
-              )}
-            </View>
-          )}
-
           {/* Gráfico de Evolução de Peso/Carga */}
           {availableExercises.length > 0 && (
             <View className="w-full mb-6">
@@ -2466,6 +2592,208 @@ export default function HomeScreen() {
                 <EmptyState
                   icon="line-chart"
                   message="Nenhum registro de peso encontrado para este exercício. Registre o peso usado durante os treinos para ver a evolução aqui."
+                />
+              )}
+            </View>
+          )}
+
+          <View className="mb-6">
+            <View className="flex-row items-center mb-3">
+              <Image
+                source={require('../../assets/images/Coracao2.png')}
+                style={{ width: 42, height: 42, marginRight: 10 }}
+                resizeMode="contain"
+              />
+              <Text className="text-xl font-bold" style={themeStyles.text}>
+                Seu Intervalado
+              </Text>
+            </View>
+            <View className="flex-row gap-3 mb-3">
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.completedCount}</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Sessões</Text>
+              </View>
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.totalMinutes}</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Minutos</Text>
+              </View>
+              <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.completionRate}%</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Aderência</Text>
+              </View>
+            </View>
+            {athleteIntervalStats.averageFeedback ? (
+              <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
+                Dificuldade média (feedback): {athleteIntervalStats.averageFeedback}/5
+              </Text>
+            ) : null}
+            {athleteIntervalStats.weeklyMinutes.length > 0 ? (
+              <View
+                className="rounded-xl p-4 border overflow-hidden"
+                style={{
+                  ...themeStyles.card,
+                  borderColor: theme.mode === 'dark' ? 'rgba(244, 63, 94, 0.45)' : theme.colors.border,
+                  shadowColor: '#f43f5e',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.18,
+                  shadowRadius: 6,
+                  elevation: 3,
+                }}
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-sm font-semibold" style={themeStyles.text}>Volume semanal (minutos)</Text>
+                  <View
+                    className="px-2 py-1 rounded-full border"
+                    style={{
+                      borderColor: 'rgba(244, 63, 94, 0.45)',
+                      backgroundColor: theme.mode === 'dark' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(244, 63, 94, 0.08)',
+                    }}
+                  >
+                    <Text className="text-[10px] font-semibold" style={{ color: '#f43f5e' }}>INTERVALADO</Text>
+                  </View>
+                </View>
+                <BarChart
+                  data={athleteIntervalStats.weeklyMinutes.map((week) => ({
+                    value: week.minutes,
+                    label: week.label,
+                    frontColor: '#f43f5e',
+                    topLabelText: week.minutes.toString(),
+                    topLabelTextStyle: { color: '#f43f5e', fontSize: 10, fontWeight: 'bold' },
+                  }))}
+                  width={barLayoutAthleteInterval.width}
+                  height={120}
+                  barWidth={barLayoutAthleteInterval.barWidth}
+                  spacing={barLayoutAthleteInterval.spacing}
+                  hideRules
+                  xAxisThickness={1}
+                  xAxisColor={theme.colors.borderSecondary}
+                  yAxisThickness={1}
+                  yAxisColor={theme.colors.borderSecondary}
+                  yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 8 }}
+                  noOfSections={4}
+                  maxValue={Math.max(...athleteIntervalStats.weeklyMinutes.map((w) => w.minutes), 1) + 5}
+                  showGradient
+                  gradientColor="#fb7185"
+                />
+              </View>
+            ) : (
+              <View className="rounded-xl p-4 border" style={themeStyles.card}>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>
+                  Complete treinos intervalados para liberar este gráfico.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Gráfico de Frequência de Treinos */}
+          {completedWorkouts.length > 0 && (
+            <View className="w-full mb-6">
+              <View className="flex-row items-center mb-4">
+                <Image
+                  source={require('../../assets/images/IconeTaxadeaderencia2.png')}
+                  style={{ width: 42, height: 42, marginRight: 10 }}
+                  resizeMode="contain"
+                />
+                <Text className="text-xl font-bold" style={themeStyles.text}>
+                  Frequência de Treinos
+                </Text>
+              </View>
+
+              {weeklyFrequency.length > 0 ? (
+                <>
+                  <View
+                    className="rounded-xl p-4 mb-4 border overflow-hidden"
+                    style={{
+                      ...themeStyles.card,
+                      borderColor: theme.mode === 'dark' ? 'rgba(59, 130, 246, 0.45)' : theme.colors.border,
+                    }}
+                  >
+                    <BarChart
+                      data={weeklyFrequency.map((week, index) => ({
+                        value: week.count,
+                        label: week.label,
+                        frontColor: '#3b82f6',
+                        topLabelText: week.count.toString(),
+                        topLabelTextStyle: { color: '#3b82f6', fontSize: 11, fontWeight: 'bold' },
+                      }))}
+                      width={barLayoutWeeklyFrequency.width}
+                      height={140}
+                      barWidth={barLayoutWeeklyFrequency.barWidth}
+                      spacing={weeklyFrequencySpacing}
+                      hideRules
+                      xAxisThickness={1}
+                      xAxisColor={theme.colors.borderSecondary}
+                      yAxisThickness={1}
+                      yAxisColor={theme.colors.borderSecondary}
+                      yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: 10 }}
+                      xAxisLabelTextStyle={{ color: theme.colors.textSecondary, fontSize: 9 }}
+                      noOfSections={4}
+                      maxValue={Math.max(...weeklyFrequency.map(w => w.count)) + 2}
+                      isAnimated
+                      animationDuration={800}
+                      showGradient
+                      gradientColor="#60a5fa"
+                    />
+                  </View>
+
+                  {/* Estatísticas */}
+                  <View className="rounded-xl p-4 border" style={themeStyles.card}>
+                    <View className="flex-row gap-3 mb-3">
+                      <View className="flex-1 rounded-xl p-3 border" style={themeStyles.cardSecondary}>
+                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
+                        <Text className="font-bold text-2xl" style={themeStyles.text}>
+                          {averagePerWeekDisplay} treinos
+                        </Text>
+                      </View>
+
+                      <View className="flex-1 rounded-xl p-3 border" style={themeStyles.cardSecondary}>
+                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
+                        <View className="flex-row items-end gap-2">
+                          <Text className="font-bold text-2xl" style={themeStyles.text}>
+                            {weekComparison?.current ?? 0}
+                          </Text>
+                          {weekComparison ? (
+                            <Text className="text-xs font-semibold mb-1" style={{
+                              color: (weekComparison?.difference || 0) > 0
+                                ? '#10b981'
+                                : (weekComparison?.difference || 0) < 0
+                                ? '#ef4444'
+                                : theme.colors.textTertiary
+                            }}>
+                              {(weekComparison?.difference || 0) > 0 ? '+' : ''}
+                              {weekComparison?.difference}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
+                          {weekComparison ? `vs semana anterior (${weekComparison.percentage}%)` : 'Sem comparativo ainda'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="rounded-xl p-3 border" style={themeStyles.cardSecondary}>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <View
+                            className="w-7 h-7 rounded-full items-center justify-center"
+                            style={{ backgroundColor: theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(245, 158, 11, 0.1)' }}
+                          >
+                            <FontAwesome name="fire" size={14} color="#f59e0b" />
+                          </View>
+                          <Text className="text-sm font-semibold" style={themeStyles.textSecondary}>Sequência Atual</Text>
+                        </View>
+                        <Text className="font-bold text-lg" style={themeStyles.text}>
+                          {athleteStats.streak} dias consecutivos
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <EmptyState
+                  icon="bar-chart"
+                  message="Complete treinos para ver sua frequência semanal aqui."
                 />
               )}
             </View>
@@ -2981,7 +3309,7 @@ export default function HomeScreen() {
                         )}
                       </Text>
                     </View>
-                    <View className="items-end">
+                    <View className="items-center mr-1">
                       <View className="border px-3 py-1 rounded-full mb-2"
                         style={{
                           backgroundColor: theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
@@ -2995,7 +3323,7 @@ export default function HomeScreen() {
                       {feedbackIconSrc && (
                         <Image
                           source={feedbackIconSrc}
-                          style={{ width: 40, height: 40 }}
+                          style={{ width: 56, height: 56 }}
                           resizeMode="contain"
                         />
                       )}

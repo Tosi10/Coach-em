@@ -30,6 +30,8 @@ async function ensureHandler(): Promise<void> {
   N.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
       shouldAnimate: true,
@@ -94,7 +96,6 @@ export async function scheduleWorkoutRemindersForCoach(
         title: 'Início do treino',
         body: `"${workoutName}" começa agora (${timeStr}).`,
         sound: true,
-        channelId,
       },
       trigger: {
         type: N.SchedulableTriggerInputTypes.DATE,
@@ -132,7 +133,6 @@ export async function scheduleWorkoutRemindersForAthlete(
           title: 'Treino em 30 min 💪',
           body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
           sound: 'default',
-          channelId,
         },
         trigger: {
           type: N.SchedulableTriggerInputTypes.DATE,
@@ -148,7 +148,6 @@ export async function scheduleWorkoutRemindersForAthlete(
         title: 'Hora do treino! 💪',
         body: `"${workoutName}" – comece agora.`,
         sound: 'default',
-        channelId,
       },
       trigger: {
         type: N.SchedulableTriggerInputTypes.DATE,

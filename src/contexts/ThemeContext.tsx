@@ -4,7 +4,7 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 
 export type ThemeMode = 'light' | 'dark';
 
-interface ThemeColors {
+export interface ThemeColors {
   // Backgrounds
   background: string;
   backgroundSecondary: string;

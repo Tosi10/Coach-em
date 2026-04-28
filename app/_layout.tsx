@@ -15,11 +15,11 @@ import 'react-native-reanimated';
 import '../global.css';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { ToastProvider } from '@/components/ToastProvider';
 import { AuthProvider } from '@/src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
-import { ResizeMode, Video } from 'expo-av';
 import { auth } from '@/src/services/firebase.config';
 
 export {
@@ -176,12 +176,13 @@ function RootLayout() {
   if (!loaded || !assetsReady || introVisible) {
     return (
       <View style={styles.introContainer}>
-        <Video
+        <AppVideoPlayer
           source={require('../assets/videos/video_com_fundo_branco.mp4')}
           shouldPlay
           isLooping
           isMuted
-          resizeMode={ResizeMode.CONTAIN}
+          nativeControls={false}
+          contentFit="contain"
           style={styles.introVideo}
         />
       </View>

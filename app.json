@@ -37,11 +37,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "navigationBar": {
-        "backgroundColor": "#0a0a0a",
-        "barStyle": "light-content"
-      }
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
@@ -81,7 +77,11 @@
           "project": "coachemapp"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-video",
+      "expo-audio",
+      "expo-asset",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
