@@ -2,12 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---------- Treina+: perfil (coleção "users" usada no login) ----------
+    // ---------- Coach'em: perfil (coleção "users" usada no login) ----------
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // ---------- Treina+: coleções com prefixo coachem (uso futuro) ----------
+    // ---------- Coach'em: coleções com prefixo coachem (uso futuro) ----------
     match /coachemUsers/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

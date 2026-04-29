@@ -1,4 +1,4 @@
-# 🚀 COMECE AQUI - Treina+
+# 🚀 COMECE AQUI - Coach'em
 
 ## 👋 Olá!
 
@@ -101,7 +101,7 @@ npx expo start
 
 ### 3. O que você deve ver:
 - Tela branca
-- Texto "Treina+" grande
+- Texto "Coach'em" grande
 - Texto de boas-vindas
 - Botão azul "Clique Aqui!"
 
@@ -170,7 +170,7 @@ Lembre-se:
 - Aprender leva tempo
 - **Eu estou aqui para ajudar!**
 
-**Vamos juntos construir o Treina+!** 🎯
+**Vamos juntos construir o Coach'em!** 🎯
 
 ---
 

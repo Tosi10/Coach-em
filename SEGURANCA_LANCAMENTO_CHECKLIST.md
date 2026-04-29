@@ -1,4 +1,4 @@
-# Treina+ - Checklist de Seguranca e Lancamento
+# Coach'em - Checklist de Seguranca e Lancamento
 
 Este documento consolida a proxima etapa para hardening do app antes do lancamento publico.
 

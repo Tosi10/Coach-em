@@ -1,7 +1,7 @@
-# 🎓 Plano de Aprendizado - Treina+
+# 🎓 Plano de Aprendizado - Coach'em
 
 ## 📋 Objetivo
-Aprender React Native + TypeScript + Expo passo a passo, construindo o app Treina+ juntos!
+Aprender React Native + TypeScript + Expo passo a passo, construindo o app Coach'em juntos!
 
 ---
 
@@ -15,7 +15,7 @@ Aprender React Native + TypeScript + Expo passo a passo, construindo o app Trein
 - [ ] Props (propriedades)
 - [ ] Estado com useState
 
-**Exercício:** Criar uma tela que mostra "Olá, Treina+!" com um botão que muda a cor do texto.
+**Exercício:** Criar uma tela que mostra "Olá, Coach'em!" com um botão que muda a cor do texto.
 
 ---
 
@@ -192,7 +192,7 @@ Marque conforme for aprendendo:
 - [ ] Sei gerenciar estado
 - [ ] Sei criar hooks customizados
 
-### App Treina+
+### App Coach'em
 - [ ] Criei lista de exercícios (mock)
 - [ ] Criei sistema de treinos (mock)
 - [ ] Diferenciei COACH e ATHLETE

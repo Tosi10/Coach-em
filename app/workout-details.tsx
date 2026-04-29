@@ -13,6 +13,12 @@ import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { db } from '@/src/services/firebase.config';
+import {
+  cancelAllIntervalProtocolPhaseNotifications,
+  requestNotificationPermissions,
+  scheduleIntervalProtocolPhaseChain,
+  setupNotificationChannel,
+} from '@/src/services/notifications.service';
 import { WorkoutBlockData, type WorkoutExercise } from '@/src/types';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
@@ -26,7 +32,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  AppState,
   Image,
+  InteractionManager,
   InputAccessoryView,
   KeyboardAvoidingView,
   Modal,
@@ -261,6 +269,9 @@ export default function WorkoutDetailsScreen() {
     setAlertOnConfirm(() => onConfirm);
     setAlertVisible(true);
   };
+
+  const showAlertRef = useRef(showAlert);
+  showAlertRef.current = showAlert;
   
   // Estados para progresso do treino
   // Set é uma estrutura que não permite valores duplicados - perfeito para IDs de exercícios
@@ -294,12 +305,19 @@ export default function WorkoutDetailsScreen() {
   const [protocolTotalElapsed, setProtocolTotalElapsed] = useState(0);
   const [isRunningProtocol, setIsRunningProtocol] = useState(false);
   const [activeProtocolExerciseId, setActiveProtocolExerciseId] = useState<string | null>(null);
+
+  /** Timer intervalado: usa prazo absoluto (Date.now) para não “congelar” com tela bloqueada / app em background. */
+  const protocolPhaseEndMsRef = useRef<number | null>(null);
+  const protocolPhaseIndexRef = useRef(0);
+  const protocolElapsedBaselineSecRef = useRef(0);
+  const protocolRunningSinceMsRef = useRef<number | null>(null);
   
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
   const [savedWeights, setSavedWeights] = useState<Record<string, number>>({}); // Pesos salvos por exercício
   const [weightSaveMessage, setWeightSaveMessage] = useState('');
   const weightInputRef = useRef<TextInput>(null);
+  const completionAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animação de pulse contínua no botão
   useEffect(() => {
@@ -621,6 +639,11 @@ export default function WorkoutDetailsScreen() {
   }, []);
 
   const resetProtocolTimer = useCallback(() => {
+    void cancelAllIntervalProtocolPhaseNotifications();
+    protocolPhaseEndMsRef.current = null;
+    protocolPhaseIndexRef.current = 0;
+    protocolElapsedBaselineSecRef.current = 0;
+    protocolRunningSinceMsRef.current = null;
     setIsRunningProtocol(false);
     setProtocolPhaseIndex(0);
     setProtocolTimeLeft(0);
@@ -631,21 +654,44 @@ export default function WorkoutDetailsScreen() {
   const startProtocolTimer = useCallback((exerciseId: string, exercise: WorkoutExercise) => {
     const sequence = getProtocolSequence(exercise);
     if (sequence.length === 0) return;
+    const firstDuration = Math.max(1, Number(sequence[0].duration) || 0);
+    const now = Date.now();
+    protocolPhaseIndexRef.current = 0;
+    protocolPhaseEndMsRef.current = now + firstDuration * 1000;
+    protocolElapsedBaselineSecRef.current = 0;
+    protocolRunningSinceMsRef.current = now;
     setActiveProtocolExerciseId(exerciseId);
     setProtocolPhaseIndex(0);
-    setProtocolTimeLeft(sequence[0].duration);
+    setProtocolTimeLeft(firstDuration);
     setProtocolTotalElapsed(0);
     setIsRunningProtocol(true);
+    void (async () => {
+      await requestNotificationPermissions();
+      await setupNotificationChannel();
+    })();
   }, [getProtocolSequence]);
 
   const pauseProtocolTimer = useCallback(() => {
+    void cancelAllIntervalProtocolPhaseNotifications();
+    const endMs = protocolPhaseEndMsRef.current;
+    const runningSince = protocolRunningSinceMsRef.current;
+    if (endMs != null) {
+      const left = Math.max(0, Math.ceil((endMs - Date.now()) / 1000));
+      setProtocolTimeLeft(left);
+    }
+    if (runningSince != null) {
+      protocolElapsedBaselineSecRef.current += (Date.now() - runningSince) / 1000;
+      protocolRunningSinceMsRef.current = null;
+    }
+    protocolPhaseEndMsRef.current = null;
     setIsRunningProtocol(false);
   }, []);
 
   const resumeProtocolTimer = useCallback(() => {
-    if (activeProtocolExerciseId && protocolTimeLeft > 0) {
-      setIsRunningProtocol(true);
-    }
+    if (!activeProtocolExerciseId || protocolTimeLeft <= 0) return;
+    protocolPhaseEndMsRef.current = Date.now() + protocolTimeLeft * 1000;
+    protocolRunningSinceMsRef.current = Date.now();
+    setIsRunningProtocol(true);
   }, [activeProtocolExerciseId, protocolTimeLeft]);
 
   useEffect(() => {
@@ -656,44 +702,122 @@ export default function WorkoutDetailsScreen() {
         ? null
         : workoutTemplate.blocks[currentBlockIndex]?.exercises?.[currentExerciseIndex];
     if (!currentExercise) return;
+
     const sequence = getProtocolSequence(currentExercise);
     if (sequence.length === 0) return;
 
-    const interval = setInterval(() => {
-      setProtocolTimeLeft((prev) => {
-        if (prev > 1) {
-          setProtocolTotalElapsed((elapsed) => elapsed + 1);
-          return prev - 1;
-        }
+    const tick = () => {
+      let idx = protocolPhaseIndexRef.current;
+      let endMs = protocolPhaseEndMsRef.current;
+      if (endMs == null) return;
 
-        const nextIndex = protocolPhaseIndex + 1;
-        setProtocolTotalElapsed((elapsed) => elapsed + 1);
-        if (nextIndex >= sequence.length) {
-          setIsRunningProtocol(false);
+      const now = Date.now();
+      let phasesAdvanced = 0;
+
+      while (idx < sequence.length && now >= endMs) {
+        idx += 1;
+        phasesAdvanced += 1;
+        if (idx >= sequence.length) {
+          void cancelAllIntervalProtocolPhaseNotifications();
+          protocolPhaseEndMsRef.current = null;
+          protocolRunningSinceMsRef.current = null;
+          protocolPhaseIndexRef.current = 0;
           setProtocolPhaseIndex(0);
           setProtocolTimeLeft(0);
           setActiveProtocolExerciseId(null);
-          Vibration.vibrate(500);
+          setIsRunningProtocol(false);
+          const totalProtocol = getProtocolTotalDuration(
+            currentExercise.intervalProtocol || [],
+            currentExercise.rounds || 1,
+            { roundRest: currentExercise.roundRest }
+          );
+          setProtocolTotalElapsed(totalProtocol);
+          Vibration.vibrate([0, 380, 120, 380, 120, 560]);
           playBeep();
-          showAlert('Protocolo concluído', 'Intervalado finalizado com sucesso.', 'success');
-          return 0;
+          setTimeout(() => playBeep(), 220);
+          showAlertRef.current('Protocolo concluído', 'Intervalado finalizado com sucesso.', 'success');
+          return;
         }
+        const nextDur = Math.max(1, Number(sequence[idx].duration) || 0);
+        endMs = endMs + nextDur * 1000;
+        protocolPhaseEndMsRef.current = endMs;
+      }
 
-        setProtocolPhaseIndex(nextIndex);
-        Vibration.vibrate(150);
-        playBeep();
-        return sequence[nextIndex].duration;
+      if (phasesAdvanced > 0) {
+        void cancelAllIntervalProtocolPhaseNotifications();
+        const nextPhase = sequence[idx];
+        const isRoundBoundary = Boolean(nextPhase?.id?.startsWith('round_rest_'));
+        if (isRoundBoundary) {
+          // fim de round: sinal mais forte e diferente
+          Vibration.vibrate([0, 220, 100, 220, 100, 220]);
+          playBeep();
+          setTimeout(() => playBeep(), 180);
+        } else if (phasesAdvanced === 1) {
+          Vibration.vibrate(150);
+          playBeep();
+        } else {
+          Vibration.vibrate([0, 120, 80, 120]);
+          playBeep();
+        }
+      }
+
+      protocolPhaseIndexRef.current = idx;
+      setProtocolPhaseIndex(idx);
+      setProtocolTimeLeft(Math.max(0, Math.ceil((endMs - now) / 1000)));
+
+      const totalProtocol = getProtocolTotalDuration(
+        currentExercise.intervalProtocol || [],
+        currentExercise.rounds || 1,
+        { roundRest: currentExercise.roundRest }
+      );
+      const runningSince = protocolRunningSinceMsRef.current;
+      if (runningSince != null) {
+        const elapsed = Math.min(
+          totalProtocol,
+          Math.floor(protocolElapsedBaselineSecRef.current + (now - runningSince) / 1000)
+        );
+        setProtocolTotalElapsed(elapsed);
+      }
+    };
+
+    const queueBackgroundPhaseNotifications = () => {
+      const endMs = protocolPhaseEndMsRef.current;
+      const idx = protocolPhaseIndexRef.current;
+      if (endMs == null || idx >= sequence.length) return;
+      void scheduleIntervalProtocolPhaseChain({
+        sequence: sequence.map((p) => ({
+          id: typeof p.id === 'string' ? p.id : undefined,
+          name: String(p.name ?? ''),
+          duration: Number(p.duration) || 0,
+        })),
+        startPhaseIndex: idx,
+        firstPhaseEndMs: endMs,
       });
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void cancelAllIntervalProtocolPhaseNotifications();
+        tick();
+      } else if (state === 'background' || state === 'inactive') {
+        queueBackgroundPhaseNotifications();
+      }
+    });
+
+    tick();
+    const id = setInterval(tick, 250);
+
+    return () => {
+      sub.remove();
+      clearInterval(id);
+      void cancelAllIntervalProtocolPhaseNotifications();
+    };
   }, [
     activeProtocolExerciseId,
     currentBlockIndex,
     currentExerciseIndex,
     getProtocolSequence,
     isRunningProtocol,
-    protocolPhaseIndex,
     workoutTemplate?.blocks,
     playBeep,
   ]);
@@ -727,6 +851,21 @@ export default function WorkoutDetailsScreen() {
     return workoutTemplate.blocks[currentBlockIndex]?.exercises?.[currentExerciseIndex] || null;
   }, [currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
+  const closeExerciseModal = useCallback(() => {
+    setIsResting(false);
+    setRestTime(0);
+    setIsRunningDuration(false);
+    setDurationTime(0);
+    setDurationTotal(0);
+    setIsRunningWarmUp(false);
+    setWarmUpTime(0);
+    setWarmUpTotal(0);
+    resetProtocolTimer();
+    setShowExerciseModal(false);
+    setCurrentBlockIndex(null);
+    setCurrentExerciseIndex(null);
+  }, [resetProtocolTimer]);
+
   // Função para abrir exercício no modal
   const openExercise = useCallback((blockIndex: number, exerciseIndex: number) => {
     // Resetar timers ao abrir novo exercício
@@ -738,11 +877,12 @@ export default function WorkoutDetailsScreen() {
     setIsRunningWarmUp(false);
     setWarmUpTime(0);
     setWarmUpTotal(0);
-    
+    resetProtocolTimer();
+
     setCurrentBlockIndex(blockIndex);
     setCurrentExerciseIndex(exerciseIndex);
     setShowExerciseModal(true);
-  }, []);
+  }, [resetProtocolTimer]);
 
   // Função para navegar para o próximo exercício
   const goToNextExercise = useCallback(() => {
@@ -769,9 +909,9 @@ export default function WorkoutDetailsScreen() {
     }
     
     // Se não há próximo exercício, fechar modal
-    setShowExerciseModal(false);
+    closeExerciseModal();
     showAlert('Treino Completo', 'Você chegou ao final do treino!', 'success');
-  }, [currentBlockIndex, currentExerciseIndex, workoutTemplate]);
+  }, [closeExerciseModal, currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
   // Função para navegar para o exercício anterior
   const goToPreviousExercise = useCallback(() => {
@@ -945,6 +1085,14 @@ export default function WorkoutDetailsScreen() {
     loadSavedWeight();
   }, [showExerciseModal, currentBlockIndex, currentExerciseIndex, getCurrentExercise, assignedWorkout?.athleteId]);
 
+  useEffect(() => {
+    return () => {
+      if (completionAlertTimerRef.current) {
+        clearTimeout(completionAlertTimerRef.current);
+      }
+    };
+  }, []);
+
 
 
   // Se não encontrou o treino, volta para a tela anterior
@@ -1003,6 +1151,8 @@ export default function WorkoutDetailsScreen() {
   }
 
   const handleMarkAsCompleted = () => {
+    // Garante que nenhum modal de exercício permaneça por baixo do feedback.
+    closeExerciseModal();
     // Abrir modal de feedback primeiro
     setShowFeedbackModal(true);
   };
@@ -1066,23 +1216,29 @@ export default function WorkoutDetailsScreen() {
         feedbackText: feedbackText.trim() || undefined,
       });
       
-      // 6. Fechar modal e mostrar animação de celebração
+      // 6. Fechar modais e mostrar animação de celebração
+      closeExerciseModal();
       setShowFeedbackModal(false);
       setFeedbackText('');
       setShowCelebration(true);
       
-      // Após animação, mostrar alerta customizado e voltar
-      setTimeout(() => {
-        showAlert(
-          'Treino Concluído',
-          `Parabéns! Você concluiu o treino "${assignedWorkout?.name}"`,
-          'success',
-          () => {
-            setShowCelebration(false);
-            router.back();
-          }
-        );
-      }, 500);
+      // Após a transição/fechamento dos modais no iOS, mostra o alerta de sucesso.
+      if (completionAlertTimerRef.current) {
+        clearTimeout(completionAlertTimerRef.current);
+      }
+      InteractionManager.runAfterInteractions(() => {
+        completionAlertTimerRef.current = setTimeout(() => {
+          showAlert(
+            'Treino Concluído',
+            `Parabéns! Você concluiu o treino "${assignedWorkout?.name}"`,
+            'success',
+            () => {
+              setShowCelebration(false);
+              router.back();
+            }
+          );
+        }, 120);
+      });
     } catch (error) {
       console.error('Erro ao marcar como concluído:', error);
       showAlert('Erro', 'Não foi possível marcar o treino como concluído', 'error');
@@ -1562,18 +1718,7 @@ export default function WorkoutDetailsScreen() {
                   {/* Header do Modal */}
                   <View className="flex-row items-center justify-between mb-4 px-6 pt-6">
                     <Pressable
-                      onPress={() => {
-                        setIsResting(false);
-                        setRestTime(0);
-                        setIsRunningDuration(false);
-                        setDurationTime(0);
-                        setDurationTotal(0);
-                        setIsRunningWarmUp(false);
-                        setWarmUpTime(0);
-                        setWarmUpTotal(0);
-                        resetProtocolTimer();
-                        setShowExerciseModal(false);
-                      }}
+                      onPress={closeExerciseModal}
                       hitSlop={14}
                       className="p-2"
                       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
@@ -2033,7 +2178,7 @@ export default function WorkoutDetailsScreen() {
                           } else {
                             // Último exercício - fechar modal
                             setTimeout(() => {
-                              setShowExerciseModal(false);
+                              closeExerciseModal();
                             }, 500);
                           }
                         }}
@@ -2102,6 +2247,7 @@ export default function WorkoutDetailsScreen() {
           animationType="fade"
           statusBarTranslucent
           navigationBarTranslucent
+          presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
           onRequestClose={() => setShowFeedbackModal(false)}
         >
           <View className="flex-1 bg-black/50 justify-center items-center p-6">

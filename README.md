@@ -1,4 +1,4 @@
-# Treina+ — gestão de performance esportiva
+# Coach'em — gestão de performance esportiva
 
 App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acompanhamento. Stack: **Expo Router**, **TypeScript**, **NativeWind**, **Firebase** (Auth, Firestore, Storage), **EAS Build** para Android e iOS.
 
@@ -44,7 +44,7 @@ Sugestão de ordem para **lançamento** e evolução:
 ## Estrutura principal
 
 ```
-Treina+ (pasta do repositório: Coach-em)/
+Coach'em (pasta do repositório: Coach-em)/
 ├── app/
 │   ├── (auth)/          # login, registro (só treinador)
 │   ├── (tabs)/          # Home, Treinos/Atletas, Perfil
@@ -84,7 +84,7 @@ Se uma chave já foi commitada: no [Google Cloud Console](https://console.cloud.
 
 ## Conta e segurança (implementado)
 
-1. **Recuperação de senha** — O app chama a callable **`sendPasswordResetEmailTreina`** (Functions **v2**, `us-central1`), que gera o link com `generatePasswordResetLink` e envia email HTML (Treina+) via **Gmail** (nodemailer). Credenciais no **Secret Manager**: **`GMAIL_USER`** (email) e **`GMAIL_PASS`** (senha de app de 16 caracteres — não a senha normal do Gmail). **Não** usar `firebase functions:config:set` para isso. Passo a passo, troubleshooting e **modelo para outros projetos**: **`docs/EMAIL_PASSWORD_RESET.md`**.
+1. **Recuperação de senha** — O app chama a callable **`sendPasswordResetEmailTreina`** (Functions **v2**, `us-central1`), que gera o link com `generatePasswordResetLink` e envia email HTML (Coach'em) via **Gmail** (nodemailer). Credenciais no **Secret Manager**: **`GMAIL_USER`** (email) e **`GMAIL_PASS`** (senha de app de 16 caracteres — não a senha normal do Gmail). **Não** usar `firebase functions:config:set` para isso. Passo a passo, troubleshooting e **modelo para outros projetos**: **`docs/EMAIL_PASSWORD_RESET.md`**.
 
 2. **Trocar senha logado** — **Perfil → Segurança → Alterar senha**: reautentica com a senha atual e atualiza via `updatePassword`.
 

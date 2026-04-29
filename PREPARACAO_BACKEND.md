@@ -1,4 +1,4 @@
-# Preparação para o Backend – Treina+
+# Preparação para o Backend – Coach'em
 
 **Projeto Firebase ativo:** **futeba-96395** (db futeba). O app e as Cloud Functions devem usar este projeto.
 

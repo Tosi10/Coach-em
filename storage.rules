@@ -15,7 +15,7 @@ service firebase.storage {
         ).data.role == 'admin';
     }
 
-    // Fotos de perfil (Treina+ / Coach-em) — pasta profilePhotos/{userId}/...
+    // Fotos de perfil (Coach'em / Coach-em) — pasta profilePhotos/{userId}/...
     match /profilePhotos/{userId}/{allPaths=**} {
       // Quem tem o link (URL com token) consegue exibir; ou só logados
       allow read: if true;
@@ -24,7 +24,7 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Vídeos de exercícios (Treina+) — pasta exercises/{exerciseId}/...
+    // Vídeos de exercícios (Coach'em) — pasta exercises/{exerciseId}/...
     match /exercises/{exerciseId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null

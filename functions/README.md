@@ -1,4 +1,4 @@
-# Cloud Functions – Treina+
+# Cloud Functions – Coach'em
 
 Projeto: **`futeba-96395`** (definido em `.firebaserc` na raiz do app). Região usada pela callable de reset: **`us-central1`**.
 
@@ -18,7 +18,7 @@ Permite que o **treinador** crie a conta do atleta (Firebase Auth + Firestore `u
 
 ## `sendPasswordResetEmailTreina`
 
-Callable **v2** (região `us-central1`): gera link com `admin.auth().generatePasswordResetLink` e envia email HTML (marca Treina+) via **nodemailer** + **Gmail**.
+Callable **v2** (região `us-central1`): gera link com `admin.auth().generatePasswordResetLink` e envia email HTML (marca Coach'em) via **nodemailer** + **Gmail**.
 
 ### Credenciais (Secrets)
 

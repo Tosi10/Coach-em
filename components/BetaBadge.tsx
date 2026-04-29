@@ -31,7 +31,7 @@ export function BetaBadge({
         }}
       >
         <Text className="text-xs text-center font-semibold" style={{ color: theme.colors.primary }}>
-          Treina+ {label}
+          Coach'em {label}
         </Text>
         <Text className="text-[11px] text-center mt-1" style={themeStyles.textTertiary}>
           {subtitle}

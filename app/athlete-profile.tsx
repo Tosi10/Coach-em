@@ -1249,7 +1249,7 @@ export default function AthleteProfileScreen() {
               Relatório PDF do atleta
             </Text>
             <Text className="text-xs" style={themeStyles.textSecondary}>
-              Treina+ / Vision10
+              Coach'em / Vision10
             </Text>
           </View>
 

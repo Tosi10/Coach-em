@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Treina+",
+    "name": "Coach'em",
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/TreinaLogo2.1.png",
+    "icon": "./assets/images/Coach-emNovo.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/TreinaLogo2.1.png",
+      "image": "./assets/images/Coach-emNovo.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
@@ -33,7 +33,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/TreinaLogo2.1.png",
+        "foregroundImage": "./assets/images/Coach-emNovo.png",
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
@@ -42,7 +42,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/TreinaLogo2.1.png"
+      "favicon": "./assets/images/Coach-emNovo.png"
     },
     "plugins": [
       "expo-router",
@@ -57,7 +57,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0a0a",
-          "image": "./assets/images/TreinaLogo2.1.png",
+          "image": "./assets/images/Coach-emNovo.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }

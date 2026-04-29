@@ -133,7 +133,7 @@ export default function RegisterScreen() {
       >
         <View className="pt-14 pb-8 px-6 items-center">
           <Image
-            source={require('../../assets/images/treinaLogo2.png')}
+            source={require('../../assets/images/Coach-emNovo.png')}
             style={{ width: 420, height: 180, marginTop: 50, marginBottom: 90 }}
             resizeMode="contain"
           />

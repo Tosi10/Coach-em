@@ -1,4 +1,4 @@
-# 🎨 Guia Completo: Imagens do App Treina+
+# 🎨 Guia Completo: Imagens do App Coach'em
 
 ## 📋 Resumo das Imagens Necessárias
 
@@ -146,7 +146,7 @@ O `app.json` já está configurado com os caminhos corretos. Você só precisa:
 
 ### Para a Splash Screen:
 - ✅ Logo pode ser maior (mais espaço)
-- ✅ Pode incluir texto "Treina+" se quiser
+- ✅ Pode incluir texto "Coach'em" se quiser
 - ✅ Use cor de fundo que combine com o tema do app
 - ✅ Mantenha simples e profissional
 

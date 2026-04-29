@@ -1,10 +1,10 @@
-## Política de Privacidade – Treina+
+## Política de Privacidade – Coach'em
 
 Última atualização: `17/04/2026`
 
-Esta Política de Privacidade descreve como o aplicativo **Treina+** (“App”, “nós”, “nosso”) coleta, utiliza e protege as informações dos usuários (“você”).
+Esta Política de Privacidade descreve como o aplicativo **Coach'em** (“App”, “nós”, “nosso”) coleta, utiliza e protege as informações dos usuários (“você”).
 
-Ao utilizar o Treina+, você concorda com as práticas descritas nesta Política.
+Ao utilizar o Coach'em, você concorda com as práticas descritas nesta Política.
 
 ---
 
@@ -46,7 +46,7 @@ Podemos compartilhar dados apenas:
 - Com provedores de serviço necessários ao funcionamento do app (por exemplo, **Firebase**, serviço de hospedagem de banco de dados).  
 - Quando exigido por lei, decisão judicial ou autoridade competente.
 
-Em alguns casos, o treinador pode visualizar dados relacionados aos treinos e progresso do atleta que estiver vinculado a ele, como parte natural do uso do Treina+.
+Em alguns casos, o treinador pode visualizar dados relacionados aos treinos e progresso do atleta que estiver vinculado a ele, como parte natural do uso do Coach'em.
 
 ---
 
@@ -71,7 +71,7 @@ Para exercer esses direitos, entre em contato em: **adm.ecg.19@gmail.com**.
 
 ### 6. Crianças e adolescentes
 
-O Treina+ não é direcionado especificamente a crianças. Caso seja necessário o uso por menores de idade, recomendamos que seja sempre acompanhado pelos responsáveis e/ou profissionais responsáveis pelos treinos.
+O Coach'em não é direcionado especificamente a crianças. Caso seja necessário o uso por menores de idade, recomendamos que seja sempre acompanhado pelos responsáveis e/ou profissionais responsáveis pelos treinos.
 
 ---
 

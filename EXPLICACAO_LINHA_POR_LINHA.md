@@ -91,7 +91,7 @@ return (
 
 ```typescript
 <Text className="text-4xl font-bold text-neutral-900 mb-4">
-  Treina+
+  Coach'em
 </Text>
 ```
 

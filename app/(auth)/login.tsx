@@ -1,7 +1,7 @@
 /**
  * Login Screen
  *
- * Tela de login do Treina+ – design com logo, card e gradiente.
+ * Tela de login do Coach'em – design com logo, card e gradiente.
  */
 
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -152,7 +152,7 @@ export default function LoginScreen() {
         {/* Logo / Brand */}
         <View className="pt-14 pb-8 px-6 items-center">
           <Image
-            source={require('../../assets/images/treinaLogo2.png')}
+            source={require('../../assets/images/Coach-emNovo.png')}
             style={{ width: 420, height: 180, marginTop: 50, marginBottom: 90 }}
             resizeMode="contain"
           />

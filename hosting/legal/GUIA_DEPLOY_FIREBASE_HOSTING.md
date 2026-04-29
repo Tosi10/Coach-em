@@ -1,6 +1,6 @@
-## Deploy rápido no Firebase Hosting (Treina+)
+## Deploy rápido no Firebase Hosting (Coach'em)
 
-Este guia publica as páginas legais do Treina+ no Firebase Hosting:
+Este guia publica as páginas legais do Coach'em no Firebase Hosting:
 
 - Política de Privacidade
 - Termos de Uso
@@ -16,8 +16,8 @@ Arquivos prontos:
 
 No projeto das landing pages (ex.: `Vision10`), coloque:
 
-- `public/privacy/treinamais/index.html` (copie de `privacy-treinamais.html`)
-- `public/terms/treinamais/index.html` (copie de `terms-treinamais.html`)
+- `public/privacy/coachem/index.html` (copie de `privacy-treinamais.html`)
+- `public/terms/coachem/index.html` (copie de `terms-treinamais.html`)
 
 Estrutura final esperada:
 
@@ -70,8 +70,8 @@ firebase deploy --only hosting
 
 Depois do deploy, valide:
 
-- `https://futeba-96395.web.app/privacy/treinamais`
-- `https://futeba-96395.web.app/terms/treinamais`
+- `https://futeba-96395.web.app/privacy/coachem`
+- `https://futeba-96395.web.app/terms/coachem`
 
 Se depois você conectar domínio próprio, apenas substitua o domínio mantendo os caminhos.
 
@@ -79,9 +79,9 @@ Se depois você conectar domínio próprio, apenas substitua o domínio mantendo
 
 ### 5) Atualizar links no app e nos docs
 
-No Coach-em/Treina+:
+No Coach-em/Coach'em:
 
-- `TERMOS_DE_USO.md` deve apontar para `.../privacy/treinamais`
+- `TERMOS_DE_USO.md` deve apontar para `.../privacy/coachem`
 - no app, botão de Política/Termos deve abrir essas URLs
 - no App Store Connect e Play Console, usar essas URLs oficiais
 

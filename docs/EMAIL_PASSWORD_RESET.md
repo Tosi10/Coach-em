@@ -1,6 +1,6 @@
 # Email de redefinição de senha (Gmail + Firebase Functions v2)
 
-Este documento vale para **este app (Treina+)** e serve de **modelo** para outros projetos que usem o mesmo padrão: **callable** + **Admin SDK** (`generatePasswordResetLink`) + **nodemailer** + **Gmail** com **Secret Manager** (não usar `functions.config()` em Functions v2).
+Este documento vale para **este app (Coach'em)** e serve de **modelo** para outros projetos que usem o mesmo padrão: **callable** + **Admin SDK** (`generatePasswordResetLink`) + **nodemailer** + **Gmail** com **Secret Manager** (não usar `functions.config()` em Functions v2).
 
 ---
 

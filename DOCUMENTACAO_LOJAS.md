@@ -1,4 +1,4 @@
-## Textos para Publicação nas Lojas – Treina+
+## Textos para Publicação nas Lojas – Coach'em
 
 Este arquivo reúne todos os textos que você vai precisar na **Google Play Store** e na **Apple App Store**. Ajuste os campos marcados entre `[[ ]]` antes de publicar.
 
@@ -7,7 +7,7 @@ Este arquivo reúne todos os textos que você vai precisar na **Google Play Stor
 ### 1. Nome, subtítulo e frase curta
 
 - **Nome do app (título):**  
-  `Treina+ – Gestão Esportiva`
+  `Coach'em – Gestão Esportiva`
 
 - **Subtítulo / Slogan (App Store):**  
   `Gestão completa de treinos para treinadores e atletas.`

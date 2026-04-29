@@ -1,7 +1,7 @@
 {
   "name": "coachem-functions",
   "version": "1.0.0",
-  "description": "Cloud Functions do Treina+ – criação de atleta pelo treinador",
+  "description": "Cloud Functions do Coach'em – criação de atleta pelo treinador",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",

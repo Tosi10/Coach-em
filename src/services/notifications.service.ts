@@ -67,6 +67,97 @@ export async function setupNotificationChannel(): Promise<void> {
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#fb923c',
   });
+  await N.setNotificationChannelAsync('interval_protocol', {
+    name: 'Timer intervalado',
+    description: 'Alertas de troca de fase com tela bloqueada',
+    importance: N.AndroidImportance.HIGH,
+    vibrationPattern: [0, 280, 120, 280, 120, 280],
+    lightColor: '#fb923c',
+  });
+}
+
+/** Fases do protocolo (nome + duração em segundos) para agendar notificações. */
+export type IntervalProtocolPhaseForNotif = { id?: string; name: string; duration: number };
+
+let intervalProtocolPhaseNotifIds: string[] = [];
+
+const MAX_INTERVAL_PHASE_NOTIFICATIONS = 48;
+
+/** Cancela lembretes de troca de fase do intervalado (ex.: app voltou ao primeiro plano ou pausou). */
+export async function cancelAllIntervalProtocolPhaseNotifications(): Promise<void> {
+  const N = await loadNotifications();
+  if (!N) {
+    intervalProtocolPhaseNotifIds = [];
+    return;
+  }
+  for (const id of intervalProtocolPhaseNotifIds) {
+    try {
+      await N.cancelScheduledNotificationAsync(id);
+    } catch {
+      // ignore
+    }
+  }
+  intervalProtocolPhaseNotifIds = [];
+}
+
+/**
+ * Agenda uma notificação por troca de fase com horário absoluto.
+ * Necessário com tela bloqueada: o JS do app para, mas o SO ainda dispara a notificação (som + vibração).
+ */
+export async function scheduleIntervalProtocolPhaseChain(params: {
+  sequence: IntervalProtocolPhaseForNotif[];
+  startPhaseIndex: number;
+  firstPhaseEndMs: number;
+}): Promise<void> {
+  const N = await loadNotifications();
+  if (!N) return;
+
+  const granted = await requestNotificationPermissions();
+  if (!granted) return;
+
+  await ensureHandler();
+  await setupNotificationChannel();
+
+  await cancelAllIntervalProtocolPhaseNotifications();
+
+  const { sequence, startPhaseIndex, firstPhaseEndMs } = params;
+  if (!sequence.length || startPhaseIndex >= sequence.length) return;
+
+  let endMs = firstPhaseEndMs;
+  let scheduled = 0;
+  const now = Date.now();
+
+  for (let idx = startPhaseIndex; idx < sequence.length && scheduled < MAX_INTERVAL_PHASE_NOTIFICATIONS; idx++) {
+    const next = idx + 1 < sequence.length ? sequence[idx + 1] : null;
+
+    if (endMs > now + 300) {
+      const title = "Coach'em";
+      const body = ' ';
+
+      try {
+        const id = await N.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            sound: true,
+          },
+          trigger: {
+            type: N.SchedulableTriggerInputTypes.DATE,
+            date: new Date(endMs),
+            channelId: 'interval_protocol',
+          },
+        });
+        if (id) intervalProtocolPhaseNotifIds.push(id);
+        scheduled += 1;
+      } catch (e) {
+        console.warn('scheduleIntervalProtocolPhaseChain:', e);
+        break;
+      }
+    }
+
+    if (!next) break;
+    endMs += Math.max(1, Number(next.duration) || 0) * 1000;
+  }
 }
 
 function parseDateTime(dateStr: string, timeStr: string): Date {

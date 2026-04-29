@@ -1,4 +1,4 @@
-# 🗺️ Roadmap de Funcionalidades - Treina+
+# 🗺️ Roadmap de Funcionalidades - Coach'em
 
 ## 📋 Índice
 

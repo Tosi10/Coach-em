@@ -1,5 +1,5 @@
 /**
- * Cloud Functions – Treina+
+ * Cloud Functions – Coach'em
  *
  * createAthleteByCoach: o treinador (autenticado) cria a conta do atleta
  * (Firebase Auth + Firestore users + coachemAthletes) para o atleta poder fazer login.
@@ -143,11 +143,11 @@ function buildPasswordResetHtml(resetLink: string): string {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Treina+ — Redefinir senha</title>
+  <title>Coach'em — Redefinir senha</title>
   <!--[if mso]><style type="text/css">table, td { font-family: Arial, sans-serif !important; }</style><![endif]-->
 </head>
 <body style="margin:0;padding:0;background-color:#050505;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Redefina sua senha do Treina+ em um clique.</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Redefina sua senha do Coach'em em um clique.</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#0a0a0a 0%,#050505 40%,#0a0a0a 100%);padding:40px 16px 48px;">
     <tr>
       <td align="center">
@@ -174,7 +174,7 @@ function buildPasswordResetHtml(resetLink: string): string {
                   <td style="padding:36px 32px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
                     <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#fb923c;letter-spacing:0.04em;text-transform:uppercase;">Segurança da conta</p>
                     <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#fafafa;line-height:1.35;letter-spacing:-0.02em;">Criar uma nova senha</h1>
-                    <p style="margin:0 0 24px;font-size:16px;color:#a3a3a3;line-height:1.65;">Recebemos uma solicitação para redefinir a senha da sua conta <strong style="color:#e5e5e5;font-weight:600;">Treina+</strong>. Se foi você, toque no botão abaixo — o link expira em breve por segurança.</p>
+                    <p style="margin:0 0 24px;font-size:16px;color:#a3a3a3;line-height:1.65;">Recebemos uma solicitação para redefinir a senha da sua conta <strong style="color:#e5e5e5;font-weight:600;">Coach'em</strong>. Se foi você, toque no botão abaixo — o link expira em breve por segurança.</p>
                     <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
                       <tr>
                         <td align="center" style="padding:8px 0 28px;">
@@ -221,10 +221,10 @@ function buildEmailVerificationHtml(verificationLink: string): string {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Treina+ - Confirmar email</title>
+  <title>Coach'em - Confirmar email</title>
 </head>
 <body style="margin:0;padding:0;background-color:#050505;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Confirme seu email e ative sua conta Treina+.</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Confirme seu email e ative sua conta Coach'em.</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#0a0a0a 0%,#050505 40%,#0a0a0a 100%);padding:40px 16px 48px;">
     <tr>
       <td align="center">
@@ -247,7 +247,7 @@ function buildEmailVerificationHtml(verificationLink: string): string {
                   <td style="padding:36px 32px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
                     <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#fb923c;letter-spacing:0.04em;text-transform:uppercase;">Ativação de conta</p>
                     <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#fafafa;line-height:1.35;letter-spacing:-0.02em;">Confirme seu email</h1>
-                    <p style="margin:0 0 24px;font-size:16px;color:#a3a3a3;line-height:1.65;">Para concluir seu cadastro no <strong style="color:#e5e5e5;font-weight:600;">Treina+</strong>, confirme seu endereço de email no botão abaixo.</p>
+                    <p style="margin:0 0 24px;font-size:16px;color:#a3a3a3;line-height:1.65;">Para concluir seu cadastro no <strong style="color:#e5e5e5;font-weight:600;">Coach'em</strong>, confirme seu endereço de email no botão abaixo.</p>
                     <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
                       <tr>
                         <td align="center" style="padding:8px 0 28px;">
@@ -312,16 +312,16 @@ async function sendPasswordResetWithGmail(
   });
   try {
     await transporter.sendMail({
-      from: `"Treina+" <${gmailUser}>`,
+      from: `"Coach'em" <${gmailUser}>`,
       to: toEmail,
-      subject: "Treina+ — Redefinir sua senha",
+      subject: "Coach'em — Redefinir sua senha",
       html: buildPasswordResetHtml(resetLink),
       text:
-        `Treina+ — Redefinir sua senha\n\n` +
+        `Coach'em — Redefinir sua senha\n\n` +
         `Recebemos um pedido para redefinir a senha da sua conta. Use o link abaixo (válido por tempo limitado):\n\n` +
         `${resetLink}\n\n` +
         `Se você não pediu isso, ignore este e-mail — sua senha não será alterada.\n\n` +
-        `— Equipe Treina+`,
+        `— Equipe Coach'em`,
     });
   } catch (mailErr: unknown) {
     const raw = mailErr instanceof Error ? mailErr.message : String(mailErr);
@@ -366,16 +366,16 @@ async function sendEmailVerificationWithGmail(
 
   try {
     await transporter.sendMail({
-      from: `"Treina+" <${gmailUser}>`,
+      from: `"Coach'em" <${gmailUser}>`,
       to: toEmail,
-      subject: "Treina+ - Confirme seu email",
+      subject: "Coach'em - Confirme seu email",
       html: buildEmailVerificationHtml(verificationLink),
       text:
-        `Treina+ — Confirmação de email\n\n` +
+        `Coach'em — Confirmação de email\n\n` +
         `Para ativar sua conta, confirme seu email no link abaixo:\n\n` +
         `${verificationLink}\n\n` +
         `Se você não solicitou este cadastro, ignore esta mensagem.\n\n` +
-        `— Equipe Treina+`,
+        `— Equipe Coach'em`,
     });
   } catch (mailErr: unknown) {
     const raw = mailErr instanceof Error ? mailErr.message : String(mailErr);
@@ -399,7 +399,7 @@ interface CreateAthleteByCoachData {
  * O atleta poderá fazer login com email e temporaryPassword.
  * athleteId = uid do Auth (usado em coachemAssignedWorkouts).
  *
- * Firebase Functions v2: callable com secrets Gmail para enviar o mesmo email de confirmação Treina+.
+ * Firebase Functions v2: callable com secrets Gmail para enviar o mesmo email de confirmação Coach'em.
  */
 export const createAthleteByCoach = onCall(
   {
@@ -590,7 +590,7 @@ export const sendPasswordResetEmailTreina = onCall(
 );
 
 /**
- * Confirmação de email com template Treina+ (Gmail via nodemailer).
+ * Confirmação de email com template Coach'em (Gmail via nodemailer).
  * Não revela existência da conta (retorna ok mesmo quando email não existe).
  */
 export const sendEmailVerificationTreina = onCall(

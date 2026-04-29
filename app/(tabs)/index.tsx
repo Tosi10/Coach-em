@@ -1254,14 +1254,14 @@ export default function HomeScreen() {
       {userType !== UserType.ATHLETE && (
         <View className="items-center mb-0">
           <Image
-            source={require('../../assets/images/treinaLogo2.png')}
-            style={{ width: 480, height: 192 }}
+            source={require('../../assets/images/Coach-emNovo.png')}
+            style={{ width: 360, height: 140 }}
             resizeMode="contain"
           />
         </View>
       )}
       {userType === UserType.COACH && (
-        <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -40 }}>
+        <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -12 }}>
           Bem-vindo{user?.displayName ? `, ${user.displayName}` : ''} ao seu app de gestão esportiva.
       </Text>
       )}
@@ -1430,7 +1430,7 @@ export default function HomeScreen() {
             </LinearGradient>
         </TouchableOpacity>
 
-          {/* Botões principais - estilo premium da marca Treina+ */}
+          {/* Botões principais - estilo premium da marca Coach'em */}
           <View className="flex-row gap-3 mb-8">
             {/* Botão Biblioteca de Exercícios */}
             <TouchableOpacity 
@@ -2227,7 +2227,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <Image
-                  source={require('../../assets/images/treinaLogo2.png')}
+                  source={require('../../assets/images/Coach-emNovo.png')}
                   style={{
                     width: Platform.OS === 'ios' ? 130 : 180,
                     height: Platform.OS === 'ios' ? 52 : 72,

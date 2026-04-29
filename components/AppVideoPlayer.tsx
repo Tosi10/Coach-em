@@ -9,6 +9,7 @@ type AppVideoPlayerProps = {
   isLooping?: boolean;
   isMuted?: boolean;
   contentFit?: 'contain' | 'cover' | 'fill';
+  surfaceType?: 'surfaceView' | 'textureView';
 };
 
 export function AppVideoPlayer({
@@ -19,6 +20,7 @@ export function AppVideoPlayer({
   isLooping = false,
   isMuted = false,
   contentFit = 'contain',
+  surfaceType,
 }: AppVideoPlayerProps) {
   const player = useVideoPlayer(source, (instance) => {
     instance.loop = isLooping;
@@ -34,6 +36,7 @@ export function AppVideoPlayer({
       style={style}
       nativeControls={nativeControls}
       contentFit={contentFit}
+      surfaceType={surfaceType}
     />
   );
 }

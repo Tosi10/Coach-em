@@ -1,4 +1,4 @@
-# 🚀 Próximos Passos - Treina+
+# 🚀 Próximos Passos - Coach'em
 
 ## 📝 Log de trabalho — 2026-04-03
 

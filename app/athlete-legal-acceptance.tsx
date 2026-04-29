@@ -91,7 +91,7 @@ export default function AthleteLegalAcceptanceScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-          Bem-vindo ao Treina+
+          Bem-vindo ao Coach'em
         </Text>
         <Text className="text-base mb-6 leading-6" style={{ color: theme.colors.textSecondary }}>
           Antes de usar o app, confirme que leu e aceita os documentos legais. O seu treinador continua

@@ -41,7 +41,7 @@ const CRITICAL_IMAGES: { name: string; asset: number }[] = [
   { name: 'PerfilCinza2.png', asset: require('../assets/images/PerfilCinza2.png') },
   { name: 'AtletasLaranja2.png', asset: require('../assets/images/AtletasLaranja2.png') },
   { name: 'AtletasCinza2.png', asset: require('../assets/images/AtletasCinza2.png') },
-  { name: 'treinaLogo2.png', asset: require('../assets/images/treinaLogo2.png') },
+  { name: 'Coach-emNovo.png', asset: require('../assets/images/Coach-emNovo.png') },
   { name: 'PanoramaSemanal2.png', asset: require('../assets/images/PanoramaSemanal2.png') },
   { name: 'AtivosHoje2.png', asset: require('../assets/images/AtivosHoje2.png') },
   { name: 'IconeWorkoutComplete2.png', asset: require('../assets/images/IconeWorkoutComplete2.png') },
@@ -177,14 +177,16 @@ function RootLayout() {
     return (
       <View style={styles.introContainer}>
         <AppVideoPlayer
-          source={require('../assets/videos/video_com_fundo_branco.mp4')}
+          source={require('../assets/videos/Coach-emVideo.mp4')}
           shouldPlay
           isLooping
           isMuted
           nativeControls={false}
           contentFit="contain"
+          surfaceType="textureView"
           style={styles.introVideo}
         />
+        <View pointerEvents="none" style={styles.introWatermarkMask} />
       </View>
     );
   }
@@ -195,13 +197,23 @@ function RootLayout() {
 const styles = StyleSheet.create({
   introContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   introVideo: {
     width: '100%',
     height: '100%',
+  },
+  introWatermarkMask: {
+    position: 'absolute',
+    right: -4,
+    top: '54%',
+    width: 140,
+    height: 120,
+    backgroundColor: '#000000',
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
   },
 });
 

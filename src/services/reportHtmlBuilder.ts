@@ -107,7 +107,7 @@ export function buildAthleteReportHtml(report: AthleteReportData): string {
   </head>
   <body>
     <div class="brand">
-      <h1>Treina+ - Relatório do Atleta</h1>
+      <h1>Coach'em - Relatório do Atleta</h1>
       <div class="tag">Vision10</div>
     </div>
 

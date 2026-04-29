@@ -1,4 +1,4 @@
-# 📚 Contexto do Projeto Treina+ - Documento para Handoff
+# 📚 Contexto do Projeto Coach'em - Documento para Handoff
 
 ## 🎯 INFORMAÇÃO CRÍTICA SOBRE O USUÁRIO
 
