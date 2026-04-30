@@ -80,6 +80,7 @@ export async function setupNotificationChannel(): Promise<void> {
 export type IntervalProtocolPhaseForNotif = { id?: string; name: string; duration: number };
 
 let intervalProtocolPhaseNotifIds: string[] = [];
+let isSyncingAthleteReminders = false;
 
 const MAX_INTERVAL_PHASE_NOTIFICATIONS = 48;
 
@@ -131,14 +132,15 @@ export async function scheduleIntervalProtocolPhaseChain(params: {
     const next = idx + 1 < sequence.length ? sequence[idx + 1] : null;
 
     if (endMs > now + 300) {
-      const title = "Coach'em";
-      const body = ' ';
-
       try {
+        const nextPhaseName = next?.name?.trim();
+        const isLastPhase = !next;
         const id = await N.scheduleNotificationAsync({
           content: {
-            title,
-            body,
+            title: isLastPhase ? "Coach'em · Protocolo concluído" : "Coach'em · Troca de fase",
+            body: isLastPhase
+              ? 'Parabéns! Você concluiu o protocolo.'
+              : `Próxima fase: ${nextPhaseName || 'Fase seguinte'}`,
             sound: true,
           },
           trigger: {
@@ -217,13 +219,61 @@ export async function scheduleWorkoutRemindersForAthlete(
   if (workoutAt.getTime() <= Date.now()) return scheduledIds;
 
   try {
+    // Remove agendamentos antigos do mesmo treino/data para evitar duplicidade
+    // quando dois fluxos chamam o sync quase ao mesmo tempo.
+    const existing = await N.getAllScheduledNotificationsAsync();
+    const getTriggerTimeMs = (item: any): number | null => {
+      const value = item?.trigger?.value?.date ?? item?.trigger?.date ?? null;
+      if (!value) return null;
+      const ms = new Date(value).getTime();
+      return Number.isFinite(ms) ? ms : null;
+    };
     const thirtyMinBefore = new Date(workoutAt.getTime() - 30 * 60 * 1000);
+    const thirtyMinBeforeMs = thirtyMinBefore.getTime();
+    const workoutAtMs = workoutAt.getTime();
+    const approxSameTime = (a: number | null, b: number): boolean => {
+      if (!a) return false;
+      return Math.abs(a - b) <= 60_000;
+    };
+
+    const duplicateCandidates = existing.filter((item) => {
+      const data = (item.content?.data || {}) as Record<string, unknown>;
+      const title = String(item.content?.title || '');
+      const triggerMs = getTriggerTimeMs(item);
+      const isLegacyAthleteReminder =
+        (title.includes('Treino em 30 min') && approxSameTime(triggerMs, thirtyMinBeforeMs)) ||
+        (title.includes('Hora do treino') && approxSameTime(triggerMs, workoutAtMs));
+      return (
+        (
+          data?.type === 'athlete_workout_reminder' &&
+          data?.workoutId === workoutId &&
+          data?.dateStr === dateStr &&
+          data?.timeStr === timeStr
+        ) ||
+        isLegacyAthleteReminder
+      );
+    });
+    for (const item of duplicateCandidates) {
+      try {
+        await N.cancelScheduledNotificationAsync(item.identifier);
+      } catch {
+        // ignore
+      }
+    }
+
     if (thirtyMinBefore.getTime() > Date.now()) {
       const id = await N.scheduleNotificationAsync({
         content: {
           title: 'Treino em 30 min 💪',
           body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
           sound: 'default',
+          data: {
+            type: 'athlete_workout_reminder',
+            reminderKind: 'before_30m',
+            workoutId,
+            dateStr,
+            timeStr,
+          },
         },
         trigger: {
           type: N.SchedulableTriggerInputTypes.DATE,
@@ -239,6 +289,13 @@ export async function scheduleWorkoutRemindersForAthlete(
         title: 'Hora do treino! 💪',
         body: `"${workoutName}" – comece agora.`,
         sound: 'default',
+        data: {
+          type: 'athlete_workout_reminder',
+          reminderKind: 'at_time',
+          workoutId,
+          dateStr,
+          timeStr,
+        },
       },
       trigger: {
         type: N.SchedulableTriggerInputTypes.DATE,
@@ -262,6 +319,10 @@ export async function syncAthleteWorkoutReminders(
   channelId: string = 'workouts'
 ): Promise<void> {
   if (!athleteId) return;
+  if (isSyncingAthleteReminders) return;
+  isSyncingAthleteReminders = true;
+
+  try {
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) return;
   await setupNotificationChannel();
@@ -282,6 +343,9 @@ export async function syncAthleteWorkoutReminders(
 
     await scheduleWorkoutRemindersForAthlete(w.id, w.date, w.scheduledTime, w.name, channelId);
     await AsyncStorage.setItem(key, 'true');
+  }
+  } finally {
+    isSyncingAthleteReminders = false;
   }
 }
 

@@ -157,7 +157,7 @@ function buildPasswordResetHtml(resetLink: string): string {
               <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;">
                 <tr>
                   <td style="padding:0 4px 0 0;font-size:32px;line-height:1;font-weight:800;letter-spacing:-0.03em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                    <span style="color:#fb923c;">Treina</span><span style="color:#fafafa;">+</span>
+                    <span style="color:#fb923c;">Coach</span><span style="color:#fafafa;">'em</span>
                   </td>
                 </tr>
               </table>
@@ -201,7 +201,7 @@ function buildPasswordResetHtml(resetLink: string): string {
           <tr>
             <td style="padding:28px 8px 0;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
               <p style="margin:0 0 6px;font-size:12px;color:#525252;line-height:1.5;">Enviado automaticamente para ajudar você a recuperar o acesso.</p>
-              <p style="margin:0;font-size:11px;color:#404040;letter-spacing:0.06em;"><span style="color:#fb923c;font-weight:700;">Treina</span><span style="color:#525252;font-weight:700;">+</span> · gestão de performance</p>
+              <p style="margin:0;font-size:11px;color:#404040;letter-spacing:0.06em;"><span style="color:#fb923c;font-weight:700;">Coach</span><span style="color:#525252;font-weight:700;">'em</span> · gestão de performance</p>
             </td>
           </tr>
         </table>
@@ -232,7 +232,7 @@ function buildEmailVerificationHtml(verificationLink: string): string {
           <tr>
             <td style="padding:0 0 20px;text-align:center;">
               <p style="margin:0;font-size:32px;line-height:1;font-weight:800;letter-spacing:-0.03em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                <span style="color:#fb923c;">Treina</span><span style="color:#fafafa;">+</span>
+                <span style="color:#fb923c;">Coach</span><span style="color:#fafafa;">'em</span>
               </p>
               <p style="margin:12px 0 0;font-size:11px;color:#737373;letter-spacing:0.22em;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Performance esportiva</p>
             </td>

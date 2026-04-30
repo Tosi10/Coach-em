@@ -210,7 +210,7 @@ export default function ProfileScreen() {
   };
 
   const openSupportEmail = async () => {
-    const url = `mailto:${SUPPORT_EMAIL}?subject=Suporte%20Treina%2B`;
+    const url = `mailto:${SUPPORT_EMAIL}?subject=Suporte%20Coach%27em`;
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
       Alert.alert('Suporte', `Não foi possível abrir o email. Contato: ${SUPPORT_EMAIL}`);

@@ -305,12 +305,14 @@ export default function WorkoutDetailsScreen() {
   const [protocolTotalElapsed, setProtocolTotalElapsed] = useState(0);
   const [isRunningProtocol, setIsRunningProtocol] = useState(false);
   const [activeProtocolExerciseId, setActiveProtocolExerciseId] = useState<string | null>(null);
+  const [completedProtocolExerciseId, setCompletedProtocolExerciseId] = useState<string | null>(null);
 
   /** Timer intervalado: usa prazo absoluto (Date.now) para não “congelar” com tela bloqueada / app em background. */
   const protocolPhaseEndMsRef = useRef<number | null>(null);
   const protocolPhaseIndexRef = useRef(0);
   const protocolElapsedBaselineSecRef = useRef(0);
   const protocolRunningSinceMsRef = useRef<number | null>(null);
+  const hasQueuedProtocolNotificationsRef = useRef(false);
   
   // Estados para registro de peso/carga
   const [exerciseWeight, setExerciseWeight] = useState<string>(''); // Peso digitado pelo atleta
@@ -640,6 +642,7 @@ export default function WorkoutDetailsScreen() {
 
   const resetProtocolTimer = useCallback(() => {
     void cancelAllIntervalProtocolPhaseNotifications();
+    hasQueuedProtocolNotificationsRef.current = false;
     protocolPhaseEndMsRef.current = null;
     protocolPhaseIndexRef.current = 0;
     protocolElapsedBaselineSecRef.current = 0;
@@ -649,6 +652,7 @@ export default function WorkoutDetailsScreen() {
     setProtocolTimeLeft(0);
     setProtocolTotalElapsed(0);
     setActiveProtocolExerciseId(null);
+    setCompletedProtocolExerciseId(null);
   }, []);
 
   const startProtocolTimer = useCallback((exerciseId: string, exercise: WorkoutExercise) => {
@@ -660,7 +664,9 @@ export default function WorkoutDetailsScreen() {
     protocolPhaseEndMsRef.current = now + firstDuration * 1000;
     protocolElapsedBaselineSecRef.current = 0;
     protocolRunningSinceMsRef.current = now;
+    hasQueuedProtocolNotificationsRef.current = false;
     setActiveProtocolExerciseId(exerciseId);
+    setCompletedProtocolExerciseId(null);
     setProtocolPhaseIndex(0);
     setProtocolTimeLeft(firstDuration);
     setProtocolTotalElapsed(0);
@@ -673,6 +679,7 @@ export default function WorkoutDetailsScreen() {
 
   const pauseProtocolTimer = useCallback(() => {
     void cancelAllIntervalProtocolPhaseNotifications();
+    hasQueuedProtocolNotificationsRef.current = false;
     const endMs = protocolPhaseEndMsRef.current;
     const runningSince = protocolRunningSinceMsRef.current;
     if (endMs != null) {
@@ -719,12 +726,14 @@ export default function WorkoutDetailsScreen() {
         phasesAdvanced += 1;
         if (idx >= sequence.length) {
           void cancelAllIntervalProtocolPhaseNotifications();
+          hasQueuedProtocolNotificationsRef.current = false;
           protocolPhaseEndMsRef.current = null;
           protocolRunningSinceMsRef.current = null;
-          protocolPhaseIndexRef.current = 0;
-          setProtocolPhaseIndex(0);
+          protocolPhaseIndexRef.current = Math.max(0, sequence.length - 1);
+          setProtocolPhaseIndex(Math.max(0, sequence.length - 1));
           setProtocolTimeLeft(0);
           setActiveProtocolExerciseId(null);
+          setCompletedProtocolExerciseId(activeProtocolExerciseId);
           setIsRunningProtocol(false);
           const totalProtocol = getProtocolTotalDuration(
             currentExercise.intervalProtocol || [],
@@ -735,7 +744,6 @@ export default function WorkoutDetailsScreen() {
           Vibration.vibrate([0, 380, 120, 380, 120, 560]);
           playBeep();
           setTimeout(() => playBeep(), 220);
-          showAlertRef.current('Protocolo concluído', 'Intervalado finalizado com sucesso.', 'success');
           return;
         }
         const nextDur = Math.max(1, Number(sequence[idx].duration) || 0);
@@ -745,6 +753,7 @@ export default function WorkoutDetailsScreen() {
 
       if (phasesAdvanced > 0) {
         void cancelAllIntervalProtocolPhaseNotifications();
+        hasQueuedProtocolNotificationsRef.current = false;
         const nextPhase = sequence[idx];
         const isRoundBoundary = Boolean(nextPhase?.id?.startsWith('round_rest_'));
         if (isRoundBoundary) {
@@ -781,9 +790,11 @@ export default function WorkoutDetailsScreen() {
     };
 
     const queueBackgroundPhaseNotifications = () => {
+      if (hasQueuedProtocolNotificationsRef.current) return;
       const endMs = protocolPhaseEndMsRef.current;
       const idx = protocolPhaseIndexRef.current;
       if (endMs == null || idx >= sequence.length) return;
+      hasQueuedProtocolNotificationsRef.current = true;
       void scheduleIntervalProtocolPhaseChain({
         sequence: sequence.map((p) => ({
           id: typeof p.id === 'string' ? p.id : undefined,
@@ -792,12 +803,15 @@ export default function WorkoutDetailsScreen() {
         })),
         startPhaseIndex: idx,
         firstPhaseEndMs: endMs,
+      }).catch(() => {
+        hasQueuedProtocolNotificationsRef.current = false;
       });
     };
 
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void cancelAllIntervalProtocolPhaseNotifications();
+        hasQueuedProtocolNotificationsRef.current = false;
         tick();
       } else if (state === 'background' || state === 'inactive') {
         queueBackgroundPhaseNotifications();
@@ -811,6 +825,7 @@ export default function WorkoutDetailsScreen() {
       sub.remove();
       clearInterval(id);
       void cancelAllIntervalProtocolPhaseNotifications();
+      hasQueuedProtocolNotificationsRef.current = false;
     };
   }, [
     activeProtocolExerciseId,
@@ -1822,8 +1837,9 @@ export default function WorkoutDetailsScreen() {
                       const currentPhase = sequence[protocolPhaseIndex];
                       const nextPhase = sequence[protocolPhaseIndex + 1];
                       const isThisProtocolActive = activeProtocolExerciseId === exerciseUniqueId;
+                      const isThisProtocolCompleted = completedProtocolExerciseId === exerciseUniqueId;
                       const progress = totalProtocol > 0
-                        ? Math.min(100, ((isThisProtocolActive ? protocolTotalElapsed : 0) / totalProtocol) * 100)
+                        ? Math.min(100, (((isThisProtocolActive || isThisProtocolCompleted) ? protocolTotalElapsed : 0) / totalProtocol) * 100)
                         : 0;
 
                       return (
@@ -1836,15 +1852,27 @@ export default function WorkoutDetailsScreen() {
                           </Text>
 
                           <View className="rounded-xl p-4 mb-3 items-center" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>
-                              {isThisProtocolActive && currentPhase ? `Fase ${protocolPhaseIndex + 1} de ${sequence.length}` : 'Pronto para iniciar'}
-                            </Text>
-                            <Text className="text-xl font-bold mb-2 text-center" style={themeStyles.text}>
-                              {isThisProtocolActive && currentPhase ? currentPhase.name : exercise.protocolName || 'Protocolo intervalado'}
-                            </Text>
-                            <Text className="text-5xl font-bold" style={{ color: theme.colors.primary }}>
-                              {isThisProtocolActive ? formatClock(protocolTimeLeft) : formatClock(sequence[0]?.duration || 0)}
-                            </Text>
+                            {!isThisProtocolCompleted ? (
+                              <>
+                                <Text className="text-xs mb-1" style={themeStyles.textSecondary}>
+                                  {isThisProtocolActive && currentPhase
+                                    ? `Fase ${protocolPhaseIndex + 1} de ${sequence.length}`
+                                    : 'Pronto para iniciar'}
+                                </Text>
+                                <Text className="text-xl font-bold mb-2 text-center" style={themeStyles.text}>
+                                  {isThisProtocolActive && currentPhase
+                                    ? currentPhase.name
+                                    : exercise.protocolName || 'Protocolo intervalado'}
+                                </Text>
+                                <Text className="text-5xl font-bold" style={{ color: theme.colors.primary }}>
+                                  {isThisProtocolActive ? formatClock(protocolTimeLeft) : formatClock(sequence[0]?.duration || 0)}
+                                </Text>
+                              </>
+                            ) : (
+                              <Text className="text-3xl font-bold text-center" style={{ color: '#10b981' }}>
+                                PROTOCOLO CONCLUÍDO
+                              </Text>
+                            )}
                             {isThisProtocolActive && nextPhase ? (
                               <Text className="text-xs mt-2" style={themeStyles.textSecondary}>
                                 Próxima: {nextPhase.name}

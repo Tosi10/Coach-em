@@ -4,16 +4,18 @@ App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acom
 
 ---
 
-## Última atualização (o que foi feito)
+## Última atualização (estado atual)
 
-Resumo do estado recente do código (inclui commit em `main` com coach card, sync e UI):
+Resumo consolidado do estado atual em `main`:
 
 | Tema | Detalhe |
 |------|---------|
 | **Home do atleta** | Card do treinador com **foto**, **nome exibido** e **mensagem** definidos no Perfil do treinador. Leitura em **`coachemAthletes`** (e fallback nos treinos atribuídos). **Não** gravamos isso em `users/{atleta}`: as [regras Firestore](docs/firestore.rules.coachem.production.rules) só permitem o próprio usuário atualizar o próprio `users/{uid}`. |
 | **Perfil do treinador** | Campos *nome para atletas*, *mensagem para atletas*, upload de foto; salvamento com **`syncCoachPublicProfileToAthletes`** espelhando em atletas e treinos. Confirmação com **CustomAlert** (não `Alert` nativo). |
 | **Abas** | Espaçamento superior (safe area + 20px) alinhado entre Home / Treinos / Perfil; header nativo oculto na aba Treinos; ícone **Atletas** ~10% menor na tab bar. |
-| **Loja / jurídico** | Textos em `DOCUMENTACAO_LOJAS.md`, `DESCRICAO_LONGA.md`, `POLITICA_PRIVACIDADE.md`, `TERMOS_DE_USO.md`; páginas estáticas em `hosting/legal/` e `public/` para deploy no **Firebase Hosting** (guia em `hosting/legal/GUIA_DEPLOY_FIREBASE_HOSTING.md`). |
+| **Branding** | Rebranding aplicado para **Coach'em** (nome do app, logo, splash, intro vídeo, textos principais e notificações). |
+| **Loja / jurídico** | Textos em `DOCUMENTACAO_LOJAS.md`, `DESCRICAO_LONGA.md`, `POLITICA_PRIVACIDADE.md`, `TERMOS_DE_USO.md`; páginas estáticas em `hosting/legal/` e `public/`. Links legais do app apontam para `/terms/coachem` e `/privacy/coachem`. |
+| **Deploy Hosting** | Deploy de hosting concluído em `https://futeba-96395.web.app` com páginas legais publicadas. |
 | **Conta** | Fluxo de atleta **bloqueado** pelo treinador, onboarding/tips, suporte Vision10 no perfil do treinador, etc. (ver histórico de commits). |
 
 ---
@@ -22,10 +24,11 @@ Resumo do estado recente do código (inclui commit em `main` com coach card, syn
 
 Sugestão de ordem para **lançamento** e evolução:
 
-1. **Build em loja** — Concluir `eas build` (iOS/Android) com variáveis `EXPO_PUBLIC_FIREBASE_*` no Expo; **`eas submit`** ou submit automático para TestFlight / Play Console.
-2. **Testes na loja** — Instalar build de produção, login treinador + atleta, card do treinador na Home, bloqueio, treinos, perfil e links jurídicos.
-3. **Firebase Hosting** — Se ainda não deployou: `firebase deploy --only hosting` para URLs públicas de privacidade/termos baterem com o app.
-4. **Opcional pós-MVP** — Polir texto longo no card do treinador (ellipsis / “ver mais”), migrar `expo-av` quando subir SDK, revisar peso dos PNGs, regras de negócio se treinador excluir conta.
+1. **Build em loja** — Rodar `eas build` (iOS/Android) com variáveis `EXPO_PUBLIC_FIREBASE_*` no Expo.
+2. **Teste em build real** — Validar fluxo completo no aparelho físico usando `CHECKLIST_TESTES_MANUAIS.md`.
+3. **Submit** — Fazer `eas submit` (ou auto-submit) para TestFlight / Play Console.
+4. **Alinhamento de marca (externo)** — Atualizar o site da Vision10 para remover referências antigas da marca anterior e manter consistência com Coach'em.
+5. **Pós-lançamento** — Internacionalização (PT/EN), ajustes finos de UX e otimizações de assets.
 
 ---
 

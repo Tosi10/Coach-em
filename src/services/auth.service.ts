@@ -105,8 +105,9 @@ function formatAuthError(error: unknown, fallbackPrefix: string): Error {
 
 function toAppUser(firebaseUser: FirebaseUser, userData: any): User {
   return {
-    id: firebaseUser.uid,
     ...userData,
+    // O ID usado nas regras do Firestore/Storage precisa ser sempre o UID real do Firebase Auth.
+    id: firebaseUser.uid,
     photoURL: userData.photoURL ?? firebaseUser.photoURL ?? undefined,
     createdAt: userData.createdAt?.toDate?.() || new Date(),
     updatedAt: userData.updatedAt?.toDate?.() || new Date(),

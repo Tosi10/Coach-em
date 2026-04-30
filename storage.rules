@@ -27,10 +27,7 @@ service firebase.storage {
     // Vídeos de exercícios (Coach'em) — pasta exercises/{exerciseId}/...
     match /exercises/{exerciseId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
-        && exists(/databases/(default)/documents/coachemExercises/$(exerciseId))
-        && get(/databases/(default)/documents/coachemExercises/$(exerciseId)).data.createdBy
-          == request.auth.uid;
+      allow write: if request.auth != null;
     }
 
     // Nada fora das pastas acima (evita bucket partilhado aberto a qualquer user logado).

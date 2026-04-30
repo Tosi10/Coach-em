@@ -41,7 +41,7 @@ const CRITICAL_IMAGES: { name: string; asset: number }[] = [
   { name: 'PerfilCinza2.png', asset: require('../assets/images/PerfilCinza2.png') },
   { name: 'AtletasLaranja2.png', asset: require('../assets/images/AtletasLaranja2.png') },
   { name: 'AtletasCinza2.png', asset: require('../assets/images/AtletasCinza2.png') },
-  { name: 'Coach-emNovo.png', asset: require('../assets/images/Coach-emNovo.png') },
+  { name: 'Coach-emNovo03.png', asset: require('../assets/images/Coach-emNovo03.png') },
   { name: 'PanoramaSemanal2.png', asset: require('../assets/images/PanoramaSemanal2.png') },
   { name: 'AtivosHoje2.png', asset: require('../assets/images/AtivosHoje2.png') },
   { name: 'IconeWorkoutComplete2.png', asset: require('../assets/images/IconeWorkoutComplete2.png') },

@@ -152,7 +152,7 @@ export default function LoginScreen() {
         {/* Logo / Brand */}
         <View className="pt-14 pb-8 px-6 items-center">
           <Image
-            source={require('../../assets/images/Coach-emNovo.png')}
+            source={require('../../assets/images/Coach-emNovo03.png')}
             style={{ width: 420, height: 180, marginTop: 50, marginBottom: 90 }}
             resizeMode="contain"
           />

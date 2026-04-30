@@ -4,18 +4,19 @@
     "slug": "coachemapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/Coach-emNovo.png",
+    "icon": "./assets/images/Coach-emIcone02.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/Coach-emNovo.png",
+      "image": "./assets/images/Coach-emNovo03.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0a"
     },
     "ios": {
       "bundleIdentifier": "com.vision10.coachem",
       "buildNumber": "1.0.2",
+      "icon": "./assets/images/Coach-emIcone02.png",
       "supportsTablet": true,
       "splash": {
         "backgroundColor": "#0a0a0a"
@@ -33,7 +34,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Coach-emNovo.png",
+        "foregroundImage": "./assets/images/Coach-emIcone02.png",
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
@@ -42,7 +43,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/Coach-emNovo.png"
+      "favicon": "./assets/images/Coach-emIcone02.png"
     },
     "plugins": [
       "expo-router",
@@ -57,7 +58,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0a0a",
-          "image": "./assets/images/Coach-emNovo.png",
+          "image": "./assets/images/Coach-emNovo03.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }

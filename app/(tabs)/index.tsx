@@ -1254,7 +1254,7 @@ export default function HomeScreen() {
       {userType !== UserType.ATHLETE && (
         <View className="items-center mb-0">
           <Image
-            source={require('../../assets/images/Coach-emNovo.png')}
+            source={require('../../assets/images/Coach-emNovo03.png')}
             style={{ width: 360, height: 140 }}
             resizeMode="contain"
           />
@@ -2227,11 +2227,11 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <Image
-                  source={require('../../assets/images/Coach-emNovo.png')}
+                  source={require('../../assets/images/Coach-emNovo03.png')}
                   style={{
-                    width: Platform.OS === 'ios' ? 130 : 180,
-                    height: Platform.OS === 'ios' ? 52 : 72,
-                    marginTop: -15,
+                    width: Platform.OS === 'ios' ? 170 : 180,
+                    height: Platform.OS === 'ios' ? 68 : 72,
+                    marginTop: Platform.OS === 'ios' ? -8 : -15,
                   }}
                   resizeMode="contain"
                 />
