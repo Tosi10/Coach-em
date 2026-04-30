@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.vision10.coachem",
-      "buildNumber": "1.0.2",
+      "buildNumber": "1.0.25",
       "icon": "./assets/images/Coach-emIcone02.png",
       "supportsTablet": true,
       "splash": {

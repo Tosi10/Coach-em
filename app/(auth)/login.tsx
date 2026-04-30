@@ -9,7 +9,6 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { EmailNotVerifiedError, resendVerificationEmail, sendPasswordResetEmailTo } from '@/src/services/auth.service';
 import { persistSessionAndNavigateHome } from '@/src/utils/navigateAfterAuth';
 import { getThemeStyles } from '@/src/utils/themeStyles';
-import { BetaBadge } from '@/components/BetaBadge';
 import { CustomAlert } from '@/components/CustomAlert';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -159,9 +158,6 @@ export default function LoginScreen() {
           <Text className="text-base text-center max-w-[260px]" style={{ color: theme.colors.textSecondary, marginTop: -80 }}>
             Gestão de Performance Esportiva
           </Text>
-          <View className="mt-3">
-            <BetaBadge subtitle="" />
-          </View>
         </View>
 
         {/* Form card */}
@@ -312,9 +308,6 @@ export default function LoginScreen() {
 
             <Text className="text-center text-[11px] mt-3" style={themeStyles.textTertiary}>
               Desenvolvido por <Text style={{ color: theme.colors.primary }}>Vision10</Text>
-            </Text>
-            <Text className="text-center text-[11px] mt-1" style={themeStyles.textTertiary}>
-              Versão beta em validação final.
             </Text>
           </View>
         </View>

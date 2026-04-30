@@ -5,7 +5,6 @@
  * Atletas são criados pelo treinador em "Adicionar atleta".
  */
 
-import { BetaBadge } from '@/components/BetaBadge';
 import { CustomAlert } from '@/components/CustomAlert';
 import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -143,9 +142,6 @@ export default function RegisterScreen() {
           >
             Gestão de Performance Esportiva
           </Text>
-          <View className="mt-3">
-            <BetaBadge subtitle="" />
-          </View>
         </View>
 
         <View className="flex-1 px-5 pb-8">
@@ -313,9 +309,6 @@ export default function RegisterScreen() {
                 Já tem uma conta? <Text className="font-semibold">Faça login</Text>
               </Text>
             </TouchableOpacity>
-            <Text className="text-center text-[11px] mt-1" style={themeStyles.textTertiary}>
-              Versão beta em validação final.
-            </Text>
           </View>
         </View>
       </ScrollView>

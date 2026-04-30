@@ -5,7 +5,6 @@
  */
 
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { BetaBadge } from '@/components/BetaBadge';
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -625,9 +624,6 @@ export default function ProfileScreen() {
           <Text className="text-xs text-center" style={themeStyles.textTertiary}>
             Esqueceu a senha? Use &quot;Esqueci minha senha&quot; na tela de login para receber o link por email.
           </Text>
-        </View>
-        <View className="mt-3">
-          <BetaBadge variant="card" />
         </View>
       </View>
 

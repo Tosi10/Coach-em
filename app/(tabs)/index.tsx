@@ -5,7 +5,6 @@
  * Vamos explicar TUDO linha por linha!
  */
 
-import { BetaBadge } from '@/components/BetaBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
@@ -1265,10 +1264,6 @@ export default function HomeScreen() {
           Bem-vindo{user?.displayName ? `, ${user.displayName}` : ''} ao seu app de gestão esportiva.
       </Text>
       )}
-      <View className="items-center mb-3">
-        <BetaBadge subtitle="Você está usando a versão beta." />
-      </View>
-
       {userType === UserType.COACH ? (
         //Dashboard do Treinador - Tema Escuro Estilo Zeus
         <View className="w-full mt-3">

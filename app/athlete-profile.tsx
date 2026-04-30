@@ -3,14 +3,13 @@
  * 
  * Esta tela mostra o perfil completo do atleta com:
  * - Informações do atleta (foto, nome, status)
- * - Tabs: Treinos, Gráficos, Fotos
+ * - Tabs: Treinos e Gráficos
  * - Histórico de treinos
  * - Gráfico de evolução
  * - Botão para atribuir treino
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
-import { BetaBadge } from '@/components/BetaBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
@@ -44,7 +43,7 @@ export default function AthleteProfileScreen() {
   const athleteIdString = Array.isArray(athleteId) ? athleteId[0] : athleteId;
   
   const [athlete, setAthlete] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'treinos' | 'graficos' | 'fotos'>('graficos');
+  const [activeTab, setActiveTab] = useState<'treinos' | 'graficos'>('graficos');
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
   const [hasTrainedToday, setHasTrainedToday] = useState(false);
   
@@ -423,10 +422,6 @@ export default function AthleteProfileScreen() {
             Voltar
           </Text>
         </TouchableOpacity>
-        <View className="items-center mb-6">
-          <BetaBadge subtitle="Módulo beta em validação final." />
-        </View>
-
         {/* Seção de perfil do atleta */}
         <View className="flex-row items-center mb-6">
           <View
@@ -499,7 +494,7 @@ export default function AthleteProfileScreen() {
           </View>
         </View>
 
-        {/* Tabs - Ordem: Gráficos, Treinos, Fotos */}
+        {/* Tabs - Ordem: Gráficos, Treinos */}
         <View className="flex-row mb-6" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
           <TouchableOpacity
             className="flex-1 py-3 border-b-2"
@@ -535,22 +530,6 @@ export default function AthleteProfileScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            className="flex-1 py-3 border-b-2"
-            style={{
-              borderBottomColor: activeTab === 'fotos' ? theme.colors.primary : 'transparent',
-            }}
-            onPress={() => setActiveTab('fotos')}
-          >
-            <Text
-              className="text-center font-semibold"
-              style={{
-                color: activeTab === 'fotos' ? theme.colors.text : theme.colors.textTertiary
-              }}
-            >
-              Fotos
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Conteúdo das Tabs */}
@@ -672,29 +651,43 @@ export default function AthleteProfileScreen() {
                     
                     {/* Estatísticas */}
                     {weightHistory.length > 1 && (
-                      <View className="mt-4 pt-4 border-t border-dark-700">
+                      <View
+                        className="mt-4 pt-4 border-t"
+                        style={{ borderTopColor: theme.colors.border }}
+                      >
                         <View className="flex-row justify-between">
                           <View>
-                            <Text className="text-neutral-400 text-xs">Primeiro registro</Text>
-                            <Text className="text-white font-semibold">
+                            <Text className="text-xs" style={themeStyles.textTertiary}>
+                              Primeiro registro
+                            </Text>
+                            <Text className="font-semibold" style={themeStyles.text}>
                               {weightHistory[0]?.weight} kg
                             </Text>
                           </View>
                           <View>
-                            <Text className="text-neutral-400 text-xs">Último registro</Text>
-                            <Text className="text-white font-semibold">
+                            <Text className="text-xs" style={themeStyles.textTertiary}>
+                              Último registro
+                            </Text>
+                            <Text className="font-semibold" style={themeStyles.text}>
                               {weightHistory[weightHistory.length - 1]?.weight} kg
                             </Text>
                           </View>
                           <View>
-                            <Text className="text-neutral-400 text-xs">Evolução</Text>
-                            <Text className={`font-semibold ${
-                              weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
-                                ? 'text-green-400'
-                                : weightHistory[weightHistory.length - 1]?.weight < weightHistory[0]?.weight
-                                ? 'text-red-400'
-                                : 'text-neutral-400'
-                            }`}>
+                            <Text className="text-xs" style={themeStyles.textTertiary}>
+                              Evolução
+                            </Text>
+                            <Text
+                              className="font-semibold"
+                              style={{
+                                color:
+                                  weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
+                                    ? theme.colors.success
+                                    : weightHistory[weightHistory.length - 1]?.weight <
+                                        weightHistory[0]?.weight
+                                      ? theme.colors.error
+                                      : theme.colors.textSecondary,
+                              }}
+                            >
                               {weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight ? '+' : ''}
                               {(weightHistory[weightHistory.length - 1]?.weight - weightHistory[0]?.weight).toFixed(1)} kg
                             </Text>
@@ -1175,28 +1168,15 @@ export default function AthleteProfileScreen() {
           </View>
         )}
 
-
-        {activeTab === 'fotos' && (
-          <View className="mb-6">
-            <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-              Fotos
-            </Text>
-            <View className="rounded-xl p-6 border" style={themeStyles.card}>
-              <Text className="text-center" style={themeStyles.textSecondary}>
-                Nenhuma foto disponível
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Botão Atribuir Treino */}
         <TouchableOpacity
-          className="rounded-xl py-4 px-6 mt-1 border"
+          className="rounded-2xl py-4 px-6 mt-1 border"
           style={{
             backgroundColor: theme.mode === 'dark' 
-              ? 'rgba(249, 115, 22, 0.4)' 
-              : 'rgba(251, 146, 60, 0.2)',
-            borderColor: theme.colors.primary + '50',
+              ? 'rgba(249, 115, 22, 0.34)' 
+              : 'rgba(251, 146, 60, 0.18)',
+            borderColor: theme.colors.primary + '85',
+            borderWidth: 1.4,
             opacity: isRemoved ? 0.45 : 1,
           }}
           disabled={isRemoved}
@@ -1207,9 +1187,16 @@ export default function AthleteProfileScreen() {
             });
           }}
         >
-          <Text className="font-bold text-center text-lg" style={{ color: theme.colors.primary }}>
-            ➕ Atribuir Treino
-          </Text>
+          <View className="flex-row items-center justify-center">
+            <Image
+              source={require('../assets/images/Sinal+.png')}
+              style={{ width: 26, height: 26, marginRight: 10 }}
+              resizeMode="contain"
+            />
+            <Text className="font-bold text-center text-lg" style={{ color: theme.colors.primary }}>
+              Atribuir Treino
+            </Text>
+          </View>
         </TouchableOpacity>
 
         {/* Último Feedback - dados reais dos treinos concluídos */}
