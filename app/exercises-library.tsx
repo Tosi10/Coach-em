@@ -15,7 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Base padrão de exercícios para iniciar a biblioteca do treinador.
 const mockExercises = DEFAULT_EXERCISES;
@@ -265,9 +265,16 @@ export default function ExercisesLibraryScreen() {
             }}
             onPress={() => router.push('/create-exercise')}
           >
-            <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-              ➕ Criar Exercício
-            </Text>
+            <View className="flex-row items-center justify-center">
+              <Image
+                source={require('../assets/images/Sinal+.png')}
+                style={{ width: 26, height: 26, marginRight: 10 }}
+                resizeMode="contain"
+              />
+              <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
+                Criar Exercício
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 

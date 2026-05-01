@@ -9,6 +9,7 @@ import {
     setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
+import { assignedSortTimestamp, formatAssignedCalendarDatePtBr, getLocalTodayYmd, parseDateOnlyLocal } from '@/src/utils/dateOnly';
 import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -48,7 +49,7 @@ export default function TabTwoScreen() {
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
   const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos' | 'calendario'>('calendario');
   const [workoutsToShow, setWorkoutsToShow] = useState(5);
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(getLocalTodayYmd());
   const isSchedulingAthleteRemindersRef = useRef(false);
 
   // Estados para CustomAlert
@@ -251,8 +252,8 @@ export default function TabTwoScreen() {
     if (workoutSubTab === 'historico') {
       // HISTÓRICO - Treinos concluídos
       const sortedCompleted = [...completedWorkouts].sort((a: any, b: any) => {
-        const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-        const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+        const dateA = assignedSortTimestamp(a);
+        const dateB = assignedSortTimestamp(b);
         return dateB - dateA; // Mais recentes primeiro
       });
       
@@ -261,8 +262,8 @@ export default function TabTwoScreen() {
     } else {
       // PRÓXIMOS - Treinos pendentes
       const sortedPending = [...pendingWorkouts].sort((a: any, b: any) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
+        const dateA = assignedSortTimestamp(a);
+        const dateB = assignedSortTimestamp(b);
         return dateA - dateB; // Mais próximos primeiro
       });
       
@@ -297,7 +298,7 @@ export default function TabTwoScreen() {
       Object.values(groupedWorkouts).forEach((group: any[]) => {
         if (group.length > 0) {
           const sortedGroup = [...group].sort((a: any, b: any) => {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
+            return assignedSortTimestamp(a) - assignedSortTimestamp(b);
           });
           allWorkoutsToShow.push({ isGroup: true, workouts: sortedGroup, name: sortedGroup[0].name, dayOfWeek: sortedGroup[0].dayOfWeek });
         }
@@ -308,8 +309,8 @@ export default function TabTwoScreen() {
       });
       
       allWorkoutsToShow.sort((a: any, b: any) => {
-        const dateA = a.isGroup ? new Date(a.workouts[0].date).getTime() : new Date(a.workout.date).getTime();
-        const dateB = b.isGroup ? new Date(b.workouts[0].date).getTime() : new Date(b.workout.date).getTime();
+        const dateA = a.isGroup ? assignedSortTimestamp(a.workouts[0]) : assignedSortTimestamp(a.workout);
+        const dateB = b.isGroup ? assignedSortTimestamp(b.workouts[0]) : assignedSortTimestamp(b.workout);
         return dateA - dateB;
       });
       
@@ -437,12 +438,12 @@ export default function TabTwoScreen() {
               {selectedDateWorkouts.length === 0 ? (
                 <EmptyState
                   icon="calendar"
-                  message={`Nenhum treino em ${new Date(selectedCalendarDate + 'T12:00:00').toLocaleDateString('pt-BR')}.`}
+                  message={`Nenhum treino em ${formatAssignedCalendarDatePtBr(selectedCalendarDate)}.`}
                 />
               ) : (
                 <>
                   <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
-                    {selectedDateWorkouts.length} treino{selectedDateWorkouts.length !== 1 ? 's' : ''} em {new Date(selectedCalendarDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    {selectedDateWorkouts.length} treino{selectedDateWorkouts.length !== 1 ? 's' : ''} em {formatAssignedCalendarDatePtBr(selectedCalendarDate)}
                   </Text>
                   {selectedDateWorkouts.map((workout: any) => {
                     const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
@@ -563,7 +564,7 @@ export default function TabTwoScreen() {
                             {group.length} treino{group.length !== 1 ? 's' : ''} agendado{group.length !== 1 ? 's' : ''}
                           </Text>
                           <Text className="text-xs" style={themeStyles.textTertiary}>
-                            Próximo: {new Date(group[0].date).toLocaleDateString('pt-BR', { 
+                            Próximo: {parseDateOnlyLocal(group[0].date).toLocaleDateString('pt-BR', { 
                               weekday: 'long', 
                               day: '2-digit', 
                               month: 'long' 
@@ -606,7 +607,7 @@ export default function TabTwoScreen() {
                               {workout.name}
                             </Text>
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                              {new Date(workout.date).toLocaleDateString('pt-BR')} • {workout.dayOfWeek}
+                              {formatAssignedCalendarDatePtBr(workout.date)} • {workout.dayOfWeek}
                               {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                             </Text>
                             {workout.completedDate && (

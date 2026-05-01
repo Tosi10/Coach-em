@@ -12,6 +12,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { assignedSortTimestamp, chartDayMonthPtBr, formatAssignedCalendarDatePtBr, getLocalTodayYmd, parseDateOnlyLocal, toLocalCalendarYmd } from '@/src/utils/dateOnly';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -71,7 +72,7 @@ export default function AthleteProfileScreen() {
   const [editAthleteSport, setEditAthleteSport] = useState('');
   const [savingAthleteData, setSavingAthleteData] = useState(false);
 
-  const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayDate = useMemo(() => getLocalTodayYmd(), []);
 
   // Função helper para mostrar alert customizado
   const showAlert = (
@@ -89,6 +90,7 @@ export default function AthleteProfileScreen() {
 
   const formatBrDate = (value?: string) => {
     if (!value) return '--';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return formatAssignedCalendarDatePtBr(value);
     return new Date(value).toLocaleDateString('pt-BR');
   };
 
@@ -135,10 +137,10 @@ export default function AthleteProfileScreen() {
       const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString);
       setAthleteWorkouts(workoutsWithStatus);
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalTodayYmd();
       const trainedToday = workoutsWithStatus.some((w: any) => {
-        const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
-        return w.status === 'Concluído' && completedDate === today;
+        const completedDay = w.completedDate ? toLocalCalendarYmd(w.completedDate) : w.date;
+        return w.status === 'Concluído' && completedDay === today;
       });
       setHasTrainedToday(trainedToday);
     } catch (error) {
@@ -583,7 +585,7 @@ export default function AthleteProfileScreen() {
                     <LineChart
                       data={weightHistory.map((record, index) => ({
                         value: record.weight,
-                        label: new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                        label: chartDayMonthPtBr(record.date),
                       }))}
                       width={280}
                       height={200}
@@ -618,7 +620,7 @@ export default function AthleteProfileScreen() {
                       showVerticalLines={false}
                       xAxisLabelsVerticalShift={10}
                       xAxisLabelTexts={weightHistory.map((record) => 
-                        new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        chartDayMonthPtBr(record.date)
                       )}
                       pointerConfig={{
                         pointer1Color: '#fb923c',
@@ -784,8 +786,8 @@ export default function AthleteProfileScreen() {
                   if (workoutSubTab === 'historico') {
                     // HISTÓRICO - Treinos concluídos
                     const sortedCompleted = [...completedWorkouts].sort((a: any, b: any) => {
-                      const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-                      const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+                      const dateA = assignedSortTimestamp(a);
+                      const dateB = assignedSortTimestamp(b);
                       return dateB - dateA; // Mais recentes primeiro
                     });
                     
@@ -827,7 +829,7 @@ export default function AthleteProfileScreen() {
                                       {workout.name}
                                     </Text>
                                     <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                      {new Date(workout.date).toLocaleDateString('pt-BR')} • {workout.dayOfWeek}
+                                      {formatAssignedCalendarDatePtBr(workout.date)} • {workout.dayOfWeek}
                                     </Text>
                                     {workout.completedDate && (
                                       <Text className="text-xs" style={themeStyles.textTertiary}>
@@ -901,8 +903,8 @@ export default function AthleteProfileScreen() {
                   } else {
                     // PRÓXIMOS - Treinos pendentes (agrupados ou individuais)
                     const sortedPending = [...pendingWorkouts].sort((a: any, b: any) => {
-                      const dateA = new Date(a.date).getTime();
-                      const dateB = new Date(b.date).getTime();
+                      const dateA = assignedSortTimestamp(a);
+                      const dateB = assignedSortTimestamp(b);
                       return dateA - dateB; // Mais próximos primeiro
                     });
                     
@@ -942,7 +944,7 @@ export default function AthleteProfileScreen() {
                       if (group.length > 0) {
                         // Ordenar grupo por data
                         const sortedGroup = [...group].sort((a: any, b: any) => {
-                          return new Date(a.date).getTime() - new Date(b.date).getTime();
+                          return assignedSortTimestamp(a) - assignedSortTimestamp(b);
                         });
                         allWorkoutsToShow.push({ isGroup: true, workouts: sortedGroup, name: sortedGroup[0].name, dayOfWeek: sortedGroup[0].dayOfWeek });
                       }
@@ -955,8 +957,8 @@ export default function AthleteProfileScreen() {
                     
                     // Ordenar tudo por data (primeira data do grupo ou data do individual)
                     allWorkoutsToShow.sort((a: any, b: any) => {
-                      const dateA = a.isGroup ? new Date(a.workouts[0].date).getTime() : new Date(a.workout.date).getTime();
-                      const dateB = b.isGroup ? new Date(b.workouts[0].date).getTime() : new Date(b.workout.date).getTime();
+                      const dateA = a.isGroup ? assignedSortTimestamp(a.workouts[0]) : assignedSortTimestamp(a.workout);
+                      const dateB = b.isGroup ? assignedSortTimestamp(b.workouts[0]) : assignedSortTimestamp(b.workout);
                       return dateA - dateB;
                     });
                     
@@ -978,10 +980,10 @@ export default function AthleteProfileScreen() {
                               // Renderizar grupo de treinos recorrentes
                               // Ordenar por data para garantir ordem correta
                               const sortedGroupWorkouts = [...item.workouts].sort((a: any, b: any) => {
-                                return new Date(a.date).getTime() - new Date(b.date).getTime();
+                                return assignedSortTimestamp(a) - assignedSortTimestamp(b);
                               });
-                              const firstDate = new Date(sortedGroupWorkouts[0].date);
-                              const lastDate = new Date(sortedGroupWorkouts[sortedGroupWorkouts.length - 1].date);
+                              const firstDate = parseDateOnlyLocal(sortedGroupWorkouts[0].date);
+                              const lastDate = parseDateOnlyLocal(sortedGroupWorkouts[sortedGroupWorkouts.length - 1].date);
                               const totalCount = sortedGroupWorkouts.length;
                               const dayOfWeek = sortedGroupWorkouts[0].dayOfWeek;
                               
@@ -1089,7 +1091,7 @@ export default function AthleteProfileScreen() {
                                           {item.workout.name}
                                         </Text>
                                         <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                          {new Date(item.workout.date).toLocaleDateString('pt-BR')} • {item.workout.dayOfWeek}
+                                          {formatAssignedCalendarDatePtBr(item.workout.date)} • {item.workout.dayOfWeek}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
@@ -1203,7 +1205,7 @@ export default function AthleteProfileScreen() {
         {(() => {
           const workoutsWithFeedback = athleteWorkouts
             .filter((w: any) => w.status === 'Concluído' && (w.feedbackText || w.feedbackEmoji || w.feedback != null))
-            .sort((a: any, b: any) => new Date(b.completedDate || b.date).getTime() - new Date(a.completedDate || a.date).getTime());
+            .sort((a: any, b: any) => assignedSortTimestamp(b) - assignedSortTimestamp(a));
           const lastFeedback = workoutsWithFeedback[0];
           if (!lastFeedback) return null;
           const dateStr = lastFeedback.completedDate || lastFeedback.date;

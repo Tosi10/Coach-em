@@ -13,7 +13,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (simplificados para aprendizado)
 const mockExercises: Exercise[] = DEFAULT_EXERCISES;
@@ -294,9 +294,16 @@ export default function WorkoutLibraryScreen() {
                     }}
                     onPress={() => router.push('/create-workout')}
                 >
-                    <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-                        ➕ Criar Novo Treino
-                    </Text>
+                    <View className="flex-row items-center justify-center">
+                        <Image
+                            source={require('../assets/images/Sinal+.png')}
+                            style={{ width: 26, height: 26, marginRight: 10 }}
+                            resizeMode="contain"
+                        />
+                        <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
+                            Criar Novo Treino
+                        </Text>
+                    </View>
                 </TouchableOpacity>
 
                 {/* Busca */}

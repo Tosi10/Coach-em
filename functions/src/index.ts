@@ -23,6 +23,7 @@ const expo = new Expo();
 const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 
 const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 const FREE_PLAN_ATHLETES_LIMIT = 3;
 
 function hourBucket(): number {
@@ -677,15 +678,18 @@ async function sendExpoPush(message: ExpoPushMessage): Promise<boolean> {
 }
 
 /**
- * Push remoto para atletas:
- * - 30 minutos antes do treino
- * - na hora do treino
+ * Push remoto para atleta (fallback com app matado ou sem permissão local):
+ * - na hora do treino apenas (janela de até ~1 min após o horário marcado).
  *
  * Roda em loop (scheduler) para funcionar com app em background/fechado.
+ *
+ * O lembrete T-30 fica apenas no app (local). O push remoto ficava na faixa (>25–≤30 min antes)
+ * e repetia quando o cron rodava de novo (~3 min após o local). “Hora do treino”: janela de 1 min
+ * após o horário marcado para não repetir aos 3+ minutos; cron a cada minuto garante esse disparo.
  */
 export const dispatchAthleteWorkoutPushReminders = onSchedule(
   {
-    schedule: "every 5 minutes",
+    schedule: "every 1 minutes",
     timeZone: "America/Sao_Paulo",
     region: "us-central1",
   },
@@ -724,12 +728,13 @@ export const dispatchAthleteWorkoutPushReminders = onSchedule(
       if (Number.isNaN(workoutAt.getTime())) continue;
 
       const msUntilWorkout = workoutAt.getTime() - nowMs;
-      const already30 = !!data.remoteReminder30SentAt;
       const alreadyStart = !!data.remoteReminderStartSentAt;
 
-      const shouldSend30 = !already30 && msUntilWorkout <= 30 * 60 * 1000 && msUntilWorkout > 25 * 60 * 1000;
-      const shouldSendStart = !alreadyStart && msUntilWorkout <= 0 && msUntilWorkout > -5 * 60 * 1000;
-      if (!shouldSend30 && !shouldSendStart) continue;
+      const shouldSendStart =
+        !alreadyStart &&
+        msUntilWorkout <= 0 &&
+        msUntilWorkout > -1 * MINUTE_MS;
+      if (!shouldSendStart) continue;
 
       let athleteToken = athleteTokenCache.get(athleteId);
       if (athleteToken === undefined) {
@@ -739,18 +744,6 @@ export const dispatchAthleteWorkoutPushReminders = onSchedule(
       if (!athleteToken) continue;
 
       const updates: Record<string, unknown> = {};
-
-      if (shouldSend30) {
-        const sent = await sendExpoPush({
-          to: athleteToken,
-          title: "Treino em 30 min 💪",
-          body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
-          sound: "default",
-          priority: "high",
-          data: { workoutId: workoutDoc.id, reminderType: "thirty-minutes" },
-        });
-        if (sent) updates.remoteReminder30SentAt = admin.firestore.FieldValue.serverTimestamp();
-      }
 
       if (shouldSendStart) {
         const sent = await sendExpoPush({

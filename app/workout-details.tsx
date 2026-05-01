@@ -20,6 +20,7 @@ import {
   setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { WorkoutBlockData, type WorkoutExercise } from '@/src/types';
+import { formatAssignedCalendarDatePtBr } from '@/src/utils/dateOnly';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -1299,7 +1300,7 @@ export default function WorkoutDetailsScreen() {
             Treinador: {coachDisplayName}
           </Text>
           <Text className="mb-4" style={themeStyles.textSecondary}>
-            Data: {new Date(assignedWorkout.date).toLocaleDateString('pt-BR')} ({assignedWorkout.dayOfWeek})
+            Data: {formatAssignedCalendarDatePtBr(assignedWorkout.date)} ({assignedWorkout.dayOfWeek})
             {assignedWorkout.scheduledTime ? ` • ${assignedWorkout.scheduledTime}` : ''}
           </Text>
 

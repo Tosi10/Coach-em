@@ -6,6 +6,7 @@
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
+import { getLocalTodayYmd } from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,7 +22,7 @@ export default function CoachCalendarScreen() {
   const themeStyles = getThemeStyles(theme.colors);
   const [assignedWorkouts, setAssignedWorkouts] = useState<any[]>([]);
   const [athletesMap, setAthletesMap] = useState<Record<string, string>>({});
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalTodayYmd());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

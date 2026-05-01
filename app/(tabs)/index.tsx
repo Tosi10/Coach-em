@@ -11,8 +11,18 @@ import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
-import { db } from '@/src/services/firebase.config';
+import { auth, db } from '@/src/services/firebase.config';
 import { UserType } from '@/src/types';
+import {
+    assignedSortTimestamp,
+    chartDayMonthPtBr,
+    formatAssignedCalendarDatePtBr,
+    getLocalTodayYmd,
+    parseDateOnlyLocal,
+    parseFlexibleDateMs,
+    toLocalCalendarYmd,
+    weekBucketSundayLocalYmd,
+} from '@/src/utils/dateOnly';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -250,8 +260,16 @@ export default function HomeScreen() {
    */
   const loadAthleteCoachCard = useCallback(async () => {
     const savedType = await AsyncStorage.getItem('userType');
-    if (savedType !== UserType.ATHLETE || !user?.id) {
+    if (savedType !== UserType.ATHLETE) {
       setCoachHighlight(null);
+      return;
+    }
+
+    const effectiveUserId = user?.id ?? auth.currentUser?.uid ?? null;
+    const candidateIds = Array.from(
+      new Set([currentAthleteId, effectiveUserId].filter(Boolean) as string[])
+    );
+    if (candidateIds.length === 0) {
       return;
     }
 
@@ -259,7 +277,6 @@ export default function HomeScreen() {
 
     // Primeiro tenta docs diretos por id (uid atual e athleteId salvo).
     // Em rules mais restritas, query por authUid pode falhar para atleta.
-    const candidateIds = Array.from(new Set([currentAthleteId, user.id].filter(Boolean) as string[]));
     for (const candidateId of candidateIds) {
       try {
         const direct = await getDoc(doc(db, 'coachemAthletes', candidateId));
@@ -400,7 +417,7 @@ export default function HomeScreen() {
       if (selectedExercise) {
         const filtered = athleteHistory
           .filter((r: any) => r.exerciseId === selectedExercise)
-          .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .sort((a: any, b: any) => parseFlexibleDateMs(a.date) - parseFlexibleDateMs(b.date));
         setWeightHistory(filtered);
       } else {
         setWeightHistory([]);
@@ -431,20 +448,19 @@ export default function HomeScreen() {
     if (completedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number>();
     completedWorkouts.forEach((workout: any) => {
-      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
-      const weekStart = new Date(workoutDate);
-      const dayOfWeek = weekStart.getDay();
-      weekStart.setDate(weekStart.getDate() - dayOfWeek);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekKey = weekStart.toISOString().split('T')[0];
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
+      const weekKey = weekBucketSundayLocalYmd(workoutDate);
       weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
     });
     const weeklyData = Array.from(weeklyMap.entries())
-      .map(([weekStart, count]) => ({
-        weekStart: new Date(weekStart),
-        count,
-        label: formatWeekLabel(new Date(weekStart)),
-      }))
+      .map(([weekStart, count]) => {
+        const ws = parseDateOnlyLocal(weekStart);
+        return {
+          weekStart: ws,
+          count,
+          label: formatWeekLabel(ws),
+        };
+      })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
     return weeklyData.slice(-8);
   }, [completedWorkouts]);
@@ -454,22 +470,20 @@ export default function HomeScreen() {
     const weeklyMap = new Map<string, number[]>();
     completedWorkouts.forEach((workout: any) => {
       if (!workout.feedback || workout.feedback < 1 || workout.feedback > 5) return;
-      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
-      const weekStart = new Date(workoutDate);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const weekKey = weekStart.toISOString().split('T')[0];
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
+      const weekKey = weekBucketSundayLocalYmd(workoutDate);
       if (!weeklyMap.has(weekKey)) weeklyMap.set(weekKey, []);
       weeklyMap.get(weekKey)!.push(workout.feedback);
     });
     const weeklyData = Array.from(weeklyMap.entries())
       .map(([weekStart, feedbacks]) => {
         const average = feedbacks.reduce((sum, f) => sum + f, 0) / feedbacks.length;
+        const ws = parseDateOnlyLocal(weekStart);
         return {
-          weekStart: new Date(weekStart),
+          weekStart: ws,
           average: parseFloat(average.toFixed(2)),
           count: feedbacks.length,
-          label: formatWeekLabel(new Date(weekStart)),
+          label: formatWeekLabel(ws),
         };
       })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
@@ -502,11 +516,11 @@ export default function HomeScreen() {
     return workouts
       .filter((w: any) => {
         if (w.status !== 'Pendente') return false;
-        const workoutDate = new Date(w.date);
+        const workoutDate = parseDateOnlyLocal(w.date);
         workoutDate.setHours(0, 0, 0, 0);
         return workoutDate >= today && workoutDate <= endOfWeek;
       })
-      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a: any, b: any) => assignedSortTimestamp(a) - assignedSortTimestamp(b));
   }, [workouts]);
 
   const getWorkoutCoachName = useCallback(
@@ -535,20 +549,20 @@ export default function HomeScreen() {
     thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
     thisWeekStart.setHours(0, 0, 0, 0);
     const thisWeekWorkouts = workouts.filter((w: any) => {
-      const workoutDate = new Date(w.date);
+      const workoutDate = parseDateOnlyLocal(w.date);
       return workoutDate >= thisWeekStart && w.status === 'Pendente';
     });
     const completedThisWeek = workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
-      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+      const completedDate = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
       return completedDate >= thisWeekStart;
     });
     const totalCompleted = workouts.filter((w: any) => w.status === 'Concluído').length;
     const sortedCompleted = [...workouts]
       .filter((w: any) => w.status === 'Concluído')
       .sort((a: any, b: any) => {
-        const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-        const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+        const dateA = assignedSortTimestamp(a);
+        const dateB = assignedSortTimestamp(b);
         return dateB - dateA;
       });
     let streak = 0;
@@ -556,7 +570,7 @@ export default function HomeScreen() {
     currentDate.setHours(0, 0, 0, 0);
     for (let i = 0; i < sortedCompleted.length; i++) {
       const workout = sortedCompleted[i] as any;
-      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
       workoutDate.setHours(0, 0, 0, 0);
       const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff === streak) {
@@ -587,21 +601,21 @@ export default function HomeScreen() {
 
     const weeklyMap = new Map<string, number>();
     completedIntervalWorkouts.forEach((workout: any) => {
-      const doneAt = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
-      const weekStart = new Date(doneAt);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const key = weekStart.toISOString().split('T')[0];
+      const doneAt = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
+      const key = weekBucketSundayLocalYmd(doneAt);
       const interval = getWorkoutIntervalSeconds(workout);
       weeklyMap.set(key, (weeklyMap.get(key) || 0) + interval.totalSeconds / 60);
     });
 
     const weeklyMinutes = Array.from(weeklyMap.entries())
-      .map(([weekStart, minutes]) => ({
-        weekStart: new Date(weekStart),
-        label: formatWeekLabel(new Date(weekStart)),
-        minutes: Math.round(minutes),
-      }))
+      .map(([weekStart, minutes]) => {
+        const ws = parseDateOnlyLocal(weekStart);
+        return {
+          weekStart: ws,
+          label: formatWeekLabel(ws),
+          minutes: Math.round(minutes),
+        };
+      })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
       .slice(-8);
 
@@ -655,17 +669,18 @@ export default function HomeScreen() {
 
     const sortedWorkouts = [...completedWorkouts]
       .map((w: any) => {
-        const date = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
-        date.setHours(0, 0, 0, 0);
-        return { ...w, date };
+        const base = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
+        const streakDay = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+        streakDay.setHours(0, 0, 0, 0);
+        return { ...w, streakDay };
       })
-      .sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
+      .sort((a: any, b: any) => a.streakDay.getTime() - b.streakDay.getTime());
 
     // Remover duplicatas (mesmo dia)
     const uniqueDates = new Set<string>();
     const uniqueWorkouts: any[] = [];
     sortedWorkouts.forEach((w: any) => {
-      const dateKey = w.date.toISOString().split('T')[0];
+      const dateKey = getLocalTodayYmd(w.streakDay);
       if (!uniqueDates.has(dateKey)) {
         uniqueDates.add(dateKey);
         uniqueWorkouts.push(w);
@@ -683,8 +698,8 @@ export default function HomeScreen() {
         continue;
       }
 
-      const prevDate = uniqueWorkouts[i - 1].date;
-      const currDate = uniqueWorkouts[i].date;
+      const prevDate = uniqueWorkouts[i - 1].streakDay;
+      const currDate = uniqueWorkouts[i].streakDay;
       const daysDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysDiff === 1) {
@@ -707,7 +722,7 @@ export default function HomeScreen() {
     let checkDate = new Date(today);
 
     for (let i = uniqueWorkouts.length - 1; i >= 0; i--) {
-      const workoutDate = uniqueWorkouts[i].date;
+      const workoutDate = uniqueWorkouts[i].streakDay;
       const daysDiff = Math.floor((checkDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysDiff === streakCount) {
@@ -738,7 +753,7 @@ export default function HomeScreen() {
     if (completedWorkouts.length === 0) return null;
     const monthlyMap = new Map<string, number>();
     completedWorkouts.forEach((workout: any) => {
-      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
       const monthKey = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth() + 1).padStart(2, '0')}`;
       monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
     });
@@ -767,19 +782,19 @@ export default function HomeScreen() {
     if (allCompletedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number>();
     allCompletedWorkouts.forEach((workout: any) => {
-      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
-      const weekStart = new Date(workoutDate);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const weekKey = weekStart.toISOString().split('T')[0];
+      const workoutDate = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
+      const weekKey = weekBucketSundayLocalYmd(workoutDate);
       weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
     });
     const weeklyData = Array.from(weeklyMap.entries())
-      .map(([weekStart, count]) => ({
-        weekStart: new Date(weekStart),
-        count,
-        label: formatWeekLabel(new Date(weekStart)),
-      }))
+      .map(([weekStart, count]) => {
+        const ws = parseDateOnlyLocal(weekStart);
+        return {
+          weekStart: ws,
+          count,
+          label: formatWeekLabel(ws),
+        };
+      })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
     return weeklyData.slice(-8);
   }, [workouts]);
@@ -822,20 +837,20 @@ export default function HomeScreen() {
 
     const weeklyMap = new Map<string, number>();
     intervalCompleted.forEach((workout: any) => {
-      const doneAt = workout.completedDate ? new Date(workout.completedDate) : new Date(workout.date);
-      const weekStart = new Date(doneAt);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const key = weekStart.toISOString().split('T')[0];
+      const doneAt = workout.completedDate ? new Date(workout.completedDate) : parseDateOnlyLocal(workout.date);
+      const key = weekBucketSundayLocalYmd(doneAt);
       weeklyMap.set(key, (weeklyMap.get(key) || 0) + 1);
     });
 
     const weeklyCompleted = Array.from(weeklyMap.entries())
-      .map(([weekStart, count]) => ({
-        weekStart: new Date(weekStart),
-        label: formatWeekLabel(new Date(weekStart)),
-        count,
-      }))
+      .map(([weekStart, count]) => {
+        const ws = parseDateOnlyLocal(weekStart);
+        return {
+          weekStart: ws,
+          label: formatWeekLabel(ws),
+          count,
+        };
+      })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
       .slice(-8);
 
@@ -975,11 +990,11 @@ export default function HomeScreen() {
   }, [workouts]);
 
   const todayCompletedForCoach = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalTodayYmd();
     return workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
-      const completedDate = w.completedDate ? new Date(w.completedDate).toISOString().split('T')[0] : w.date;
-      return completedDate === today;
+      const completedDay = w.completedDate ? toLocalCalendarYmd(w.completedDate) : w.date;
+      return completedDay === today;
     });
   }, [workouts]);
 
@@ -995,7 +1010,7 @@ export default function HomeScreen() {
   const athletesWhoTrainedTodayList = useMemo(() => {
     const recentCompleted = workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
-      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+      const completedDate = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
       const hoursAgo = (new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60);
       return hoursAgo <= 24;
     });
@@ -1004,7 +1019,7 @@ export default function HomeScreen() {
     const activities = recentCompleted.map((w: any, index: number) => {
       const athleteId = w.athleteId || w.coach;
       const athlete = athletes.find((a) => a.id === athleteId);
-      const completedTimestamp = w.completedDate ? new Date(w.completedDate).getTime() : new Date(w.date).getTime();
+      const completedTimestamp = assignedSortTimestamp(w);
       let baseId = `${w.id}_${completedTimestamp}`;
       let uniqueId = baseId;
       let counter = 0;
@@ -1051,17 +1066,15 @@ export default function HomeScreen() {
           (w: any) => (w.athleteId || w.coach) === athlete.id && w.status === 'Concluído'
         );
         const lastCompleted = athleteWorkouts.sort((a: any, b: any) => {
-          const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-          const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+          const dateA = assignedSortTimestamp(a);
+          const dateB = assignedSortTimestamp(b);
           return dateB - dateA;
         })[0];
 
         if (!lastCompleted) {
           return { ...athlete, daysSinceLastWorkout: 999 };
         }
-        const lastCompletedDate = (lastCompleted as any).completedDate
-          ? new Date((lastCompleted as any).completedDate).getTime()
-          : new Date(lastCompleted.date).getTime();
+        const lastCompletedDate = assignedSortTimestamp(lastCompleted as any);
         const daysSince = Math.floor((new Date().getTime() - lastCompletedDate) / (1000 * 60 * 60 * 24));
         if (daysSince <= 5) return null;
         return { ...athlete, daysSinceLastWorkout: daysSince };
@@ -1077,7 +1090,7 @@ export default function HomeScreen() {
 
     const completedLastMonth = workouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
-      const completedDate = w.completedDate ? new Date(w.completedDate) : new Date(w.date);
+      const completedDate = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
       return completedDate >= oneMonthAgo;
     });
 
@@ -1148,7 +1161,7 @@ export default function HomeScreen() {
     const maxVisibleLabels = 4;
     const step = Math.max(1, Math.ceil(weightHistory.length / maxVisibleLabels));
     return weightHistory.map((record, index) => {
-      const formatted = new Date(record.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const formatted = chartDayMonthPtBr(record.date);
       return index % step === 0 || index === weightHistory.length - 1 ? formatted : '';
     });
   }, [weightHistory]);
@@ -3226,7 +3239,7 @@ export default function HomeScreen() {
                         Treinador: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-sm" style={themeStyles.textSecondary}>
-                        {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
+                        {workout.dayOfWeek} • {formatAssignedCalendarDatePtBr(workout.date)}
                         {workout?.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                       </Text>
                     </View>
@@ -3262,8 +3275,8 @@ export default function HomeScreen() {
               
               {completedWorkouts
                 .sort((a: any, b: any) => {
-                  const dateA = a.completedDate ? new Date(a.completedDate).getTime() : new Date(a.date).getTime();
-                  const dateB = b.completedDate ? new Date(b.completedDate).getTime() : new Date(b.date).getTime();
+                  const dateA = assignedSortTimestamp(a);
+                  const dateB = assignedSortTimestamp(b);
                   return dateB - dateA;
                 })
                 .slice(0, 5)
@@ -3298,7 +3311,7 @@ export default function HomeScreen() {
                         Treinador: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-xs" style={themeStyles.textTertiary}>
-                        {workout.dayOfWeek} • {new Date(workout.date).toLocaleDateString('pt-BR')}
+                        {workout.dayOfWeek} • {formatAssignedCalendarDatePtBr(workout.date)}
                         {workout.completedDate && (
                           <Text> • Concluído em {new Date(workout.completedDate).toLocaleDateString('pt-BR')}</Text>
                         )}

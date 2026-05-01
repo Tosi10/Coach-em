@@ -21,6 +21,8 @@ const expo = new expo_server_sdk_1.Expo();
 /** Apenas Cloud Functions (Admin); clientes não têm match nas rules → negado. */
 const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const FREE_PLAN_ATHLETES_LIMIT = 3;
 function hourBucket() {
     return Math.floor(Date.now() / HOUR_MS);
 }
@@ -85,6 +87,15 @@ async function consumeCreateAthleteEmailRate(coachId) {
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     });
+}
+async function assertCoachAthleteLimit(coachId) {
+    const athletesSnap = await db
+        .collection("coachemAthletes")
+        .where("coachId", "==", coachId)
+        .get();
+    if (athletesSnap.size >= FREE_PLAN_ATHLETES_LIMIT) {
+        throw new https_1.HttpsError("failed-precondition", `Limite do plano gratuito atingido (${FREE_PLAN_ATHLETES_LIMIT} atletas).`);
+    }
 }
 /** URLs em atributos HTML precisam de & escapado para amp; */
 function hrefSafe(url) {
@@ -340,6 +351,7 @@ exports.createAthleteByCoach = (0, https_1.onCall)({
         throw new https_1.HttpsError("permission-denied", "Apenas treinadores podem cadastrar atletas com login.");
     }
     await consumeCreateAthleteEmailRate(coachId);
+    await assertCoachAthleteLimit(coachId);
     const name = displayName.trim();
     const emailTrim = email.trim().toLowerCase();
     let userRecord;
@@ -526,9 +538,13 @@ async function sendExpoPush(message) {
  * - na hora do treino
  *
  * Roda em loop (scheduler) para funcionar com app em background/fechado.
+ *
+ * O lembrete T-30 fica apenas no app (local). O push remoto ficava na faixa (>25–≤30 min antes)
+ * e repetia quando o cron rodava de novo (~3 min após o local). “Hora do treino”: janela de 1 min
+ * após o horário marcado para não repetir aos 3+ minutos; cron a cada minuto garante esse disparo.
  */
 exports.dispatchAthleteWorkoutPushReminders = (0, scheduler_1.onSchedule)({
-    schedule: "every 5 minutes",
+    schedule: "every 1 minutes",
     timeZone: "America/Sao_Paulo",
     region: "us-central1",
 }, async () => {
@@ -562,11 +578,11 @@ exports.dispatchAthleteWorkoutPushReminders = (0, scheduler_1.onSchedule)({
         if (Number.isNaN(workoutAt.getTime()))
             continue;
         const msUntilWorkout = workoutAt.getTime() - nowMs;
-        const already30 = !!data.remoteReminder30SentAt;
         const alreadyStart = !!data.remoteReminderStartSentAt;
-        const shouldSend30 = !already30 && msUntilWorkout <= 30 * 60 * 1000 && msUntilWorkout > 25 * 60 * 1000;
-        const shouldSendStart = !alreadyStart && msUntilWorkout <= 0 && msUntilWorkout > -5 * 60 * 1000;
-        if (!shouldSend30 && !shouldSendStart)
+        const shouldSendStart = !alreadyStart &&
+            msUntilWorkout <= 0 &&
+            msUntilWorkout > -1 * MINUTE_MS;
+        if (!shouldSendStart)
             continue;
         let athleteToken = athleteTokenCache.get(athleteId);
         if (athleteToken === undefined) {
@@ -576,18 +592,6 @@ exports.dispatchAthleteWorkoutPushReminders = (0, scheduler_1.onSchedule)({
         if (!athleteToken)
             continue;
         const updates = {};
-        if (shouldSend30) {
-            const sent = await sendExpoPush({
-                to: athleteToken,
-                title: "Treino em 30 min 💪",
-                body: `"${workoutName}" às ${timeStr}. Prepare-se!`,
-                sound: "default",
-                priority: "high",
-                data: { workoutId: workoutDoc.id, reminderType: "thirty-minutes" },
-            });
-            if (sent)
-                updates.remoteReminder30SentAt = admin.firestore.FieldValue.serverTimestamp();
-        }
         if (shouldSendStart) {
             const sent = await sendExpoPush({
                 to: athleteToken,

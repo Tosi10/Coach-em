@@ -8,6 +8,12 @@ import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service'
 import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import {
+  formatAssignedCalendarDatePtBr,
+  getLocalTodayYmd,
+  parseDateOnlyLocal,
+  weekdayLongPtBrFromYmd,
+} from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,25 +40,8 @@ function getAllDayTimes(): string[] {
 
 const ALL_DAY_TIMES = getAllDayTimes();
 
-function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseLocalDateString(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day, 12, 0, 0, 0);
-}
-
-function formatDatePtBr(dateStr: string): string {
-  const d = parseLocalDateString(dateStr);
-  return d.toLocaleDateString('pt-BR');
-}
-
-  const mockExercises: Exercise[] = DEFAULT_EXERCISES;
-  const mockWorkouts = [
+const mockExercises: Exercise[] = DEFAULT_EXERCISES;
+const mockWorkouts = [
     {
         id: '1',
         name: 'Treino de Força - Pernas',
@@ -202,9 +191,8 @@ function formatDatePtBr(dateStr: string): string {
        
 ]
     
-  function isDateThisWeek(dateString: string): boolean {
-
-    const date = new Date(dateString);
+function isDateThisWeek(dateString: string): boolean {
+    const date = parseDateOnlyLocal(dateString);
 
     const today = new Date();
 
@@ -217,9 +205,9 @@ function formatDatePtBr(dateStr: string): string {
     endOfWeek.setHours(23, 59 , 59, 999);
 
     return date >= startOfWeek && date <= endOfWeek;
-  }
-  
-  export default function AssignWorkoutScreen() {
+}
+
+export default function AssignWorkoutScreen() {
     const router = useRouter();
     const { user } = useAuthContext();
     const { theme } = useTheme();
@@ -231,9 +219,7 @@ function formatDatePtBr(dateStr: string): string {
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
     
     // Estado para armazenar a data escolhida (formato: YYYY-MM-DD)
-    const [selectedDate, setSelectedDate] = useState<string>(
-      getLocalDateString() // Data de hoje local como padrão
-    );
+    const [selectedDate, setSelectedDate] = useState<string>(getLocalTodayYmd());
 
     // Estados para recorrência
     const [isRecurring, setIsRecurring] = useState<boolean>(false);
@@ -373,7 +359,7 @@ function formatDatePtBr(dateStr: string): string {
 
             if (isRecurring) {
                 datesToAssign = [...new Set(recurringDates)]
-                    .filter((date) => date >= getLocalDateString())
+                    .filter((date) => date >= getLocalTodayYmd())
                     .sort((a, b) => a.localeCompare(b));
             } else {
                 datesToAssign = [selectedDate];
@@ -385,7 +371,7 @@ function formatDatePtBr(dateStr: string): string {
             }
 
             const recurrenceGroupId = isRecurring ? `recurrence_${Date.now()}_${Math.random().toString(36).substr(2,9)}` : null;
-            const todayStr = getLocalDateString();
+            const todayStr = getLocalTodayYmd();
 
             const normalizedCoachName =
                 (typeof (user as any)?.publicCoachName === 'string' && (user as any).publicCoachName.trim()) ||
@@ -406,7 +392,7 @@ function formatDatePtBr(dateStr: string): string {
                     status: 'Pendente',
                     coach: normalizedCoachName,
                     coachPublicName: normalizedCoachName,
-                    dayOfWeek: new Date(date).toLocaleDateString('pt-BR', { weekday: 'long'}),
+                    dayOfWeek: weekdayLongPtBrFromYmd(date),
                     isToday: date === todayStr,
                     isThisWeek: isDateThisWeek(date),
                     createdAt: new Date().toISOString(),
@@ -752,7 +738,7 @@ function formatDatePtBr(dateStr: string): string {
                                     onPress={() => setShowCalendar(true)}
                                 >
                                     <Text style={themeStyles.text}>
-                                        {selectedDate ? formatDatePtBr(selectedDate) : 'Selecione uma data'}
+                                        {selectedDate ? formatAssignedCalendarDatePtBr(selectedDate) : 'Selecione uma data'}
                                     </Text>
                                 </TouchableOpacity>
                                 <Text className="text-xs" style={themeStyles.textTertiary}>
@@ -785,7 +771,7 @@ function formatDatePtBr(dateStr: string): string {
                                                 .slice()
                                                 .sort((a, b) => a.localeCompare(b))
                                                 .slice(0, 6)
-                                                .map(formatDatePtBr)
+                                                .map(formatAssignedCalendarDatePtBr)
                                                 .join(' • ')}
                                             {recurringDates.length > 6 ? ' ...' : ''}
                                         </Text>
@@ -853,7 +839,7 @@ function formatDatePtBr(dateStr: string): string {
                                                 setShowCalendar(false);
                                             }
                                         }}
-                                        minDate={getLocalDateString()}
+                                        minDate={getLocalTodayYmd()}
                                         theme={{
                                             backgroundColor: theme.colors.background,
                                             calendarBackground: theme.colors.background,
