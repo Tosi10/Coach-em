@@ -153,13 +153,16 @@ export default function SubscriptionScreen() {
       return;
     }
     if (!configured) {
-      showCoachAlert(
-        t('subscription.configTitle'),
-        Platform.OS === 'android'
-          ? t('subscription.configAndroid')
-          : t('subscription.configIos'),
-        'warning'
-      );
+      const hint = getRevenueCatConfigurationError();
+      const body =
+        hint === 'missing_api_key'
+          ? Platform.OS === 'android'
+            ? t('subscription.configAndroid')
+            : t('subscription.configIos')
+          : hint
+            ? `${t('subscription.configRcDetail')}\n\n${hint}`
+            : t('subscription.configRcUnknown');
+      showCoachAlert(t('subscription.configTitle'), body, 'warning');
       return;
     }
     if (!monthlyPackage) {
@@ -315,7 +318,7 @@ export default function SubscriptionScreen() {
                 <Text className="text-base font-semibold" style={themeStyles.text}>
                   {storePro ? t('subscription.storeProYes') : t('subscription.storeProNo')}
                 </Text>
-                {!configured && __DEV__ && (
+                {!configured && (
                   <>
                     <Text className="text-xs mt-2" style={themeStyles.textTertiary}>
                       {t('subscription.rcNotConfigured')}

@@ -17,7 +17,11 @@ let warnedMissingIosKeyDev = false;
 let warnedMissingAndroidKeyDev = false;
 
 function getIosApiKey(): string | undefined {
-  return process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() || undefined;
+  // IMPORTANT: do not use optional chaining directly on `process.env.EXPO_PUBLIC_*`
+  // — Metro may fail to inline EXPO_PUBLIC values in release bundles.
+  const v = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
+  const t = typeof v === 'string' ? v.trim() : '';
+  return t || undefined;
 }
 
 /**
@@ -38,7 +42,9 @@ export async function ensureRevenueCatConfigured(): Promise<boolean> {
       );
     }
   } else if (Platform.OS === 'android') {
-    apiKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY?.trim() || undefined;
+    const v = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+    const t = typeof v === 'string' ? v.trim() : '';
+    apiKey = t || undefined;
     if (!apiKey && __DEV__ && !warnedMissingAndroidKeyDev) {
       warnedMissingAndroidKeyDev = true;
       console.warn('[RevenueCat] Android: falta EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
