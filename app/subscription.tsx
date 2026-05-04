@@ -152,8 +152,11 @@ export default function SubscriptionScreen() {
       );
       return;
     }
-    if (!configured) {
-      const hint = getRevenueCatConfigurationError();
+    // Não confiar só no estado do último reload: `configured`/hint podem estar desatualizados ou o utilizador
+    // pode interagir antes de `setRcConfigError` refletir o último `ensure`.
+    const rcOk = await ensureRevenueCatConfigured();
+    const hint = getRevenueCatConfigurationError();
+    if (!rcOk) {
       const body =
         hint === 'missing_api_key'
           ? Platform.OS === 'android'
@@ -163,15 +166,24 @@ export default function SubscriptionScreen() {
             ? `${t('subscription.configRcDetail')}\n\n${hint}`
             : t('subscription.configRcUnknown');
       showCoachAlert(t('subscription.configTitle'), body, 'warning');
+      setConfigured(false);
+      setRcConfigError(hint);
       return;
     }
-    if (!monthlyPackage) {
+    setConfigured(true);
+    setRcConfigError(null);
+
+    let pkg = monthlyPackage;
+    if (!pkg) {
+      pkg = await getCoachProMonthlyPackage();
+    }
+    if (!pkg) {
       showCoachAlert(t('subscription.purchaseTitle'), t('subscription.purchaseNoPackage'), 'warning');
       return;
     }
     setPurchaseBusy(true);
     try {
-      const info = await purchasePackage(monthlyPackage);
+      const info = await purchasePackage(pkg);
       setStorePro(isProEntitlementActive(info));
       showCoachAlert(
         t('subscription.purchaseDoneTitle'),
@@ -197,14 +209,24 @@ export default function SubscriptionScreen() {
       );
       return;
     }
-    if (!configured) {
-      showCoachAlert(
-        t('subscription.configTitle'),
-        t('subscription.rcRestoreWarn'),
-        'warning'
-      );
+    const rcOk = await ensureRevenueCatConfigured();
+    if (!rcOk) {
+      const hint = getRevenueCatConfigurationError();
+      const body =
+        hint === 'missing_api_key'
+          ? Platform.OS === 'android'
+            ? t('subscription.configAndroid')
+            : t('subscription.configIos')
+          : hint
+            ? `${t('subscription.configRcDetail')}\n\n${hint}`
+            : t('subscription.configRcUnknown');
+      showCoachAlert(t('subscription.configTitle'), body, 'warning');
+      setConfigured(false);
+      setRcConfigError(hint);
       return;
     }
+    setConfigured(true);
+    setRcConfigError(null);
     setRestoreBusy(true);
     try {
       const info = await restorePurchases();

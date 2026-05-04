@@ -31,7 +31,10 @@ function getIosApiKey(): string | undefined {
  * Configura o SDK uma vez. Sem chave pública da plataforma no .env, não faz nada.
  */
 export async function ensureRevenueCatConfigured(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+  if (Platform.OS === 'web') {
+    lastConfigurationError = 'unsupported_platform_web';
+    return false;
+  }
   if (configured) return true;
   if (configurePromise) {
     return configurePromise;
@@ -44,37 +47,37 @@ export async function ensureRevenueCatConfigured(): Promise<boolean> {
   });
 
   const pending = (async (): Promise<boolean> => {
-    if (configured) return true;
-    lastConfigurationError = null;
-
-    let apiKey: string | undefined;
-    if (Platform.OS === 'ios') {
-      apiKey = getIosApiKey();
-      if (!apiKey && __DEV__ && !warnedMissingIosKeyDev) {
-        warnedMissingIosKeyDev = true;
-        console.warn(
-          '[RevenueCat] iOS: defina EXPO_PUBLIC_REVENUECAT_IOS_API_KEY no .env (chave pública appl_...).'
-        );
-      }
-    } else if (Platform.OS === 'android') {
-      const v = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
-      const t = typeof v === 'string' ? v.trim() : '';
-      apiKey = t || undefined;
-      if (!apiKey && __DEV__ && !warnedMissingAndroidKeyDev) {
-        warnedMissingAndroidKeyDev = true;
-        console.warn('[RevenueCat] Android: falta EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
-      }
-    } else {
-      return false;
-    }
-
-    if (!apiKey) {
-      lastConfigurationError = 'missing_api_key';
-      return false;
-    }
-
-    let result = false;
     try {
+      if (configured) return true;
+      lastConfigurationError = null;
+
+      let apiKey: string | undefined;
+      if (Platform.OS === 'ios') {
+        apiKey = getIosApiKey();
+        if (!apiKey && __DEV__ && !warnedMissingIosKeyDev) {
+          warnedMissingIosKeyDev = true;
+          console.warn(
+            '[RevenueCat] iOS: defina EXPO_PUBLIC_REVENUECAT_IOS_API_KEY no .env (chave pública appl_...).'
+          );
+        }
+      } else if (Platform.OS === 'android') {
+        const v = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+        const t = typeof v === 'string' ? v.trim() : '';
+        apiKey = t || undefined;
+        if (!apiKey && __DEV__ && !warnedMissingAndroidKeyDev) {
+          warnedMissingAndroidKeyDev = true;
+          console.warn('[RevenueCat] Android: falta EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
+        }
+      } else {
+        lastConfigurationError = `unsupported_platform:${Platform.OS}`;
+        return false;
+      }
+
+      if (!apiKey) {
+        lastConfigurationError = 'missing_api_key';
+        return false;
+      }
+
       try {
         Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.WARN);
       } catch (logLevelError) {
@@ -83,21 +86,25 @@ export async function ensureRevenueCatConfigured(): Promise<boolean> {
       await Purchases.configure({ apiKey });
       configured = true;
       lastConfigurationError = null;
-      result = true;
+      return true;
     } catch (e) {
       lastConfigurationError = e instanceof Error ? e.message : 'configure_failed';
       console.warn('[RevenueCat] configure falhou (Expo Go ou módulo indisponível):', e);
-      result = false;
+      return false;
     } finally {
+      // Tem de correr em *todos* os returns (missing key, etc.); senão `configurePromise` fica preso
+      // numa promise já resolvida e chamadas seguintes nunca voltam a correr `configure`.
       configurePromise = null;
     }
-    return result;
   })();
 
   void pending.then(
     (value) => releaseConfigureLock(value),
     (e) => {
       console.warn('[RevenueCat] ensureRevenueCatConfigured: promise interna rejeitou:', e);
+      if (!lastConfigurationError) {
+        lastConfigurationError = e instanceof Error ? e.message : 'configure_promise_rejected';
+      }
       releaseConfigureLock(false);
     }
   );
