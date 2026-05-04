@@ -15,12 +15,14 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Base padrão de exercícios para iniciar a biblioteca do treinador.
 const mockExercises = DEFAULT_EXERCISES;
 
 export default function ExercisesLibraryScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { theme } = useTheme();
@@ -66,7 +68,7 @@ export default function ExercisesLibraryScreen() {
       );
       setAllExercises(combinedExercises);
     } catch (error) {
-      console.error('Erro ao carregar exercícios', error);
+      console.error('Error loading exercises', error);
       setAllExercises(mockExercises);
     }
   }, [user?.id]);
@@ -78,7 +80,7 @@ export default function ExercisesLibraryScreen() {
   // E mantenha o useFocusEffect também:
   useFocusEffect(
     useCallback(() => {
-      console.log('🎯 Tela recebeu foco - recarregando exercícios...');
+      console.log('Screen focused - reloading exercises...');
       loadSavedExercises();
     }, [loadSavedExercises])
   );
@@ -87,17 +89,17 @@ export default function ExercisesLibraryScreen() {
     try {
       await deleteExercises([exerciseId]);
       await loadSavedExercises();
-      showAlert('Sucesso', 'Exercício deletado com sucesso!', 'success');
+      showAlert(t('common.success'), t('exercisesLibrary.deleteSuccess'), 'success');
     } catch (error) {
-      console.error('Erro ao deletar exercício:', error);
-      showAlert('Erro', 'Não foi possível deletar o exercício.', 'error');
+      console.error('Error deleting exercise:', error);
+      showAlert(t('common.error'), t('exercisesLibrary.deleteError'), 'error');
     }
   };
 
   const handleDeleteExercise = (exerciseId: string, exerciseName: string) => {
     showAlert(
-        'Deletar Exercício',
-        `Tem certeza que deseja deletar o exercício "${exerciseName}"? Esta ação não pode ser desfeita.`,
+        t('exercisesLibrary.deleteTitle'),
+        t('exercisesLibrary.deleteConfirm', { name: exerciseName }),
         'warning',
         () => confirmDeleteExercise(exerciseId)
     );
@@ -105,8 +107,8 @@ export default function ExercisesLibraryScreen() {
 
   const handleResetSingleExercise = (exerciseId: string, exerciseName: string) => {
     showAlert(
-      'Restaurar exercício',
-      `Deseja restaurar "${exerciseName}" para o padrão?`,
+      t('exercisesLibrary.restoreTitle'),
+      t('exercisesLibrary.restoreConfirm', { name: exerciseName }),
       'warning',
       async () => {
         try {
@@ -114,10 +116,10 @@ export default function ExercisesLibraryScreen() {
           // O default base volta a aparecer automaticamente na posição original.
           await deleteExercises([exerciseId]);
           await loadSavedExercises();
-          showAlert('Sucesso', 'Exercício restaurado para o padrão.', 'success');
+          showAlert(t('common.success'), t('exercisesLibrary.restoreSuccess'), 'success');
         } catch (error) {
-          console.error('Erro ao restaurar exercício:', error);
-          showAlert('Erro', 'Não foi possível restaurar este exercício.', 'error');
+          console.error('Error restoring exercise:', error);
+          showAlert(t('common.error'), t('exercisesLibrary.restoreError'), 'error');
         }
       }
     );
@@ -218,11 +220,11 @@ export default function ExercisesLibraryScreen() {
   const getDifficultyLabel = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner':
-        return 'Iniciante';
+        return t('createExercise.difficultyBeginner');
       case 'intermediate':
-        return 'Intermediário';
+        return t('createExercise.difficultyIntermediate');
       case 'advanced':
-        return 'Avançado';
+        return t('createExercise.difficultyAdvanced');
       default:
         return difficulty;
     }
@@ -241,16 +243,16 @@ export default function ExercisesLibraryScreen() {
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
           <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </TouchableOpacity>
 
         {/* Título */}
         <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-          Biblioteca de Exercícios
+          {t('exercisesLibrary.title')}
         </Text>
         <Text className="mb-6" style={themeStyles.textSecondary}>
-          Gerencie seu repertório de exercícios
+          {t('exercisesLibrary.subtitle')}
         </Text>
 
         {/* Ações da biblioteca */}
@@ -272,7 +274,7 @@ export default function ExercisesLibraryScreen() {
                 resizeMode="contain"
               />
               <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-                Criar Exercício
+                {t('exercisesLibrary.create')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -287,7 +289,7 @@ export default function ExercisesLibraryScreen() {
               borderColor: theme.colors.border,
               color: theme.colors.text,
             }}
-            placeholder="Buscar exercício..."
+            placeholder={t('exercisesLibrary.search')}
             placeholderTextColor={theme.colors.textTertiary}
             value={searchText}
             onChangeText={setSearchText}
@@ -297,7 +299,7 @@ export default function ExercisesLibraryScreen() {
         {/* FILTRO POR GRUPO MUSCULAR */}
         <View className="mb-4">
           <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-            Grupo Muscular
+            {t('createWorkout.muscleGroup')}
           </Text>
           <ScrollView
             horizontal
@@ -320,7 +322,7 @@ export default function ExercisesLibraryScreen() {
                     ? '#ffffff'
                     : theme.colors.text
                 }}>
-                  Todos
+                  {t('createWorkout.all')}
                 </Text>
               </TouchableOpacity>
 
@@ -356,7 +358,7 @@ export default function ExercisesLibraryScreen() {
         {/* FILTRO POR TIPO */}
         <View className="mb-4">
           <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-            Tipo
+            {t('exercisesLibrary.type')}
           </Text>
           <ScrollView
             horizontal
@@ -374,7 +376,7 @@ export default function ExercisesLibraryScreen() {
               onPress={() => setSelectedExerciseType(null)}
             >
               <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === null ? '#ffffff' : theme.colors.text }}>
-                Todos
+                {t('createWorkout.all')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -387,7 +389,7 @@ export default function ExercisesLibraryScreen() {
               onPress={() => setSelectedExerciseType(selectedExerciseType === 'warmup' ? null : 'warmup')}
             >
               <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'warmup' ? '#ffffff' : theme.colors.text }}>
-                Aquecimento
+                {t('createWorkout.filterWarmup')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -400,7 +402,7 @@ export default function ExercisesLibraryScreen() {
               onPress={() => setSelectedExerciseType(selectedExerciseType === 'work' ? null : 'work')}
             >
               <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'work' ? '#ffffff' : theme.colors.text }}>
-                Principal
+                {t('createWorkout.filterWork')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -413,7 +415,7 @@ export default function ExercisesLibraryScreen() {
               onPress={() => setSelectedExerciseType(selectedExerciseType === 'cooldown' ? null : 'cooldown')}
             >
               <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === 'cooldown' ? '#ffffff' : theme.colors.text }}>
-                Finalização
+                {t('createWorkout.filterCooldown')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -422,7 +424,7 @@ export default function ExercisesLibraryScreen() {
 
         {/* Contador de resultados */}
         <Text className="mb-4" style={themeStyles.textSecondary}>
-          {filteredExercises.length} exercício{filteredExercises.length !== 1 ? 's' : ''} encontrado{filteredExercises.length !== 1 ? 's' : ''}
+          {t('exercisesLibrary.results', { count: filteredExercises.length })}
         </Text>
 
         {/* Lista de exercícios */}
@@ -442,7 +444,7 @@ export default function ExercisesLibraryScreen() {
             {/* Cabeçalho do card com nome, botões de ação e dificuldade */}
             <View className="flex-row justify-between items-start mb-2">
               <Text className="text-lg font-semibold flex-1" style={themeStyles.text}>
-                {exercise.name || 'Exercício sem nome'}
+                {exercise.name || t('exercisesLibrary.unnamed')}
               </Text>
               
               {/* Botões de ação */}
@@ -466,7 +468,7 @@ export default function ExercisesLibraryScreen() {
                 {exercise.id.startsWith('exercise_default_') && (
                   <TouchableOpacity
                     className="bg-amber-500/80 rounded-lg px-3 py-1"
-                    onPress={() => handleResetSingleExercise(exercise.id, exercise.name || 'Exercício')}
+                    onPress={() => handleResetSingleExercise(exercise.id, exercise.name || t('exercisesLibrary.unnamed'))}
                   >
                     <Text className="text-white font-semibold text-xs">
                       ↺
@@ -478,7 +480,7 @@ export default function ExercisesLibraryScreen() {
                 {exercise.id.startsWith('exercise_') && !exercise.id.startsWith('exercise_default_') && (
                   <TouchableOpacity
                     className="bg-red-500/80 rounded-lg px-3 py-1"
-                    onPress={() => handleDeleteExercise(exercise.id, exercise.name || 'Exercício')}
+                    onPress={() => handleDeleteExercise(exercise.id, exercise.name || t('exercisesLibrary.unnamed'))}
                   >
                     <Text className="text-white font-semibold text-xs">
                       🗑️
@@ -495,7 +497,7 @@ export default function ExercisesLibraryScreen() {
             </View>
 
             <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
-              {exercise.description || 'Sem descrição'}
+              {exercise.description || t('exercisesLibrary.noDescription')}
             </Text>
 
             <View className="flex-row flex-wrap gap-2 mb-2">
@@ -516,18 +518,18 @@ export default function ExercisesLibraryScreen() {
                 ))
               ) : (
                 <Text className="text-xs" style={themeStyles.textTertiary}>
-                  Nenhum grupo muscular
+                  {t('createExercise.noMuscleGroups')}
                 </Text>
               )}
             </View>
 
             <View className="flex-row gap-4 mt-2">
               <Text className="text-xs" style={themeStyles.textTertiary}>
-                Equipamento: {exercise.equipment && exercise.equipment.length > 0 ? exercise.equipment.join(', ') : 'Nenhum'}
+                {t('exercisesLibrary.equipment')}: {exercise.equipment && exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('createExercise.noneEquipment')}
               </Text>
               {exercise.duration !== undefined && exercise.duration !== null && exercise.duration > 0 && (
                 <Text className="text-xs" style={themeStyles.textTertiary}>
-                  Duração: {exercise.duration}s
+                  {t('exercisesLibrary.duration')}: {exercise.duration}s
                 </Text>
               )}
             </View>
@@ -538,7 +540,7 @@ export default function ExercisesLibraryScreen() {
         {filteredExercises.length === 0 && (
           <View className="items-center py-12">
             <Text className="text-center" style={themeStyles.textSecondary}>
-              Nenhum exercício encontrado
+              {t('createWorkout.noExercisesFound')}
             </Text>
           </View>
         )}
@@ -550,8 +552,8 @@ export default function ExercisesLibraryScreen() {
           title={alertTitle}
           message={alertMessage}
           type={alertType}
-          confirmText="OK"
-          cancelText="Cancelar"
+          confirmText={t('common.ok')}
+          cancelText={t('common.cancel')}
           showCancel={alertType === 'warning'}
           onConfirm={() => {
               setAlertVisible(false);

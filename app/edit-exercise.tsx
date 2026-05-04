@@ -5,7 +5,7 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
-import { assertCanCreateResource } from '@/src/services/planLimits.service';
+import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import type { WorkoutExercise } from '@/src/types';
 import { inferPrescriptionType } from '@/src/utils/workoutPrescription';
@@ -14,9 +14,11 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function EditExerciseScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
     const { theme } = useTheme();
@@ -52,18 +54,32 @@ export default function EditExerciseScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
     const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+    const [alertOnCancel, setAlertOnCancel] = useState<(() => void) | null>(null);
+    const [alertShowCancel, setAlertShowCancel] = useState(false);
+    const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>(undefined);
+    const [alertCancelText, setAlertCancelText] = useState<string | undefined>(undefined);
 
     // Função helper para mostrar alert customizado
     const showAlert = (
         title: string,
         message: string,
         type: 'success' | 'error' | 'info' | 'warning' = 'info',
-        onConfirm?: () => void
+        onConfirm?: () => void,
+        options?: {
+            showCancel?: boolean;
+            onCancel?: () => void;
+            confirmText?: string;
+            cancelText?: string;
+        }
     ) => {
         setAlertTitle(title);
         setAlertMessage(message);
         setAlertType(type);
         setAlertOnConfirm(() => onConfirm);
+        setAlertOnCancel(() => options?.onCancel ?? null);
+        setAlertShowCancel(options?.showCancel ?? false);
+        setAlertConfirmText(options?.confirmText);
+        setAlertCancelText(options?.cancelText);
         setAlertVisible(true);
     };
 
@@ -116,11 +132,11 @@ export default function EditExerciseScreen() {
                         notes: exercise.defaultPrescription?.notes,
                     });
                 } else {
-                    showAlert('Erro', 'Exercício não encontrado.', 'error', () => setTimeout(() => router.back(), 0));
+                    showAlert(t('common.error'), t('editExercise.notFound'), 'error', () => setTimeout(() => router.back(), 0));
                 }
             } catch (error) {
-                console.error('Erro ao carregar exercício:', error);
-                showAlert('Erro', 'Não foi possível carregar o exercício.', 'error', () => setTimeout(() => router.back(), 0));
+                console.error('Error loading exercise:', error);
+                showAlert(t('common.error'), t('editExercise.loadError'), 'error', () => setTimeout(() => router.back(), 0));
             } finally {
                 setLoading(false);
             }
@@ -131,7 +147,7 @@ export default function EditExerciseScreen() {
     const pickVideo = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            showAlert('Permissão necessária', 'Precisamos acessar sua galeria para escolher um vídeo.', 'warning');
+            showAlert(t('createExercise.permissionTitle'), t('createExercise.permissionBody'), 'warning');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -157,23 +173,23 @@ export default function EditExerciseScreen() {
     const handleUpdateExercise = async () => {
         // Validação (igual ao create)
         if (!name.trim()) {
-            showAlert('Erro', 'Por favor, preencha o nome do exercício.', 'error');
+            showAlert(t('common.error'), t('createExercise.errNameRequired'), 'error');
             return;
         }
       
         if (!description.trim()) {
-            showAlert('Erro', 'Por favor, preencha a descrição do exercício.', 'error');
+            showAlert(t('common.error'), t('createExercise.errDescriptionRequired'), 'error');
             return;
         }
       
         if (muscleGroups.length === 0) {
-            showAlert('Erro', 'Por favor, adicione pelo menos um grupo muscular.', 'error');
+            showAlert(t('common.error'), t('createExercise.errMuscleGroupRequired'), 'error');
             return;
         }
       
         try {
             if (!exerciseIdString) {
-                showAlert('Erro', 'Exercício inválido.', 'error');
+                showAlert(t('common.error'), t('editExercise.invalidExercise'), 'error');
                 return;
             }
             const patch: {
@@ -206,7 +222,7 @@ export default function EditExerciseScreen() {
                 description: description.trim(),
                 difficulty,
                 muscleGroups,
-                equipment: equipment.length > 0 ? equipment : ['Nenhum'],
+                equipment: equipment.length > 0 ? equipment : [t('createExercise.noneEquipment')],
             };
 
             const normalizedPrescriptionType = inferPrescriptionType(defaultPrescription);
@@ -240,7 +256,7 @@ export default function EditExerciseScreen() {
 
             if (isDefaultExercise) {
                 if (!user?.id) {
-                    showAlert('Erro', 'Não foi possível identificar o treinador para salvar a edição.', 'error');
+                    showAlert(t('common.error'), t('editExercise.coachIdentifyError'), 'error');
                     return;
                 }
                 await assertCanCreateResource(user.id, 'exercises');
@@ -282,24 +298,38 @@ export default function EditExerciseScreen() {
             }
             if (newVideoUploadFailed) {
                 showAlert(
-                    'Salvo com aviso',
-                    'Alterações salvas, mas o novo vídeo não foi enviado. Verifique o Firebase Storage e tente substituir o vídeo de novo.',
+                    t('editExercise.savedWithWarningTitle'),
+                    t('editExercise.savedWithWarningBody'),
                     'warning',
                     () => setTimeout(() => router.back(), 0)
                 );
             } else {
                 showAlert(
-                    'Sucesso',
+                    t('common.success'),
                     isDefaultExercise
-                        ? 'Exercício padrão personalizado com sucesso!'
-                        : 'Exercício atualizado com sucesso!',
+                        ? t('editExercise.defaultCustomizedSuccess')
+                        : t('editExercise.updatedSuccess'),
                     'success',
                     () => setTimeout(() => router.back(), 0)
                 );
             }
         } catch (error) {
-            console.error('Erro ao atualizar exercício:', error);
-            showAlert('Erro', 'Não foi possível atualizar o exercício.', 'error');
+            console.error('Error updating exercise:', error);
+            if (error instanceof FreePlanLimitError) {
+                showAlert(
+                    t('editExercise.planLimitTitle'),
+                    error.message,
+                    'warning',
+                    () => router.push('/subscription'),
+                    {
+                        showCancel: true,
+                        confirmText: t('editExercise.viewPlans'),
+                        cancelText: t('common.close'),
+                    }
+                );
+                return;
+            }
+            showAlert(t('common.error'), t('editExercise.updateError'), 'error');
         }
     };
 
@@ -331,7 +361,7 @@ export default function EditExerciseScreen() {
         return (
             <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                    Carregando...
+                    {t('workoutTemplateDetails.loading')}
                 </Text>
             </View>
         );
@@ -351,21 +381,21 @@ export default function EditExerciseScreen() {
                         <FontAwesome name="arrow-left" size={18} color="#fb923c" />
                     </View>
                     <Text className="text-primary-400 font-semibold text-lg">
-                        Voltar
+                        {t('common.back')}
                     </Text>
                 </TouchableOpacity>
 
                 <Text className="text-3xl font-bold text-white mb-2">
-                    Editar Exercício
+                    {t('editExercise.title')}
                 </Text>
                 <Text className="text-neutral-400 mb-6">
-                    Atualize as informações do exercício
+                    {t('editExercise.subtitle')}
                 </Text>
 
                 {/* Campo Nome */}
                 <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Nome do Exercício *
+                        {t('createExercise.nameLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3"
@@ -374,7 +404,7 @@ export default function EditExerciseScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Ex: Agachamento"
+                        placeholder={t('createExercise.namePlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={name}
                         onChangeText={setName}
@@ -384,7 +414,7 @@ export default function EditExerciseScreen() {
                 {/* Campo Descrição */}
                 <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Descrição *
+                        {t('createExercise.descriptionLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3"
@@ -393,7 +423,7 @@ export default function EditExerciseScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Descreva o exercício..."
+                        placeholder={t('createExercise.descriptionPlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         multiline
                         numberOfLines={4}
@@ -405,7 +435,7 @@ export default function EditExerciseScreen() {
                 {/* Campo Dificuldade */}
                 <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Dificuldade *
+                        {t('createExercise.difficultyLabel')}
                     </Text>
                     <View className="flex-row gap-3">
                         {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
@@ -428,7 +458,11 @@ export default function EditExerciseScreen() {
                                       color: difficulty === level ? '#ffffff' : theme.colors.textSecondary
                                     }}
                                 >
-                                    {level === 'beginner' ? 'Iniciante' : level === 'intermediate' ? 'Intermediário' : 'Avançado'}
+                                    {level === 'beginner'
+                                      ? t('createExercise.difficultyBeginner')
+                                      : level === 'intermediate'
+                                        ? t('createExercise.difficultyIntermediate')
+                                        : t('createExercise.difficultyAdvanced')}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -438,7 +472,7 @@ export default function EditExerciseScreen() {
                 {/* Grupos Musculares */}
                 <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Grupos Musculares *
+                        {t('createExercise.muscleGroupsLabel')}
                     </Text>
                     <View className="flex-row gap-2 mb-2">
                         <TextInput
@@ -448,7 +482,7 @@ export default function EditExerciseScreen() {
                               borderColor: theme.colors.border,
                               color: theme.colors.text,
                             }}
-                            placeholder="Ex: pernas"
+                            placeholder={t('createExercise.muscleGroupsPlaceholder')}
                             placeholderTextColor={theme.colors.textTertiary}
                             value={newMuscleGroup}
                             onChangeText={setNewMuscleGroup}
@@ -485,7 +519,7 @@ export default function EditExerciseScreen() {
                 {/* Equipamentos */}
                 <View className="mb-4">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Equipamentos
+                        {t('createExercise.equipmentLabel')}
                     </Text>
                     <View className="flex-row gap-2 mb-2">
                         <TextInput
@@ -495,7 +529,7 @@ export default function EditExerciseScreen() {
                               borderColor: theme.colors.border,
                               color: theme.colors.text,
                             }}
-                            placeholder="Ex: Barra"
+                            placeholder={t('createExercise.equipmentPlaceholder')}
                             placeholderTextColor={theme.colors.textTertiary}
                             value={newEquipment}
                             onChangeText={setNewEquipment}
@@ -526,10 +560,10 @@ export default function EditExerciseScreen() {
 
                 <View className="mb-5 rounded-xl p-4 border" style={themeStyles.cardSecondary}>
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Prescrição padrão para este exercício (opcional)
+                        {t('createExercise.defaultPrescriptionTitle')}
                     </Text>
                     <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
-                        Essa configuração aparece automaticamente quando o exercício for adicionado em um treino.
+                        {t('createExercise.defaultPrescriptionHint')}
                     </Text>
                     <WorkoutPrescriptionEditor
                         value={defaultPrescription}
@@ -545,10 +579,10 @@ export default function EditExerciseScreen() {
                 {/* Vídeo (salvo no Firebase Storage; URL em coachemExercises) */}
                 <View className="mb-6">
                     <Text className="font-semibold mb-2" style={themeStyles.text}>
-                        Vídeo do exercício (opcional)
+                        {t('createExercise.videoTitle')}
                     </Text>
                     <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
-                        O atleta vê este vídeo ao abrir o exercício no treino. Troque ou remova quando quiser.
+                        {t('editExercise.videoHint')}
                     </Text>
                     {existingVideoURL && !videoUri && !removeStoredVideo && (
                         <View className="rounded-xl overflow-hidden mb-3 border" style={{ borderColor: theme.colors.border }}>
@@ -573,24 +607,28 @@ export default function EditExerciseScreen() {
                         >
                             <FontAwesome name="video-camera" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
                             <Text className="font-semibold" style={{ color: theme.colors.primary }}>
-                                {uploadingVideo ? 'Enviando vídeo...' : existingVideoURL && !removeStoredVideo ? 'Substituir vídeo' : 'Selecionar vídeo'}
+                                {uploadingVideo
+                                  ? t('createExercise.uploadingVideo')
+                                  : existingVideoURL && !removeStoredVideo
+                                    ? t('editExercise.replaceVideo')
+                                    : t('createExercise.selectVideo')}
                             </Text>
                         </TouchableOpacity>
                     ) : (
                         <View className="flex-row items-center rounded-lg py-3 px-4 border mb-2" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
                             <FontAwesome name="check-circle" size={20} color="#10b981" style={{ marginRight: 8 }} />
                             <Text className="flex-1 font-medium" style={themeStyles.text} numberOfLines={1}>
-                                Novo vídeo selecionado
+                                {t('editExercise.newVideoSelected')}
                             </Text>
                             <TouchableOpacity onPress={clearPendingVideo} className="rounded-full px-3 py-1" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
-                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>Cancelar</Text>
+                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
                     {existingVideoURL && !videoUri && !removeStoredVideo && (
                         <TouchableOpacity onPress={markRemoveStoredVideo} className="py-2">
                             <Text className="text-center text-sm" style={{ color: '#ef4444' }}>
-                                Remover vídeo salvo
+                                {t('editExercise.removeSavedVideo')}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -612,7 +650,7 @@ export default function EditExerciseScreen() {
                     disabled={uploadingVideo}
                 >
                     <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                        💾 Salvar Alterações
+                        {t('editExercise.saveChanges')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -623,10 +661,16 @@ export default function EditExerciseScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 type={alertType}
-                confirmText="OK"
+                confirmText={alertConfirmText ?? t('common.ok')}
+                cancelText={alertCancelText ?? t('common.cancel')}
+                showCancel={alertShowCancel}
                 onConfirm={() => {
                     setAlertVisible(false);
                     alertOnConfirm?.();
+                }}
+                onCancel={() => {
+                    setAlertVisible(false);
+                    alertOnCancel?.();
                 }}
             />
         </ScrollView>

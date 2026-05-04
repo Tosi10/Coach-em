@@ -1,5 +1,6 @@
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { useTranslation } from 'react-i18next';
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -21,13 +22,16 @@ export function CustomAlert({
   title,
   message,
   type = 'info',
-  confirmText = 'OK',
+  confirmText,
   onConfirm,
   onCancel,
   showCancel = false,
-  cancelText = 'Cancelar',
+  cancelText,
 }: CustomAlertProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
+  const confirmLabel = confirmText ?? t('common.ok');
+  const cancelLabel = cancelText ?? t('common.cancel');
   const themeStyles = getThemeStyles(theme.colors);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -181,7 +185,7 @@ export function CustomAlert({
                 ]}
                 onPress={handleConfirm}
               >
-                <Text style={styles.confirmButtonText}>{confirmText}</Text>
+                <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
               </TouchableOpacity>
             </View>
           </View>

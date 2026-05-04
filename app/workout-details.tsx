@@ -20,7 +20,7 @@ import {
   setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { WorkoutBlockData, type WorkoutExercise } from '@/src/types';
-import { formatAssignedCalendarDatePtBr } from '@/src/utils/dateOnly';
+import { formatAssignedCalendarDateByLocale } from '@/src/utils/dateOnly';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -31,6 +31,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   AppState,
@@ -208,6 +209,7 @@ const getMockWorkoutTemplates = () => {
 
 
 export default function WorkoutDetailsScreen() {
+  const { t, i18n } = useTranslation();
   const weightInputAccessoryViewId = 'weightInputAccessoryView';
   const router = useRouter();
   const { workoutId: workoutIdRaw } = useLocalSearchParams();
@@ -222,7 +224,7 @@ export default function WorkoutDetailsScreen() {
   
   // Buscar o treino correspondente
   const [assignedWorkout, setAssignedWorkout] = useState<any>(null);
-  const [coachDisplayName, setCoachDisplayName] = useState<string>('Treinador(a)');
+  const [coachDisplayName, setCoachDisplayName] = useState<string>(t('workoutDetails.coachFallback'));
   const [workoutTemplate, setWorkoutTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -346,11 +348,11 @@ export default function WorkoutDetailsScreen() {
   
   // Feedback com ícones próprios (substituindo emojis do sistema)
   const feedbackLevels = [
-    { level: 1, emoji: '😊', label: 'Muito Fácil', color: '#10b981', icon: require('../assets/images/FeedbackMuitoFacil.png') },
-    { level: 2, emoji: '🙂', label: 'Fácil', color: '#22c55e', icon: require('../assets/images/FeedbackFacil.png') },
-    { level: 3, emoji: '😐', label: 'Normal', color: '#f59e0b', icon: require('../assets/images/FeedbackModerado.png') },
-    { level: 4, emoji: '😓', label: 'Difícil', color: '#f97316', icon: require('../assets/images/FeedbackDificil.png') },
-    { level: 5, emoji: '😰', label: 'Muito Difícil', color: '#ef4444', icon: require('../assets/images/FeedbackMuitoDificil.png') },
+    { level: 1, emoji: '😊', label: t('home.veryEasy'), color: '#10b981', icon: require('../assets/images/FeedbackMuitoFacil.png') },
+    { level: 2, emoji: '🙂', label: t('home.easy'), color: '#22c55e', icon: require('../assets/images/FeedbackFacil.png') },
+    { level: 3, emoji: '😐', label: t('home.normal'), color: '#f59e0b', icon: require('../assets/images/FeedbackModerado.png') },
+    { level: 4, emoji: '😓', label: t('home.hard'), color: '#f97316', icon: require('../assets/images/FeedbackDificil.png') },
+    { level: 5, emoji: '😰', label: t('home.veryHard'), color: '#ef4444', icon: require('../assets/images/FeedbackMuitoDificil.png') },
   ];
 
 
@@ -365,7 +367,7 @@ export default function WorkoutDetailsScreen() {
         const { getAssignedWorkoutById } = await import('@/src/services/assignedWorkouts.service');
         const found = await getAssignedWorkoutById(workoutId);
         if (!found) {
-          showAlert('Erro', 'Treino não encontrado', 'error', () => router.back());
+          showAlert(t('common.error'), t('workoutDetails.notFound'), 'error', () => router.back());
           return;
         }
 
@@ -388,9 +390,9 @@ export default function WorkoutDetailsScreen() {
               typeof athleteDoc.data()?.coachPublicName === 'string'
                 ? athleteDoc.data()?.coachPublicName.trim()
                 : '';
-            setCoachDisplayName(fromAthleteDoc || 'Treinador(a)');
+            setCoachDisplayName(fromAthleteDoc || t('workoutDetails.coachFallback'));
           } catch {
-            setCoachDisplayName('Treinador(a)');
+            setCoachDisplayName(t('workoutDetails.coachFallback'));
           }
         }
 
@@ -433,8 +435,8 @@ export default function WorkoutDetailsScreen() {
           }
         }
       } catch (error) {
-        console.error('Erro ao carregar treino:', error);
-        showAlert('Erro', 'Não foi possível carregar o treino', 'error');
+        console.error('Error loading workout:', error);
+        showAlert(t('common.error'), t('workoutDetails.loadError'), 'error');
       } finally {
         setLoading(false);
       }
@@ -558,7 +560,7 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert('Descanso Concluído', 'Hora de continuar o treino!', 'success');
+            showAlert(t('workoutDetails.restCompletedTitle'), t('workoutDetails.restCompletedMessage'), 'success');
             return 0;
           }
           return prev - 1;
@@ -584,7 +586,7 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert('Tempo Concluído', 'Alongamento completo!', 'success');
+            showAlert(t('workoutDetails.timeCompletedTitle'), t('workoutDetails.timeCompletedMessage'), 'success');
             return durationTotal;
           }
           return prev + 1;
@@ -610,7 +612,7 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert('Aquecimento Concluído', 'Hora de começar o treino!', 'success');
+            showAlert(t('workoutDetails.warmupCompletedTitle'), t('workoutDetails.warmupCompletedMessage'), 'success');
             return 0;
           }
           return prev - 1;
@@ -926,7 +928,7 @@ export default function WorkoutDetailsScreen() {
     
     // Se não há próximo exercício, fechar modal
     closeExerciseModal();
-    showAlert('Treino Completo', 'Você chegou ao final do treino!', 'success');
+    showAlert(t('workoutDetails.workoutCompleteTitle'), t('workoutDetails.workoutCompleteMessage'), 'success');
   }, [closeExerciseModal, currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
   // Função para navegar para o exercício anterior
@@ -998,11 +1000,11 @@ export default function WorkoutDetailsScreen() {
     try {
       const athleteId = assignedWorkout?.athleteId;
       if (!athleteId) {
-        showAlert('Erro', 'Não foi possível identificar o atleta para salvar a evolução', 'error');
+        showAlert(t('common.error'), t('workoutDetails.athleteIdentifyError'), 'error');
         return;
       }
 
-      const exerciseName = getCurrentExercise()?.exercise?.name || 'Exercício';
+      const exerciseName = getCurrentExercise()?.exercise?.name || t('home.exercise');
 
       const { addExerciseWeightRecord } = await import('@/src/services/exerciseWeightHistory.service');
       await addExerciseWeightRecord({
@@ -1046,13 +1048,13 @@ export default function WorkoutDetailsScreen() {
       setExerciseWeight('');
 
       // Mantém o modal aberto: feedback discreto evita empilhar Modal por cima de Modal no iOS.
-      setWeightSaveMessage(`Peso ${weight}kg salvo com sucesso!`);
+      setWeightSaveMessage(t('workoutDetails.weightSaved', { weight }));
       setTimeout(() => setWeightSaveMessage(''), 1800);
     } catch (error) {
-      console.error('Erro ao salvar peso:', error);
-      showAlert('Erro', 'Não foi possível salvar o peso', 'error');
+      console.error('Error saving weight:', error);
+      showAlert(t('common.error'), t('workoutDetails.saveWeightError'), 'error');
     }
-  }, [assignedWorkout, getCurrentExercise]);
+  }, [assignedWorkout, getCurrentExercise, t]);
 
   // Carregar peso salvo para o exercício atual
   useEffect(() => {
@@ -1151,7 +1153,7 @@ export default function WorkoutDetailsScreen() {
     return (
       <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
         <Text className='text-xl font-bold mb-4' style={themeStyles.text}>
-          Treino não encontrado
+          {t('workoutDetails.notFound')}
         </Text>
         <TouchableOpacity 
          className="rounded-lg py-3 px-6"
@@ -1159,7 +1161,7 @@ export default function WorkoutDetailsScreen() {
          onPress={() => router.back()}
          >
           <Text className="font-semibold" style={{ color: '#ffffff' }}>
-            Voltar
+            {t('common.back')}
           </Text>
          </TouchableOpacity>
       </View>
@@ -1176,14 +1178,14 @@ export default function WorkoutDetailsScreen() {
   const handleConfirmCompletion = async () => {
     if (selectedFeedback === null) {
       showAlert(
-        'Atenção',
-        'Por favor, selecione como você se sentiu após o treino.',
+        t('common.warning'),
+        t('workoutDetails.selectFeedbackWarning'),
         'warning'
       );
       return;
     }
     if (!workoutId) {
-      showAlert('Erro', 'Treino inválido', 'error');
+      showAlert(t('common.error'), t('workoutDetails.invalidWorkout'), 'error');
       return;
     }
 
@@ -1245,8 +1247,8 @@ export default function WorkoutDetailsScreen() {
       InteractionManager.runAfterInteractions(() => {
         completionAlertTimerRef.current = setTimeout(() => {
           showAlert(
-            'Treino Concluído',
-            `Parabéns! Você concluiu o treino "${assignedWorkout?.name}"`,
+            t('workoutDetails.completedTitle'),
+            t('workoutDetails.completedMessage', { name: assignedWorkout?.name || '' }),
             'success',
             () => {
               setShowCelebration(false);
@@ -1256,8 +1258,8 @@ export default function WorkoutDetailsScreen() {
         }, 120);
       });
     } catch (error) {
-      console.error('Erro ao marcar como concluído:', error);
-      showAlert('Erro', 'Não foi possível marcar o treino como concluído', 'error');
+      console.error('Error marking workout as completed:', error);
+      showAlert(t('common.error'), t('workoutDetails.completeError'), 'error');
     }
   };
 
@@ -1273,8 +1275,8 @@ export default function WorkoutDetailsScreen() {
       <View className="px-6 pt-20 pb-20">
         <FirstTimeTip
           storageKey="tutorial_workout_details_v1"
-          title="Como usar o treino"
-          description="Passe pelos blocos do treino, toque nos exercícios para ver detalhes e vá marcando o que concluir. No final, envie seu feedback para o treinador saber como foi a sessão."
+          title={t('workoutDetails.tipTitle')}
+          description={t('workoutDetails.tipDescription')}
         />
         {/* Header: Pressable (evita conflito de gesto com ScrollView no iOS) */}
         <Pressable
@@ -1287,7 +1289,7 @@ export default function WorkoutDetailsScreen() {
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
           <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </Pressable>
 
@@ -1297,10 +1299,10 @@ export default function WorkoutDetailsScreen() {
             {assignedWorkout.name}
           </Text>
           <Text className="mb-1" style={themeStyles.textSecondary}>
-            Treinador: {coachDisplayName}
+            {t('workoutDetails.coachLabel')}: {coachDisplayName}
           </Text>
           <Text className="mb-4" style={themeStyles.textSecondary}>
-            Data: {formatAssignedCalendarDatePtBr(assignedWorkout.date)} ({assignedWorkout.dayOfWeek})
+            {t('workoutDetails.dateLabel')}: {formatAssignedCalendarDateByLocale(assignedWorkout.date, i18n.language)} ({assignedWorkout.dayOfWeek})
             {assignedWorkout.scheduledTime ? ` • ${assignedWorkout.scheduledTime}` : ''}
           </Text>
 
@@ -1325,7 +1327,7 @@ export default function WorkoutDetailsScreen() {
               <View className="mb-4 rounded-xl p-4 border" style={themeStyles.card}>
                 <View className="flex-row items-center justify-between mb-3">
                   <Text className="font-semibold text-base flex-1" style={themeStyles.text}>
-                    Progresso do Treino
+                    {t('workoutDetails.progressTitle')}
                   </Text>
                   
                   {/* Disco Circular de Percentual - Solução Simples */}
@@ -1364,7 +1366,7 @@ export default function WorkoutDetailsScreen() {
                 </View>
                 
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  {completedExercises.size} de {totalExercises} exercícios concluídos
+                  {t('workoutDetails.progressCount', { completed: completedExercises.size, total: totalExercises })}
                 </Text>
               </View>
             );
@@ -1381,7 +1383,7 @@ export default function WorkoutDetailsScreen() {
                 ? 'text-green-400'
                 : 'text-yellow-400'
             }`}>
-              {assignedWorkout.status}
+              {assignedWorkout.status === 'Concluído' ? t('tabTwo.statusCompleted') : t('tabTwo.statusPending')}
             </Text>
           </View>
 
@@ -1389,7 +1391,7 @@ export default function WorkoutDetailsScreen() {
           {assignedWorkout.status === 'Concluído' && (assignedWorkout.feedback || assignedWorkout.feedbackEmoji || assignedWorkout.feedbackText) && (
             <View className="mt-4 rounded-xl p-4 border" style={themeStyles.card}>
               <Text className="font-semibold mb-2" style={themeStyles.text}>
-                Seu feedback
+                {t('workoutDetails.yourFeedback')}
               </Text>
               <View className="flex-row flex-wrap items-center gap-2 mb-2">
                 {(() => {
@@ -1414,7 +1416,7 @@ export default function WorkoutDetailsScreen() {
                 })()}
                 {assignedWorkout.completedDate && (
                   <Text className="text-sm" style={themeStyles.textTertiary}>
-                    {new Date(assignedWorkout.completedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {new Date(assignedWorkout.completedDate).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </Text>
                 )}
               </View>
@@ -1431,14 +1433,14 @@ export default function WorkoutDetailsScreen() {
           {workoutTemplate && (
           <View className="mb-6">
             <Text className="text-2xl font-bold mb-4" style={themeStyles.text}>
-              Detalhes do Treino
+              {t('workoutDetails.detailsTitle')}
             </Text>
             
             {workoutTemplate.blocks.map((block: WorkoutBlockData, blockIndex: number) => {
               const blockNames: Record<string, string> = {
-                WARM_UP: 'Aquecimento',
-                WORK: 'Trabalho Principal',
-                COOL_DOWN: 'Finalização',
+                WARM_UP: t('createWorkout.filterWarmup'),
+                WORK: t('editWorkout.mainBlockTitle'),
+                COOL_DOWN: t('createWorkout.filterCooldown'),
               };
               const blockIcons: Record<string, any> = {
                 WARM_UP: require('../assets/images/IconeAquecimento.png'),
@@ -1501,7 +1503,7 @@ export default function WorkoutDetailsScreen() {
                                 textDecorationLine: isCompleted ? 'line-through' : 'none',
                               }}
                             >
-                              {exercise.exercise?.name || `Exercício ${exerciseIndex + 1}`}
+                              {exercise.exercise?.name || t('workoutDetails.exerciseFallback', { number: exerciseIndex + 1 })}
                             </Text>
                             
                             {exercise.exercise?.description && (
@@ -1521,7 +1523,7 @@ export default function WorkoutDetailsScreen() {
                                   }}
                                 >
                                   <Text className="text-[10px] font-semibold mb-0.5 text-center" style={{ color: theme.colors.primary }}>
-                                    Séries
+                                    {t('workoutDetails.sets')}
                                   </Text>
                                   <Text className="text-xl font-bold text-center" style={themeStyles.text}>
                                     {exercise.sets}
@@ -1538,7 +1540,7 @@ export default function WorkoutDetailsScreen() {
                                   }}
                                 >
                                   <Text className="text-[10px] font-semibold mb-0.5 text-center" style={{ color: theme.colors.primary }}>
-                                    Repetições
+                                    {t('workoutDetails.reps')}
                                   </Text>
                                   <Text className="text-xl font-bold text-center" style={themeStyles.text}>
                                     {exercise.reps}
@@ -1547,17 +1549,17 @@ export default function WorkoutDetailsScreen() {
                               )}
                               {exercise.duration && !exercise.intervalProtocol?.length && (
                                 <Text style={themeStyles.textSecondary}>
-                                  Duração: {formatDuration(exercise.duration)}
+                                  {t('exercisesLibrary.duration')}: {formatDuration(exercise.duration)}
                                 </Text>
                               )}
                               {exercise.intervalProtocol?.length ? (
                                 <Text style={themeStyles.textSecondary}>
-                                  {exercise.protocolName || 'Intervalado'}: {formatDuration(getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest }))}
+                                  {exercise.protocolName || t('workoutDetails.intervalLabel')}: {formatDuration(getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest }))}
                                 </Text>
                               ) : null}
                               {exercise.restTime && (
                                 <Text style={themeStyles.textSecondary}>
-                                  Descanso: {exercise.restTime}s
+                                  {t('workoutDetails.rest')}: {exercise.restTime}s
                                 </Text>
                               )}
                             </View>
@@ -1582,7 +1584,7 @@ export default function WorkoutDetailsScreen() {
                           >
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel="Alternar exercício concluído"
+                              accessibilityLabel={t('workoutDetails.toggleCompletedA11y')}
                               onPress={() => toggleExercise(exerciseUniqueId)}
                               hitSlop={12}
                               style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
@@ -1638,7 +1640,7 @@ export default function WorkoutDetailsScreen() {
               onPress={handleMarkAsCompleted}
             >
               <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                Marcar como Concluído
+                {t('workoutDetails.markAsCompleted')}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -1648,7 +1650,7 @@ export default function WorkoutDetailsScreen() {
         {assignedWorkout.status === 'Concluído' && (
           <View className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
             <Text className="text-green-400 font-semibold text-center">
-              ✅ Este treino já foi concluído!
+              {t('workoutDetails.alreadyCompleted')}
             </Text>
           </View>
         )}
@@ -1666,7 +1668,7 @@ export default function WorkoutDetailsScreen() {
         title={alertTitle}
         message={alertMessage}
         type={alertType}
-        confirmText="OK"
+        confirmText={t('common.ok')}
         onConfirm={() => {
           setAlertVisible(false);
           alertOnConfirm?.();
@@ -1742,7 +1744,7 @@ export default function WorkoutDetailsScreen() {
                       <FontAwesome name="times" size={20} color={theme.colors.text} />
                     </Pressable>
                     <Text className="font-semibold text-lg" style={themeStyles.text}>
-                      Exercício {exerciseNumber} de {totalExercises}
+                      {t('workoutDetails.exerciseCount', { current: exerciseNumber, total: totalExercises })}
                     </Text>
                     <View className="w-8" />
                   </View>
@@ -1759,7 +1761,7 @@ export default function WorkoutDetailsScreen() {
                     automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                   >
                     <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-                      {exercise.exercise?.name || `Exercício ${exerciseNumber}`}
+                      {exercise.exercise?.name || t('workoutDetails.exerciseFallback', { number: exerciseNumber })}
                     </Text>
                     
                     {exercise.exercise?.description && (
@@ -1785,7 +1787,7 @@ export default function WorkoutDetailsScreen() {
                       <View className="flex-row gap-4 flex-wrap mb-2">
                         {exercise.sets && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('workoutDetails.sets')}</Text>
                             <Text className="font-bold text-3xl" style={{ color: theme.colors.primary }}>
                               {exercise.sets}
                             </Text>
@@ -1793,7 +1795,7 @@ export default function WorkoutDetailsScreen() {
                         )}
                         {exercise.reps && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('workoutDetails.reps')}</Text>
                             <Text className="font-bold text-3xl" style={{ color: theme.colors.primary }}>
                               {exercise.reps}
                             </Text>
@@ -1801,7 +1803,7 @@ export default function WorkoutDetailsScreen() {
                         )}
                         {exercise.duration && !exercise.intervalProtocol?.length && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Duração</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('exercisesLibrary.duration')}</Text>
                             <Text className="font-semibold text-lg" style={themeStyles.text}>
                               {Math.floor(exercise.duration / 60)}min
                             </Text>
@@ -1809,13 +1811,13 @@ export default function WorkoutDetailsScreen() {
                         )}
                         {exercise.restTime && (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('workoutDetails.rest')}</Text>
                             <Text className="font-semibold text-lg" style={themeStyles.text}>{exercise.restTime}s</Text>
                           </View>
                         )}
                         {exercise.intervalProtocol?.length ? (
                           <View className="flex-1 min-w-[100px]">
-                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Protocolo</Text>
+                            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('workoutDetails.protocol')}</Text>
                             <Text className="font-semibold text-lg" style={themeStyles.text}>
                               {formatDuration(getProtocolTotalDuration(exercise.intervalProtocol, exercise.rounds || 1, { roundRest: exercise.roundRest }))}
                             </Text>
@@ -1929,7 +1931,7 @@ export default function WorkoutDetailsScreen() {
                     {/* Timer de Descanso (para exercícios com restTime) */}
                     {exercise.restTime && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                        <Text className="font-semibold mb-3" style={themeStyles.text}>⏱️ Timer de Descanso</Text>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>{t('workoutDetails.restTimerTitle')}</Text>
                         {isResting ? (
                           <View className="items-center">
                             <Text className="text-4xl font-bold text-primary-400 mb-4">
@@ -1939,7 +1941,7 @@ export default function WorkoutDetailsScreen() {
                               onPress={skipRest}
                               className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
                             >
-                              <Text className="text-red-400 font-semibold">Pular Descanso</Text>
+                              <Text className="text-red-400 font-semibold">{t('workoutDetails.skipRest')}</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
@@ -1948,7 +1950,7 @@ export default function WorkoutDetailsScreen() {
                             className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center"
                           >
                             <Text className="text-primary-400 font-semibold">
-                              Iniciar Descanso ({exercise.restTime}s)
+                              {t('workoutDetails.startRest', { seconds: exercise.restTime })}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1958,14 +1960,14 @@ export default function WorkoutDetailsScreen() {
                     {/* Timer de Duração (para exercícios de aquecimento) - REGRESSIVO */}
                     {exercise.duration && !exercise.intervalProtocol?.length && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'WARM_UP' && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                        <Text className="font-semibold mb-3" style={themeStyles.text}>🔥 Timer de Aquecimento</Text>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>{t('workoutDetails.warmupTimerTitle')}</Text>
                         {isRunningWarmUp ? (
                           <View className="items-center">
                             <Text className="text-4xl font-bold mb-2" style={{ color: theme.colors.primary }}>
                               {formatTime(warmUpTime)}
                             </Text>
                             <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-                              de {formatTime(warmUpTotal)}
+                              {t('workoutDetails.ofTime', { time: formatTime(warmUpTotal) })}
                             </Text>
                             <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
                               <View 
@@ -1980,7 +1982,7 @@ export default function WorkoutDetailsScreen() {
                               onPress={stopWarmUpTimer}
                               className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
                             >
-                              <Text className="text-red-400 font-semibold">Parar Timer</Text>
+                              <Text className="text-red-400 font-semibold">{t('workoutDetails.stopTimer')}</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
@@ -1995,7 +1997,7 @@ export default function WorkoutDetailsScreen() {
                             }}
                           >
                             <Text className="font-semibold" style={{ color: theme.colors.primary }}>
-                              Iniciar Aquecimento ({Math.floor(exercise.duration / 60)}min)
+                              {t('workoutDetails.startWarmup', { minutes: Math.floor(exercise.duration / 60) })}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -2005,14 +2007,14 @@ export default function WorkoutDetailsScreen() {
                     {/* Timer de Duração (para exercícios de alongamento/desaquecimento) */}
                     {exercise.duration && !exercise.intervalProtocol?.length && workoutTemplate?.blocks[currentBlockIndex]?.blockType === 'COOL_DOWN' && (
                       <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                        <Text className="font-semibold mb-3" style={themeStyles.text}>🧘 Timer de Alongamento</Text>
+                        <Text className="font-semibold mb-3" style={themeStyles.text}>{t('workoutDetails.stretchTimerTitle')}</Text>
                         {isRunningDuration ? (
                           <View className="items-center">
                             <Text className="text-4xl font-bold mb-2" style={{ color: '#10b981' }}>
                               {formatTime(durationTime)}
                             </Text>
                             <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-                              de {formatTime(durationTotal)}
+                              {t('workoutDetails.ofTime', { time: formatTime(durationTotal) })}
                             </Text>
                             <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
                               <View 
@@ -2027,7 +2029,7 @@ export default function WorkoutDetailsScreen() {
                               onPress={stopDurationTimer}
                               className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
                             >
-                              <Text className="text-red-400 font-semibold">Parar Timer</Text>
+                              <Text className="text-red-400 font-semibold">{t('workoutDetails.stopTimer')}</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
@@ -2036,7 +2038,7 @@ export default function WorkoutDetailsScreen() {
                             className="bg-green-500/20 border border-green-500/30 rounded-lg px-4 py-3 items-center"
                           >
                             <Text className="text-green-400 font-semibold">
-                              Iniciar Alongamento ({Math.floor(exercise.duration / 60)}min)
+                              {t('workoutDetails.startStretch', { minutes: Math.floor(exercise.duration / 60) })}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -2051,14 +2053,14 @@ export default function WorkoutDetailsScreen() {
                       if (!showWorkDurationTimer) return null;
                       return (
                         <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                          <Text className="font-semibold mb-3" style={themeStyles.text}>⏱️ Timer de Duração</Text>
+                          <Text className="font-semibold mb-3" style={themeStyles.text}>{t('workoutDetails.durationTimerTitle')}</Text>
                           {isRunningDuration ? (
                             <View className="items-center">
                               <Text className="text-4xl font-bold mb-2" style={{ color: theme.colors.primary }}>
                                 {formatTime(durationTime)}
                               </Text>
                               <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-                                de {formatTime(durationTotal)}
+                                {t('workoutDetails.ofTime', { time: formatTime(durationTotal) })}
                               </Text>
                               <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: theme.colors.border }}>
                                 <View 
@@ -2073,7 +2075,7 @@ export default function WorkoutDetailsScreen() {
                                 onPress={stopDurationTimer}
                                 className="bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-2"
                               >
-                                <Text className="text-red-400 font-semibold">Parar Timer</Text>
+                                <Text className="text-red-400 font-semibold">{t('workoutDetails.stopTimer')}</Text>
                               </TouchableOpacity>
                             </View>
                           ) : (
@@ -2087,7 +2089,7 @@ export default function WorkoutDetailsScreen() {
                               }}
                             >
                               <Text className="font-semibold" style={{ color: theme.colors.primary }}>
-                                Iniciar ({Math.floor(durationSec / 60)}min)
+                                {t('workoutDetails.startDuration', { minutes: Math.floor(durationSec / 60) })}
                               </Text>
                             </TouchableOpacity>
                           )}
@@ -2106,11 +2108,11 @@ export default function WorkoutDetailsScreen() {
                       if (!showWeightLoad) return null;
                       return (
                         <View className="rounded-xl p-4 mb-4" style={themeStyles.cardSecondary}>
-                          <Text className="font-semibold mb-3" style={themeStyles.text}>💪 Registrar Peso/Carga</Text>
+                          <Text className="font-semibold mb-3" style={themeStyles.text}>{t('workoutDetails.registerWeightLoad')}</Text>
                           
                           {savedWeights[exerciseUniqueId] && (
                             <View className="mb-3 p-3 rounded-lg" style={themeStyles.cardSecondary}>
-                              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Último peso registrado</Text>
+                              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('workoutDetails.lastWeightRecorded')}</Text>
                               <Text className="font-bold text-xl" style={themeStyles.text}>
                                 {savedWeights[exerciseUniqueId]} kg
                               </Text>
@@ -2122,7 +2124,7 @@ export default function WorkoutDetailsScreen() {
                               ref={weightInputRef}
                               value={exerciseWeight}
                               onChangeText={setExerciseWeight}
-                              placeholder="Peso em kg"
+                              placeholder={t('workoutDetails.weightPlaceholder')}
                               placeholderTextColor={theme.colors.textTertiary}
                               keyboardType="numeric"
                               inputAccessoryViewID={Platform.OS === 'ios' ? weightInputAccessoryViewId : undefined}
@@ -2159,7 +2161,7 @@ export default function WorkoutDetailsScreen() {
                                   hitSlop={10}
                                 >
                                   <Text className="font-semibold" style={{ color: theme.colors.primary }}>
-                                    Fechar
+                                    {t('editWorkout.close')}
                                   </Text>
                                 </Pressable>
                               </View>
@@ -2170,7 +2172,7 @@ export default function WorkoutDetailsScreen() {
                             onPress={() => {
                               const weight = parseFloat(exerciseWeight);
                               if (isNaN(weight) || weight <= 0) {
-                                showAlert('Atenção', 'Por favor, digite um peso válido', 'warning');
+                                showAlert(t('common.warning'), t('workoutDetails.invalidWeight'), 'warning');
                                 return;
                               }
                               if (!workoutId) return;
@@ -2179,7 +2181,7 @@ export default function WorkoutDetailsScreen() {
                             className="bg-primary-500/20 border border-primary-500/30 rounded-lg px-4 py-3 items-center mt-3"
                           >
                             <Text className="text-primary-400 font-semibold">
-                              Salvar Peso
+                              {t('workoutDetails.saveWeight')}
                             </Text>
                           </TouchableOpacity>
                           {weightSaveMessage ? (
@@ -2220,7 +2222,7 @@ export default function WorkoutDetailsScreen() {
                         <Text className={`font-semibold text-lg ${
                           isCompleted ? 'text-green-400' : 'text-primary-400'
                         }`}>
-                          {isCompleted ? '✓ Concluído' : '✓ Marcar como Concluído'}
+                          {isCompleted ? t('workoutDetails.exerciseCompleted') : t('workoutDetails.exerciseMarkCompleted')}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -2241,7 +2243,7 @@ export default function WorkoutDetailsScreen() {
                       <Text className="font-semibold" style={{
                         color: hasPrevious ? theme.colors.text : theme.colors.textTertiary
                       }}>
-                        ← Anterior
+                        {t('workoutDetails.previous')}
                       </Text>
                     </TouchableOpacity>
                     
@@ -2258,7 +2260,7 @@ export default function WorkoutDetailsScreen() {
                       <Text className="font-semibold" style={{
                         color: hasNext ? theme.colors.text : theme.colors.textTertiary
                       }}>
-                        Próximo →
+                        {t('workoutDetails.next')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -2282,10 +2284,10 @@ export default function WorkoutDetailsScreen() {
           <View className="flex-1 bg-black/50 justify-center items-center p-6">
             <View className="rounded-3xl p-6 w-full max-w-md border" style={themeStyles.card}>
               <Text className="text-2xl font-bold mb-2 text-center" style={themeStyles.text}>
-                Como foi o treino?
+                {t('workoutDetails.feedbackTitle')}
               </Text>
               <Text className="text-center mb-6" style={themeStyles.textSecondary}>
-                Selecione como você se sentiu após completar este treino
+                {t('workoutDetails.feedbackSubtitle')}
               </Text>
 
               {/* Grid de emojis */}
@@ -2328,7 +2330,7 @@ export default function WorkoutDetailsScreen() {
               {/* Observação opcional (feedback em texto) */}
               <View className="mb-6">
                 <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
-                  Observação (opcional)
+                  {t('workoutDetails.feedbackNoteLabel')}
                 </Text>
                 <TextInput
                   className="rounded-xl px-4 py-3 border text-base"
@@ -2338,7 +2340,7 @@ export default function WorkoutDetailsScreen() {
                     color: theme.colors.text,
                     minHeight: 80,
                   }}
-                  placeholder="Ex: Senti dor no joelho no Leg Press..."
+                  placeholder={t('workoutDetails.feedbackNotePlaceholder')}
                   placeholderTextColor={theme.colors.textTertiary}
                   value={feedbackText}
                   onChangeText={setFeedbackText}
@@ -2358,7 +2360,7 @@ export default function WorkoutDetailsScreen() {
                   }}
                 >
                   <Text className="text-white font-semibold text-center">
-                    Cancelar
+                    {t('common.cancel')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -2366,7 +2368,7 @@ export default function WorkoutDetailsScreen() {
                   onPress={handleConfirmCompletion}
                 >
                   <Text className="text-black font-bold text-center">
-                    Confirmar
+                    {t('workoutDetails.confirm')}
                   </Text>
                 </TouchableOpacity>
               </View>

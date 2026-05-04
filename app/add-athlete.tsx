@@ -5,17 +5,20 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
+import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createAthleteWithLogin } from '@/src/services/athletes.service';
-import { assertCanCreateResource } from '@/src/services/planLimits.service';
+import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function AddAthleteScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { theme } = useTheme();
@@ -32,17 +35,31 @@ export default function AddAthleteScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
   const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>();
+  const [alertOnCancel, setAlertOnCancel] = useState<(() => void) | null>(null);
+  const [alertShowCancel, setAlertShowCancel] = useState(false);
+  const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>(undefined);
+  const [alertCancelText, setAlertCancelText] = useState<string | undefined>(undefined);
 
   const showAlert = (
     title: string,
     message: string,
     type: 'success' | 'error' | 'info' | 'warning' = 'info',
-    onConfirm?: () => void
+    onConfirm?: () => void,
+    options?: {
+      showCancel?: boolean;
+      onCancel?: () => void;
+      confirmText?: string;
+      cancelText?: string;
+    }
   ) => {
     setAlertTitle(title);
     setAlertMessage(message);
     setAlertType(type);
     setAlertOnConfirm(onConfirm ? () => setTimeout(onConfirm, 0) : undefined);
+    setAlertOnCancel(() => options?.onCancel ?? null);
+    setAlertShowCancel(options?.showCancel ?? false);
+    setAlertConfirmText(options?.confirmText);
+    setAlertCancelText(options?.cancelText);
     setAlertVisible(true);
   };
 
@@ -51,23 +68,23 @@ export default function AddAthleteScreen() {
     const emailTrim = email.trim().toLowerCase();
 
     if (!nameTrim) {
-      showAlert('Erro', 'Preencha o nome do atleta.', 'error');
+      showAlert(t('common.error'), t('addAthlete.errNameRequired'), 'error');
       return;
     }
     if (!emailTrim) {
-      showAlert('Erro', 'Preencha o email do atleta (será usado para o login dele).', 'error');
+      showAlert(t('common.error'), t('addAthlete.errEmailRequired'), 'error');
       return;
     }
     if (!temporaryPassword) {
-      showAlert('Erro', 'Crie uma senha provisória para o atleta fazer login.', 'error');
+      showAlert(t('common.error'), t('addAthlete.errPasswordRequired'), 'error');
       return;
     }
     if (temporaryPassword.length < 6) {
-      showAlert('Erro', 'A senha provisória deve ter no mínimo 6 caracteres.', 'error');
+      showAlert(t('common.error'), t('addAthlete.errPasswordMin'), 'error');
       return;
     }
     if (!user?.id) {
-      showAlert('Erro', 'Você precisa estar logado.', 'error');
+      showAlert(t('common.error'), t('addAthlete.errNeedLogin'), 'error');
       return;
     }
 
@@ -81,14 +98,28 @@ export default function AddAthleteScreen() {
         sport: sport.trim() || undefined,
       });
       showAlert(
-        'Atleta cadastrado',
-        `"${nameTrim}" foi adicionado com sucesso. O atleta pode fazer login no app com:\n\nEmail: ${emailTrim}\nSenha: a que você definiu agora.\n\nRecomende que ele troque a senha após o primeiro acesso.`,
+        t('addAthlete.successTitle'),
+        t('addAthlete.successBody', { name: nameTrim, email: emailTrim }),
         'success',
         () => router.back()
       );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Não foi possível cadastrar o atleta. Tente novamente.';
-      showAlert('Erro', msg, 'error');
+      if (e instanceof FreePlanLimitError) {
+        showAlert(
+          t('addAthlete.planLimitTitle'),
+          e.message,
+          'warning',
+          () => router.push('/subscription'),
+          {
+            showCancel: true,
+            confirmText: t('addAthlete.viewPlans'),
+            cancelText: t('common.close'),
+          }
+        );
+        return;
+      }
+      const msg = e instanceof Error ? e.message : t('addAthlete.errGeneric');
+      showAlert(t('common.error'), msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -104,6 +135,12 @@ export default function AddAthleteScreen() {
     <>
       <ScrollView className="flex-1" style={themeStyles.bg}>
         <View className="px-6 pt-20 pb-20">
+          <FirstTimeTip
+            storageKey="tutorial_add_athlete_v1"
+            title={t('addAthlete.tipTitle')}
+            description={t('addAthlete.tipDescription')}
+          />
+
           <TouchableOpacity
             className="mb-6 flex-row items-center"
             onPress={() => router.back()}
@@ -116,25 +153,25 @@ export default function AddAthleteScreen() {
               <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
             </View>
             <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-              Voltar
+              {t('common.back')}
             </Text>
           </TouchableOpacity>
 
           <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-            Novo atleta
+            {t('addAthlete.title')}
           </Text>
           <Text className="mb-6" style={themeStyles.textSecondary}>
-            Cadastre o atleta com email e senha provisória. Ele poderá fazer login no app e ficará vinculado a você.
+            {t('addAthlete.subtitle')}
           </Text>
 
           <View className="mb-4">
             <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
-              Nome *
+              {t('addAthlete.nameLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 py-3 text-base"
               style={inputStyle}
-              placeholder="Ex: Pedro Santos"
+              placeholder={t('addAthlete.namePlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={name}
               onChangeText={setName}
@@ -144,12 +181,12 @@ export default function AddAthleteScreen() {
 
           <View className="mb-4">
             <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
-              Email (login do atleta) *
+              {t('addAthlete.emailLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 py-3 text-base"
               style={inputStyle}
-              placeholder="Ex: pedro@email.com"
+              placeholder={t('addAthlete.emailPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={email}
               onChangeText={setEmail}
@@ -162,12 +199,12 @@ export default function AddAthleteScreen() {
 
           <View className="mb-4">
             <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
-              Senha provisória *
+              {t('addAthlete.tempPasswordLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 py-3 text-base"
               style={inputStyle}
-              placeholder="Mínimo 6 caracteres (o atleta usará para entrar)"
+              placeholder={t('addAthlete.tempPasswordPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={temporaryPassword}
               onChangeText={setTemporaryPassword}
@@ -176,18 +213,18 @@ export default function AddAthleteScreen() {
               editable={!saving}
             />
             <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
-              O atleta fará login com este email e esta senha. Recomende trocar após o primeiro acesso.
+              {t('addAthlete.tempPasswordHint')}
             </Text>
           </View>
 
           <View className="mb-6">
             <Text className="text-sm font-medium mb-2" style={themeStyles.text}>
-              Esporte (opcional)
+              {t('addAthlete.sportLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 py-3 text-base"
               style={inputStyle}
-              placeholder="Ex: Futebol, Corrida"
+              placeholder={t('addAthlete.sportPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={sport}
               onChangeText={setSport}
@@ -202,7 +239,7 @@ export default function AddAthleteScreen() {
             disabled={saving}
           >
             <Text className="font-bold text-base" style={{ color: '#fff' }}>
-              {saving ? 'Cadastrando...' : 'Cadastrar atleta'}
+              {saving ? t('addAthlete.saving') : t('addAthlete.submit')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -213,9 +250,16 @@ export default function AddAthleteScreen() {
         title={alertTitle}
         message={alertMessage}
         type={alertType}
+        confirmText={alertConfirmText ?? t('common.ok')}
+        cancelText={alertCancelText ?? t('common.cancel')}
+        showCancel={alertShowCancel}
         onConfirm={() => {
           if (alertOnConfirm) alertOnConfirm();
           setAlertVisible(false);
+        }}
+        onCancel={() => {
+          setAlertVisible(false);
+          alertOnCancel?.();
         }}
       />
     </>

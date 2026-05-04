@@ -5,7 +5,7 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
-import { assertCanCreateResource } from '@/src/services/planLimits.service';
+import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { createWorkoutTemplate, listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -13,6 +13,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios mockados (simplificados para aprendizado)
@@ -168,6 +169,7 @@ const mockWorkouts = [
 ];
 
 export default function WorkoutLibraryScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { theme } = useTheme();
@@ -181,18 +183,32 @@ export default function WorkoutLibraryScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
   const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+  const [alertOnCancel, setAlertOnCancel] = useState<(() => void) | null>(null);
+  const [alertShowCancel, setAlertShowCancel] = useState(false);
+  const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>(undefined);
+  const [alertCancelText, setAlertCancelText] = useState<string | undefined>(undefined);
 
   // Função helper para mostrar alert customizado
   const showAlert = (
       title: string,
       message: string,
       type: 'success' | 'error' | 'info' | 'warning' = 'info',
-      onConfirm?: () => void
+      onConfirm?: () => void,
+      options?: {
+          showCancel?: boolean;
+          onCancel?: () => void;
+          confirmText?: string;
+          cancelText?: string;
+      }
   ) => {
       setAlertTitle(title);
       setAlertMessage(message);
       setAlertType(type);
       setAlertOnConfirm(() => onConfirm);
+      setAlertOnCancel(() => options?.onCancel ?? null);
+      setAlertShowCancel(options?.showCancel ?? false);
+      setAlertConfirmText(options?.confirmText);
+      setAlertCancelText(options?.cancelText);
       setAlertVisible(true);
   };
 
@@ -235,21 +251,35 @@ export default function WorkoutLibraryScreen() {
         try {
             const coachId = user?.id;
             if (!coachId) {
-                showAlert('Erro', 'Você precisa estar logado para duplicar.', 'error');
+                showAlert(t('workoutsLibrary.errorTitle'), t('workoutsLibrary.duplicateError'), 'error');
                 return;
             }
             await assertCanCreateResource(coachId, 'workoutTemplates');
             await createWorkoutTemplate(coachId, {
                 id: `workout_${Date.now()}`,
-                name: `${workout.name} (Cópia)`,
+                name: `${workout.name}${t('common.copySuffix')}`,
                 description: workout.description,
                 blocks: workout.blocks || [],
             });
             loadSavedWorkouts();
-            showAlert('Sucesso', 'Treino duplicado com sucesso!', 'success');
+            showAlert(t('common.success'), t('workoutsLibrary.duplicateSuccess'), 'success');
         } catch (error) {
             console.error('Erro ao duplicar treino:', error);
-            showAlert('Erro', 'Não foi possível duplicar o treino.', 'error');
+            if (error instanceof FreePlanLimitError) {
+                showAlert(
+                    t('workoutsLibrary.planLimitTitle'),
+                    error.message,
+                    'warning',
+                    () => router.push('/subscription'),
+                    {
+                        showCancel: true,
+                        confirmText: t('workoutsLibrary.viewPlans'),
+                        cancelText: t('common.close'),
+                    }
+                );
+                return;
+            }
+            showAlert(t('workoutsLibrary.errorTitle'), t('workoutsLibrary.duplicateFail'), 'error');
         }
     };
 
@@ -259,9 +289,9 @@ export default function WorkoutLibraryScreen() {
         <ScrollView className="flex-1" style={themeStyles.bg}>
             <View className="px-6 pt-20 pb-20">
                 <FirstTimeTip
-                  storageKey="tutorial_workouts_library_v1"
-                  title="Biblioteca de Treinos"
-                  description="Aqui você gerencia seus treinos-modelo (templates). Use os botões para criar novos treinos, duplicar e editar antes de atribuir para seus atletas."
+                  storageKey="tutorial_workouts_library_v2"
+                  title={t('workoutsLibrary.tipTitle')}
+                  description={t('workoutsLibrary.tipDescription')}
                 />
                 {/* Header com botão voltar melhorado */}
                 <TouchableOpacity
@@ -273,15 +303,15 @@ export default function WorkoutLibraryScreen() {
                         <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
                     <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                        Voltar
+                        {t('common.back')}
                     </Text>
                 </TouchableOpacity>
 
                 <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-                    Meus Treinos
+                    {t('workoutsLibrary.title')}
                 </Text>
                 <Text className="mb-6" style={themeStyles.textSecondary}>
-                    Gerencie seus treinos e templates
+                    {t('workoutsLibrary.subtitle')}
                 </Text>
 
                 <TouchableOpacity 
@@ -301,7 +331,7 @@ export default function WorkoutLibraryScreen() {
                             resizeMode="contain"
                         />
                         <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-                            Criar Novo Treino
+                            {t('workoutsLibrary.createNew')}
                         </Text>
                     </View>
                 </TouchableOpacity>
@@ -315,7 +345,7 @@ export default function WorkoutLibraryScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="🔍 Buscar treinos..."
+                        placeholder={t('workoutsLibrary.searchPlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={searchText}
                         onChangeText={setSearchText}
@@ -324,16 +354,16 @@ export default function WorkoutLibraryScreen() {
 
                 <View className="w-full">
                     <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                        Meus Treinos ({filteredWorkouts.length})
-                        {searchText.trim() && ` de ${allWorkouts.length} total`}
+                        {t('workoutsLibrary.listTitle', { count: filteredWorkouts.length })}
+                        {searchText.trim() && t('workoutsLibrary.listTitleSearch', { total: allWorkouts.length })}
                     </Text>
 
                     {filteredWorkouts.length === 0 ? (
                         <View className="rounded-xl p-6 border" style={themeStyles.card}>
                             <Text className="text-center" style={themeStyles.textSecondary}>
                                 {searchText.trim() 
-                                    ? 'Nenhum treino encontrado com essa busca'
-                                    : 'Nenhum treino criado ainda'}
+                                    ? t('workoutsLibrary.emptySearch')
+                                    : t('workoutsLibrary.empty')}
                             </Text>
                         </View>
                     ) : (
@@ -371,10 +401,16 @@ export default function WorkoutLibraryScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 type={alertType}
-                confirmText="OK"
+                confirmText={alertConfirmText ?? t('common.ok')}
+                cancelText={alertCancelText ?? t('common.cancel')}
+                showCancel={alertShowCancel}
                 onConfirm={() => {
                     setAlertVisible(false);
                     alertOnConfirm?.();
+                }}
+                onCancel={() => {
+                    setAlertVisible(false);
+                    alertOnCancel?.();
                 }}
             />
         </ScrollView>

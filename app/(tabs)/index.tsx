@@ -15,8 +15,8 @@ import { auth, db } from '@/src/services/firebase.config';
 import { UserType } from '@/src/types';
 import {
     assignedSortTimestamp,
-    chartDayMonthPtBr,
-    formatAssignedCalendarDatePtBr,
+    chartDayMonthByLocale,
+    formatAssignedCalendarDateByLocale,
     getLocalTodayYmd,
     parseDateOnlyLocal,
     parseFlexibleDateMs,
@@ -32,6 +32,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 
@@ -120,6 +121,7 @@ function getWorkoutIntervalSeconds(workout: any): { hasInterval: boolean; totalS
  * No React Native, cada tela é uma função que retorna elementos visuais.
  */
 export default function HomeScreen() {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
@@ -361,7 +363,7 @@ export default function HomeScreen() {
 
     setCoachHighlight({
       id: 'coach',
-      displayName: name || 'Treinador',
+      displayName: name || t('common.coach'),
       photoURL: photo || undefined,
       welcomeMessage: msg || undefined,
     });
@@ -539,7 +541,7 @@ export default function HomeScreen() {
         typeof coachHighlight?.displayName === 'string' ? coachHighlight.displayName.trim() : '';
       if (fromHighlight) return fromHighlight;
 
-      return 'Treinador(a)';
+      return t('assignWorkout.coachDefaultName');
     },
     [coachHighlight?.displayName]
   );
@@ -763,13 +765,14 @@ export default function HomeScreen() {
       if (count > maxCount) {
         maxCount = count;
         const [year, month] = monthKey.split('-');
-        const monthNames = [
-          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-        ];
+        const monthDate = new Date(Number(year), Number(month) - 1, 1);
+        const monthLabel = monthDate.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR', {
+          month: 'long',
+          year: 'numeric',
+        });
         bestMonth = {
           count,
-          label: `${monthNames[parseInt(month, 10) - 1]} ${year}`,
+          label: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
           monthKey,
         };
       }
@@ -981,11 +984,11 @@ export default function HomeScreen() {
       }
     });
     return [
-      { label: 'Muito Fácil', value: distribution[1], color: '#10b981' },
-      { label: 'Fácil', value: distribution[2], color: '#22c55e' },
-      { label: 'Normal', value: distribution[3], color: '#f59e0b' },
-      { label: 'Difícil', value: distribution[4], color: '#f97316' },
-      { label: 'Muito Difícil', value: distribution[5], color: '#ef4444' },
+      { label: t('home.veryEasy'), value: distribution[1], color: '#10b981' },
+      { label: t('home.easy'), value: distribution[2], color: '#22c55e' },
+      { label: t('home.normal'), value: distribution[3], color: '#f59e0b' },
+      { label: t('home.hard'), value: distribution[4], color: '#f97316' },
+      { label: t('home.veryHard'), value: distribution[5], color: '#ef4444' },
     ].filter((item) => item.value > 0);
   }, [workouts]);
 
@@ -1045,17 +1048,23 @@ export default function HomeScreen() {
   }, [workouts, athletesList]);
 
   const getTimeAgo = (completedDate: string) => {
-    if (!completedDate) return 'há alguns minutos';
+    if (!completedDate) return t('home.agoMinutes');
     const now = new Date().getTime();
     const completed = new Date(completedDate).getTime();
     const diffMinutes = Math.floor((now - completed) / (1000 * 60));
-    
-    if (diffMinutes < 1) return 'há alguns segundos';
-    if (diffMinutes < 60) return `há ${diffMinutes} min`;
+
+    if (diffMinutes < 1) return t('home.agoSeconds');
+    if (diffMinutes < 60) return t('home.agoMin', { count: diffMinutes });
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `há ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+    if (diffHours < 24) {
+      return diffHours === 1
+        ? t('home.agoHour_one', { count: diffHours })
+        : t('home.agoHour_other', { count: diffHours });
+    }
     const diffDays = Math.floor(diffHours / 24);
-    return `há ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
+    return diffDays === 1
+      ? t('home.agoDay_one', { count: diffDays })
+      : t('home.agoDay_other', { count: diffDays });
   };
 
   const athletesNeedingAttentionList = useMemo(() => {
@@ -1161,7 +1170,7 @@ export default function HomeScreen() {
     const maxVisibleLabels = 4;
     const step = Math.max(1, Math.ceil(weightHistory.length / maxVisibleLabels));
     return weightHistory.map((record, index) => {
-      const formatted = chartDayMonthPtBr(record.date);
+      const formatted = chartDayMonthByLocale(record.date, i18n.language);
       return index % step === 0 || index === weightHistory.length - 1 ? formatted : '';
     });
   }, [weightHistory]);
@@ -1210,10 +1219,10 @@ export default function HomeScreen() {
       if (userType === UserType.ATHLETE && currentAthleteId) {
         await loadWeightHistory();
       }
-      showToast('Dados atualizados!', 'success');
+      showToast(t('home.refreshSuccess'), 'success');
     } catch (error) {
-      console.error('Erro ao atualizar:', error);
-      showToast('Erro ao atualizar dados', 'error');
+      console.error('Error refreshing data:', error);
+      showToast(t('home.refreshError'), 'error');
     } finally {
       setRefreshing(false);
     }
@@ -1274,7 +1283,9 @@ export default function HomeScreen() {
       )}
       {userType === UserType.COACH && (
         <Text className="text-center mb-3 px-4 text-base leading-6" style={{ color: theme.colors.textSecondary, marginTop: -12 }}>
-          Bem-vindo{user?.displayName ? `, ${user.displayName}` : ''} ao seu app de gestão esportiva.
+          {t('home.welcomeIntro')}
+          {user?.displayName ? `, ${user.displayName}` : ''}
+          {t('home.welcomeOutro')}
       </Text>
       )}
       {userType === UserType.COACH ? (
@@ -1290,7 +1301,7 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
-                Panorama Semanal
+                {t('home.weeklyPanorama')}
       </Text>
             </View>
             <View className="flex-row gap-3">
@@ -1315,7 +1326,7 @@ export default function HomeScreen() {
                   {weeklyStatsCoach.athletesToday}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Ativos Hoje
+                  {t('home.activeToday')}
                 </Text>
               </View>
 
@@ -1340,7 +1351,7 @@ export default function HomeScreen() {
                   {weeklyStatsCoach.completedToday}
       </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Treinos Concluídos
+                  {t('home.completedToday')}
                 </Text>
               </View>
 
@@ -1365,7 +1376,7 @@ export default function HomeScreen() {
                   {weeklyStatsCoach.pendingWorkouts}
           </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Pendentes
+                  {t('home.pending')}
                 </Text>
               </View>
             </View>
@@ -1430,7 +1441,7 @@ export default function HomeScreen() {
                 </View>
               </View>
               <Text className="font-bold text-base text-center" style={{ color: theme.colors.primary }}>
-                Ver minha agenda
+                {t('home.viewMyCalendar')}
               </Text>
               <View style={{ position: 'absolute', right: 14 }}>
                 <FontAwesome name="chevron-right" size={14} color={theme.colors.primary} />
@@ -1489,7 +1500,7 @@ export default function HomeScreen() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.86}
                 >
-                  Biblioteca de Exercícios
+                  {t('exercisesLibrary.title')}
           </Text>
               </LinearGradient>
         </TouchableOpacity>
@@ -1543,7 +1554,7 @@ export default function HomeScreen() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.86}
                 >
-                  Meus Treinos
+                  {t('workoutsLibrary.title')}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1559,7 +1570,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
-                  Treinos Concluídos por Semana
+                  {t('home.coachCompletedPerWeek')}
                 </Text>
     </View>
               
@@ -1609,27 +1620,27 @@ export default function HomeScreen() {
                 >
                   <View className="flex-row justify-between items-center">
                     <View className="flex-1">
-                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Primeira semana</Text>
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>{t('home.firstWeek')}</Text>
                       <Text className="font-bold text-lg" style={themeStyles.text}>
-                        {coachWeeklyTrend?.firstCount} treinos
+                        {coachWeeklyTrend?.firstCount} {t('home.workoutsUnit')}
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-center">
-                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Última semana</Text>
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>{t('home.lastWeek')}</Text>
                       <Text className="font-bold text-lg" style={themeStyles.text}>
-                        {coachWeeklyTrend?.lastCount} treinos
+                        {coachWeeklyTrend?.lastCount} {t('home.workoutsUnit')}
                       </Text>
                     </View>
                     
                     <View className="flex-1 items-end">
-                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>Tendência</Text>
+                      <Text className="text-[10px] mb-0.5" style={themeStyles.textSecondary}>{t('home.trend')}</Text>
                       <View className="flex-row items-center gap-1.5">
                         {coachWeeklyTrend?.trend === 'increasing' && (
                           <>
                             <FontAwesome name="arrow-up" size={14} color="#10b981" />
                             <Text className="font-bold text-base" style={{ color: '#10b981' }}>
-                              Aumentando
+                              {t('home.trendIncreasing')}
                             </Text>
                           </>
                         )}
@@ -1637,7 +1648,7 @@ export default function HomeScreen() {
                           <>
                             <FontAwesome name="arrow-down" size={14} color="#ef4444" />
                             <Text className="font-bold text-base" style={{ color: '#ef4444' }}>
-                              Diminuindo
+                              {t('home.trendDecreasing')}
                             </Text>
                           </>
                         )}
@@ -1645,7 +1656,7 @@ export default function HomeScreen() {
                           <>
                             <FontAwesome name="minus" size={14} color={theme.colors.textTertiary} />
                             <Text className="font-bold text-base" style={themeStyles.textTertiary}>
-                              Estável
+                              {t('home.trendStable')}
                             </Text>
                           </>
                         )}
@@ -1661,12 +1672,12 @@ export default function HomeScreen() {
                             return (
                               <>
                                 {trend.difference > 0 ? '+' : ''}
-                                {trend.difference} treinos
+                                {trend.difference} {t('home.workoutsUnit')}
                               </>
                             );
                           }
                           if (trend?.difference === 0) {
-                            return 'Sem mudança';
+                            return t('home.noChange');
                           }
                           return null;
                         })()}
@@ -1688,7 +1699,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
-                  Taxa de Aderência dos Atletas
+                  {t('home.coachAthletesAdherence')}
                 </Text>
               </View>
               
@@ -1790,7 +1801,7 @@ export default function HomeScreen() {
                           )}
                         </View>
                         <Text className="text-[9px]" style={themeStyles.textSecondary}>
-                          {athlete.completed}/{athlete.assigned} treinos
+                          {athlete.completed}/{athlete.assigned} {t('home.workoutsUnit')}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1808,27 +1819,27 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <Text className="text-lg font-bold ml-2" style={themeStyles.text}>
-                Intervalados (Equipe)
+                {t('home.coachIntervalsTeam')}
               </Text>
             </View>
             <View className="flex-row gap-3 mb-3">
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.completedCount}</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Concluídos</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.completed')}</Text>
               </View>
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.completionRate}%</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Taxa Conclusão</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.completionRate')}</Text>
               </View>
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{coachIntervalStats.totalMinutes}</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Minutos Totais</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.totalMinutes')}</Text>
               </View>
             </View>
 
             {coachIntervalStats.weeklyCompleted.length > 0 ? (
               <View className="rounded-xl p-3 border mb-3 overflow-hidden" style={themeStyles.card}>
-                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Sessões intervaladas por semana</Text>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>{t('home.intervalSessionsPerWeek')}</Text>
                 <BarChart
                   data={coachIntervalStats.weeklyCompleted.map((week) => ({
                     value: week.count,
@@ -1856,7 +1867,7 @@ export default function HomeScreen() {
 
             {coachIntervalStats.topAthletes.length > 0 ? (
               <View className="rounded-xl p-3 border" style={themeStyles.card}>
-                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Top atletas (intervalado)</Text>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>{t('home.topAthletesInterval')}</Text>
                 {coachIntervalStats.topAthletes.map((athlete) => (
                   <View key={athlete.athleteId} className="flex-row items-center justify-between py-2">
                     <Text className="text-sm flex-1 pr-2" style={themeStyles.text}>{athlete.athleteName}</Text>
@@ -1879,7 +1890,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
-                  Treinos Mais Difíceis
+                  {t('home.mostDifficultWorkouts')}
                 </Text>
               </View>
               
@@ -1921,7 +1932,7 @@ export default function HomeScreen() {
                         </Text>
                       </View>
                       <Text className="text-[10px]" style={themeStyles.textSecondary}>
-                        {workout.count} avaliação{workout.count !== 1 ? 'ões' : ''}
+                        {workout.count} {workout.count !== 1 ? t('home.evaluationMany') : t('home.evaluationOne')}
                       </Text>
                     </View>
                     <View className="items-end">
@@ -1934,10 +1945,10 @@ export default function HomeScreen() {
                         {workout.averageDifficulty.toFixed(1)}
                       </Text>
                       <Text className="text-[9px]" style={themeStyles.textTertiary}>
-                        {workout.averageDifficulty >= 4.5 ? 'Muito Difícil' :
-                         workout.averageDifficulty >= 4 ? 'Difícil' :
-                         workout.averageDifficulty >= 3.5 ? 'Normal-Difícil' :
-                         'Média'}
+                        {workout.averageDifficulty >= 4.5 ? t('home.veryHard') :
+                         workout.averageDifficulty >= 4 ? t('home.hard') :
+                         workout.averageDifficulty >= 3.5 ? t('home.normalHard') :
+                         t('home.average')}
                       </Text>
                     </View>
                   </View>
@@ -1954,7 +1965,7 @@ export default function HomeScreen() {
                   }}
                 >
                   <Text className="text-xs mb-2 text-center" style={themeStyles.textSecondary}>
-                    Distribuição de Dificuldade
+                    {t('home.difficultyDistribution')}
                   </Text>
                   <View className="flex-row gap-1.5 items-end justify-center">
                     {difficultyDistributionChart.map((item, index) => (
@@ -1991,11 +2002,11 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold ml-2" style={themeStyles.text}>
-                  Atletas Mais Ativos
+                  {t('home.mostActiveAthletes')}
                 </Text>
               </View>
               <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
-                Últimos 30 dias – treinos concluídos
+                {t('home.last30DaysCompleted')}
               </Text>
               <View
                 className="rounded-xl p-3 mb-2 border overflow-hidden"
@@ -2060,7 +2071,7 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                     <Text className="font-bold text-sm" style={{ color: theme.colors.primary }}>
-                      {athlete.count} treino{athlete.count !== 1 ? 's' : ''}
+                      {athlete.count} {t('home.workoutsUnit')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -2072,7 +2083,7 @@ export default function HomeScreen() {
           {athletesWhoTrainedTodayList.length > 0 && (
             <View className="mb-8">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                Atividade Recente
+                {t('home.recentActivity')}
               </Text>
               {athletesWhoTrainedTodayList
                 .slice(0, 3)
@@ -2120,7 +2131,10 @@ export default function HomeScreen() {
                   <View className="flex-1 mr-3">
                     <View className="mb-1">
                       <Text className="font-semibold flex-1" style={themeStyles.text}>
-                        {activity.athleteName} finalizou o '{activity.workoutName}'
+                        {t('home.activityFinishedWorkout', {
+                          athlete: activity.athleteName,
+                          workout: activity.workoutName,
+                        })}
                       </Text>
                     </View>
                     <Text className="text-xs" style={themeStyles.textSecondary}>
@@ -2145,7 +2159,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Text className="font-semibold text-xs" style={{ color: '#10b981' }}>
-                      CONCLUÍDO
+                      {t('tabTwo.statusCompleted').toUpperCase()}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -2158,7 +2172,7 @@ export default function HomeScreen() {
           {athletesNeedingAttentionList.length > 0 && (
             <View className="mb-8">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                Atenção Necessária
+                {t('home.attentionNeeded')}
               </Text>
               {athletesNeedingAttentionList.slice(0, 3).map((athlete: any) => (
                 <TouchableOpacity
@@ -2204,7 +2218,7 @@ export default function HomeScreen() {
                       {athlete.name}
                     </Text>
                     <Text className="text-sm" style={themeStyles.textSecondary}>
-                      Não treina há {athlete.daysSinceLastWorkout} {athlete.daysSinceLastWorkout === 1 ? 'dia' : 'dias'}
+                      {t('home.notTrainingSince', { count: athlete.daysSinceLastWorkout })}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -2228,10 +2242,15 @@ export default function HomeScreen() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.85}
                   >
-                    Olá, {userType === UserType.ATHLETE ? (user?.displayName || user?.email || 'Atleta') : (getAthletesFromWorkouts().find(a => a.id === currentAthleteId)?.name || 'Atleta')}!
+                    {t('home.greeting', {
+                      name:
+                        userType === UserType.ATHLETE
+                          ? user?.displayName || user?.email || t('common.athlete')
+                          : getAthletesFromWorkouts().find((a) => a.id === currentAthleteId)?.name || t('common.athlete'),
+                    })}
                   </Text>
                   <Text className="text-base" style={themeStyles.textSecondary}>
-                    Acompanhe seus treinos e seu progresso
+                    {t('home.athleteProgressSubtitle')}
                   </Text>
                 </View>
                 <Image
@@ -2255,7 +2274,7 @@ export default function HomeScreen() {
                   style={{ backgroundColor: theme.colors.primary + '1f' }}
                 >
                   <Text className="text-[10px] font-semibold" style={{ color: theme.colors.primary }}>
-                    Treinador(a)
+                    {t('assignWorkout.coachDefaultName')}
                   </Text>
                 </View>
                 <Text className="text-base font-semibold mb-0.5" style={themeStyles.text}>
@@ -2277,7 +2296,7 @@ export default function HomeScreen() {
           {/* Cards de Estatísticas */}
           <View className="mb-6">
             <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-              Seu Progresso
+              {t('home.yourProgress')}
             </Text>
             <View className="flex-row gap-3">
               {/* Card: Treinos Esta Semana */}
@@ -2302,7 +2321,7 @@ export default function HomeScreen() {
                   {athleteStats.thisWeekPending + athleteStats.thisWeekCompleted}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Esta Semana
+                  {t('home.thisWeek')}
                 </Text>
               </View>
 
@@ -2328,7 +2347,7 @@ export default function HomeScreen() {
                   {athleteStats.totalCompleted}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Concluídos
+                  {t('home.completed')}
                 </Text>
               </View>
 
@@ -2354,10 +2373,10 @@ export default function HomeScreen() {
                   {athleteStats.streak}
                 </Text>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Sequência
+                  {t('home.currentStreak')}
                 </Text>
                 <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
-                  Dias consecutivos
+                  {t('home.consecutiveDays')}
                 </Text>
               </View>
             </View>
@@ -2367,7 +2386,7 @@ export default function HomeScreen() {
           {todayWorkouts.length > 0 && (
             <View className="w-full mb-6">
               <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                🎯 Treino de Hoje
+                {t('home.todayWorkout')}
               </Text>
               
               {todayWorkouts.map((workout) => (
@@ -2396,7 +2415,7 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {getWorkoutCoachName(workout)}
+                        {t('home.coachLabel')}: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-sm" style={themeStyles.textTertiary}>
                         {workout.dayOfWeek}
@@ -2429,7 +2448,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Text className="font-bold text-center text-base" style={{ color: '#111111' }}>
-                      ▶ Iniciar Treino
+                      {t('home.startWorkout')}
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -2447,13 +2466,13 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Evolução de Peso/Carga
+                  {t('home.weightProgress')}
                 </Text>
               </View>
               
               {/* Seletor de Exercício */}
               <View className="mb-4">
-                <Text className="text-sm mb-2" style={themeStyles.textSecondary}>Selecione o exercício:</Text>
+                <Text className="text-sm mb-2" style={themeStyles.textSecondary}>{t('home.selectExercise')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                   <View className="flex-row gap-2">
                     {availableExercises.map((exercise) => (
@@ -2487,7 +2506,7 @@ export default function HomeScreen() {
               {weightHistory.length > 0 ? (
                 <View className="rounded-xl p-4 border" style={themeStyles.card}>
                   <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
-                    {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
+                    {availableExercises.find(e => e.id === selectedExercise)?.name || t('home.exercise')}
                   </Text>
                   
                     <ScrollView
@@ -2599,7 +2618,7 @@ export default function HomeScreen() {
               ) : (
                 <EmptyState
                   icon="line-chart"
-                  message="Nenhum registro de peso encontrado para este exercício. Registre o peso usado durante os treinos para ver a evolução aqui."
+                  message={t('home.noWeightLogs')}
                 />
               )}
             </View>
@@ -2688,7 +2707,7 @@ export default function HomeScreen() {
             ) : (
               <View className="rounded-xl p-4 border" style={themeStyles.card}>
                 <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                  Complete treinos intervalados para liberar este gráfico.
+                  {t('home.completeIntervalHint')}
                 </Text>
               </View>
             )}
@@ -2704,7 +2723,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Frequência de Treinos
+                  {t('home.workoutFrequency')}
                 </Text>
               </View>
 
@@ -2749,14 +2768,14 @@ export default function HomeScreen() {
                   <View className="rounded-xl p-4 border" style={themeStyles.card}>
                     <View className="flex-row gap-3 mb-3">
                       <View className="flex-1 rounded-xl p-3 border" style={themeStyles.cardSecondary}>
-                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>Média Semanal</Text>
+                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>{t('home.weeklyAverage')}</Text>
                         <Text className="font-bold text-2xl" style={themeStyles.text}>
-                          {averagePerWeekDisplay} treinos
+                          {averagePerWeekDisplay} {t('home.workoutsUnit')}
                         </Text>
                       </View>
 
                       <View className="flex-1 rounded-xl p-3 border" style={themeStyles.cardSecondary}>
-                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>Esta Semana</Text>
+                        <Text className="text-[11px] mb-1" style={themeStyles.textSecondary}>{t('home.thisWeek')}</Text>
                         <View className="flex-row items-end gap-2">
                           <Text className="font-bold text-2xl" style={themeStyles.text}>
                             {weekComparison?.current ?? 0}
@@ -2775,7 +2794,7 @@ export default function HomeScreen() {
                           ) : null}
                         </View>
                         <Text className="text-[10px] mt-1" style={themeStyles.textTertiary}>
-                          {weekComparison ? `vs semana anterior (${weekComparison.percentage}%)` : 'Sem comparativo ainda'}
+                          {weekComparison ? t('home.vsPreviousWeek', { percentage: weekComparison.percentage }) : t('home.noComparisonYet')}
                         </Text>
                       </View>
                     </View>
@@ -2789,10 +2808,10 @@ export default function HomeScreen() {
                           >
                             <FontAwesome name="fire" size={14} color="#f59e0b" />
                           </View>
-                          <Text className="text-sm font-semibold" style={themeStyles.textSecondary}>Sequência Atual</Text>
+                          <Text className="text-sm font-semibold" style={themeStyles.textSecondary}>{t('home.currentStreak')}</Text>
                         </View>
                         <Text className="font-bold text-lg" style={themeStyles.text}>
-                          {athleteStats.streak} dias consecutivos
+                          {t('home.streakDays', { count: athleteStats.streak })}
                         </Text>
                       </View>
                     </View>
@@ -2801,7 +2820,7 @@ export default function HomeScreen() {
               ) : (
                 <EmptyState
                   icon="bar-chart"
-                  message="Complete treinos para ver sua frequência semanal aqui."
+                  message={t('home.completeWorkoutsFreqHint')}
                 />
               )}
             </View>
@@ -2817,7 +2836,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Média de Dificuldade dos Treinos
+                  {t('home.difficultyAverageWorkouts')}
                 </Text>
               </View>
               
@@ -2829,7 +2848,7 @@ export default function HomeScreen() {
                     return (
                     <View className="rounded-xl p-4 mb-4 border" style={themeStyles.card}>
                       <View className="items-center justify-center py-4">
-                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Média atual</Text>
+                        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('home.currentAverage')}</Text>
                         <View className="flex-row items-center justify-center gap-3 mb-1">
                           <Text className="text-4xl font-bold" style={{ color: '#f59e0b' }}>
                             {weekOnly.average.toFixed(1)}
@@ -2843,7 +2862,7 @@ export default function HomeScreen() {
                           ) : null}
                         </View>
                         <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
-                          {weekOnly.label} • dados insuficientes para tendência
+                          {t('home.insufficientTrendData', { label: weekOnly.label })}
                         </Text>
                       </View>
                     </View>
@@ -2927,7 +2946,7 @@ export default function HomeScreen() {
                             style={{ borderTopWidth: 1, borderTopColor: theme.colors.border }}
                           >
                             <Text className="text-xs mr-2" style={themeStyles.textSecondary}>
-                              Última semana (média)
+                              {t('home.lastWeekAverage')}
                             </Text>
                             <Text className="text-lg font-bold mr-2" style={{ color: '#f59e0b' }}>
                               {lastW.average.toFixed(1)}
@@ -2952,7 +2971,7 @@ export default function HomeScreen() {
                     <View className="rounded-xl p-4 border" style={themeStyles.card}>
                       <View className="flex-row justify-between items-center mb-3">
                         <View className="flex-1">
-                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Primeira semana</Text>
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('home.firstWeek')}</Text>
                           <View className="flex-row items-center gap-2 flex-wrap">
                             <Text className="font-bold text-xl" style={themeStyles.text}>
                               {analysis.firstAverage.toFixed(1)}
@@ -2967,7 +2986,7 @@ export default function HomeScreen() {
                         </View>
                         
                         <View className="flex-1 items-center">
-                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Última semana</Text>
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('home.lastWeek')}</Text>
                           <View className="flex-row items-center gap-2 flex-wrap justify-center">
                             <Text className="font-bold text-xl" style={themeStyles.text}>
                               {analysis.lastAverage.toFixed(1)}
@@ -2982,7 +3001,7 @@ export default function HomeScreen() {
                         </View>
                         
                         <View className="flex-1 items-end">
-                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Tendência</Text>
+                          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('home.trend')}</Text>
                           <View
                             className="flex-row items-center justify-end"
                             style={{ columnGap: Platform.OS === 'ios' ? 4 : 8, minHeight: 28 }}
@@ -3001,7 +3020,7 @@ export default function HomeScreen() {
                                     lineHeight: Platform.OS === 'ios' ? 20 : 24,
                                   }}
                                 >
-                                  Melhorando
+                                  {t('home.trendImproving')}
                                 </Text>
                               </>
                             )}
@@ -3019,7 +3038,7 @@ export default function HomeScreen() {
                                     lineHeight: Platform.OS === 'ios' ? 19 : 22,
                                   }}
                                 >
-                                  Mais Difícil
+                                  {t('home.trendHarder')}
                                 </Text>
                               </>
                             )}
@@ -3039,7 +3058,7 @@ export default function HomeScreen() {
                                     },
                                   ]}
                                 >
-                                  Estável
+                                  {t('home.trendStable')}
                                 </Text>
                               </>
                             )}
@@ -3052,10 +3071,10 @@ export default function HomeScreen() {
                             {analysis.difference !== undefined && analysis.difference !== 0 ? (
                               <>
                                 {analysis.difference > 0 ? '+' : ''}
-                                {analysis.difference.toFixed(1)} pontos
+                                {analysis.difference.toFixed(1)} {t('home.points')}
                               </>
                             ) : analysis.difference === 0 ? (
-                              'Sem mudança'
+                              t('home.noChange')
                             ) : null}
                           </Text>
                         </View>
@@ -3067,7 +3086,7 @@ export default function HomeScreen() {
               ) : (
                 <EmptyState
                   icon="star-o"
-                  message="Complete treinos e dê feedback para ver a evolução da dificuldade aqui."
+                  message={t('home.completeFeedbackHint')}
                 />
               )}
             </View>
@@ -3107,17 +3126,17 @@ export default function HomeScreen() {
                       resizeMode="contain"
                     />
                     <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
-                      Maior Sequência
+                      {t('home.maxStreak')}
                     </Text>
                     <Text className="text-3xl font-bold mb-1 text-center" style={{ color: '#f59e0b' }}>
                       {maxStreakData.maxStreak}
                     </Text>
                     <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                      dias consecutivos
+                      {t('home.consecutiveDays')}
                     </Text>
                     {maxStreakData.currentStreak > 0 && maxStreakData.currentStreak < maxStreakData.maxStreak && (
                       <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
-                        Atual: {maxStreakData.currentStreak} dias
+                        {t('home.currentLabel')}: {maxStreakData.currentStreak} {t('home.days')}
                       </Text>
                     )}
                     {maxStreakData.currentStreak === maxStreakData.maxStreak && maxStreakData.currentStreak > 0 && (
@@ -3147,13 +3166,13 @@ export default function HomeScreen() {
                       resizeMode="contain"
                     />
                     <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
-                      Melhor Semana
+                      {t('home.bestWeek')}
                     </Text>
                     <Text className="text-3xl font-bold mb-1 text-center" style={{ color: theme.colors.primary }}>
                       {bestWeekData?.count}
                     </Text>
                     <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                      treinos
+                      {t('home.workoutsUnit')}
                     </Text>
                     <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
                       {bestWeekData?.label}
@@ -3180,13 +3199,13 @@ export default function HomeScreen() {
                       resizeMode="contain"
                     />
                     <Text className="text-xs mt-2 mb-2 text-center" style={themeStyles.textSecondary}>
-                      Melhor Mês
+                      {t('home.bestMonth')}
                     </Text>
                     <Text className="text-3xl font-bold mb-1 text-center" style={{ color: '#10b981' }}>
                       {bestMonthData?.count}
                     </Text>
                     <Text className="text-xs text-center" style={themeStyles.textSecondary}>
-                      treinos
+                      {t('home.workoutsUnit')}
                     </Text>
                     <Text className="text-[10px] mt-1 text-center" style={themeStyles.textTertiary}>
                       {bestMonthData?.label}
@@ -3207,7 +3226,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Próximos Treinos
+                  {t('home.upcomingWorkouts')}
                 </Text>
               </View>
               
@@ -3236,10 +3255,10 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {getWorkoutCoachName(workout)}
+                        {t('home.coachLabel')}: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-sm" style={themeStyles.textSecondary}>
-                        {workout.dayOfWeek} • {formatAssignedCalendarDatePtBr(workout.date)}
+                        {workout.dayOfWeek} • {formatAssignedCalendarDateByLocale(workout.date, i18n.language)}
                         {workout?.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                       </Text>
                     </View>
@@ -3269,7 +3288,7 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                  Concluídos Recentes
+                  {t('home.recentCompleted')}
                 </Text>
               </View>
               
@@ -3308,12 +3327,18 @@ export default function HomeScreen() {
                         {workout.name}
                       </Text>
                       <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                        Treinador: {getWorkoutCoachName(workout)}
+                        {t('home.coachLabel')}: {getWorkoutCoachName(workout)}
                       </Text>
                       <Text className="text-xs" style={themeStyles.textTertiary}>
-                        {workout.dayOfWeek} • {formatAssignedCalendarDatePtBr(workout.date)}
+                        {workout.dayOfWeek} • {formatAssignedCalendarDateByLocale(workout.date, i18n.language)}
                         {workout.completedDate && (
-                          <Text> • Concluído em {new Date(workout.completedDate).toLocaleDateString('pt-BR')}</Text>
+                          <Text>
+                            {' '}
+                            • {t('tabTwo.completedOn')}{' '}
+                            {new Date(workout.completedDate).toLocaleDateString(
+                              i18n.language === 'en' ? 'en-US' : 'pt-BR'
+                            )}
+                          </Text>
                         )}
                       </Text>
                     </View>
@@ -3347,7 +3372,7 @@ export default function HomeScreen() {
           {workouts.length === 0 && (
             <EmptyState
               icon="calendar-times-o"
-              message="Seu treinador ainda não atribuiu treinos para você."
+              message={t('home.noAssignedWorkoutsAthlete')}
             />
           )}
         </View>

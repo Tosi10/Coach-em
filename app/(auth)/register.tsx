@@ -15,6 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Image,
@@ -34,6 +35,7 @@ const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -84,13 +86,13 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!email || !password || !displayName) {
-      showAlert('Erro', 'Por favor, preencha todos os campos obrigatórios.', 'warning');
+      showAlert(t('common.error'), t('register.fillRequired'), 'warning');
       return;
     }
     if (!acceptedLegal) {
       showAlert(
-        'Atenção',
-        'Para criar a conta, marque que leu e aceita os Termos de Uso e a Política de Privacidade.',
+        t('common.warning'),
+        t('register.acceptWarning'),
         'warning'
       );
       return;
@@ -106,13 +108,13 @@ export default function RegisterScreen() {
         specialization: specialization.trim() || undefined,
       });
       showAlert(
-        'Confirme seu email',
-        'Enviamos um email de verificação. Confirme antes de entrar no app.',
+        t('register.confirmEmailTitle'),
+        t('register.confirmEmailBody'),
         'success',
         () => router.replace('/(auth)/login')
       );
     } catch (err: any) {
-      showAlert('Erro ao criar conta', err?.message ?? 'Não foi possível criar a conta.', 'error');
+      showAlert(t('register.createErrorTitle'), err?.message ?? t('register.createErrorBody'), 'error');
     }
   };
 
@@ -140,7 +142,7 @@ export default function RegisterScreen() {
             className="text-base text-center max-w-[260px]"
             style={{ color: theme.colors.textSecondary, marginTop: -80 }}
           >
-            Gestão de Performance Esportiva
+            {t('register.tagline')}
           </Text>
         </View>
 
@@ -157,31 +159,31 @@ export default function RegisterScreen() {
             }}
           >
             <Text className="text-lg font-semibold mb-1" style={themeStyles.text}>
-              Criar conta de treinador
+              {t('register.title')}
             </Text>
             <Text className="text-sm mb-5" style={{ color: theme.colors.textSecondary }}>
-              Atletas recebem conta pelo treinador em &quot;Adicionar atleta&quot;.
+              {t('register.subtitle')}
             </Text>
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Nome completo
+              {t('register.fullName')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
               style={singleLineInputStyle}
-              placeholder="Seu nome"
+              placeholder={t('register.namePlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={displayName}
               onChangeText={setDisplayName}
             />
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Email
+              {t('common.email')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
               style={singleLineInputStyle}
-              placeholder="seu@email.com"
+              placeholder={t('login.emailPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={email}
               onChangeText={setEmail}
@@ -191,7 +193,7 @@ export default function RegisterScreen() {
             />
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Senha
+              {t('common.password')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
@@ -205,24 +207,24 @@ export default function RegisterScreen() {
             />
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Especialização (opcional)
+              {t('register.specializationOptional')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
               style={singleLineInputStyle}
-              placeholder="Ex: Futebol, Atletismo"
+              placeholder={t('register.specializationPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={specialization}
               onChangeText={setSpecialization}
             />
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Biografia (opcional)
+              {t('register.bioOptional')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
               style={{ ...inputStyle, minHeight: 80, textAlignVertical: 'top' }}
-              placeholder="Um pouco sobre você..."
+              placeholder={t('register.bioPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={bio}
               onChangeText={setBio}
@@ -249,21 +251,21 @@ export default function RegisterScreen() {
                 ) : null}
               </View>
               <Text className="flex-1 ml-3 text-sm leading-5" style={{ color: theme.colors.textSecondary }}>
-                Li e aceito os{' '}
+                {t('register.acceptPrefix')}{' '}
                 <Text
                   onPress={() => Linking.openURL(TREINA_TERMS_URL)}
                   style={{ color: theme.colors.primary, fontWeight: '600' }}
                   accessibilityRole="link"
                 >
-                  Termos de Uso
+                  {t('register.termsLink')}
                 </Text>
-                {' e a '}
+                {t('register.acceptBetween')}
                 <Text
                   onPress={() => Linking.openURL(TREINA_PRIVACY_URL)}
                   style={{ color: theme.colors.primary, fontWeight: '600' }}
                   accessibilityRole="link"
                 >
-                  Política de Privacidade
+                  {t('register.privacyLink')}
                 </Text>
                 .
               </Text>
@@ -293,7 +295,7 @@ export default function RegisterScreen() {
                   <ActivityIndicator color="#ffffff" />
                 ) : (
                   <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
-                    Criar conta
+                    {t('register.submit')}
                   </Text>
                 )}
               </LinearGradient>
@@ -306,7 +308,8 @@ export default function RegisterScreen() {
               activeOpacity={0.7}
             >
               <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
-                Já tem uma conta? <Text className="font-semibold">Faça login</Text>
+                {t('register.hasAccountPrefix')}
+                <Text className="font-semibold">{t('register.loginInline')}</Text>
               </Text>
             </TouchableOpacity>
           </View>

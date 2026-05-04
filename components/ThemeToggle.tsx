@@ -22,7 +22,7 @@ export function ThemeToggle() {
       <View style={styles.content}>
         <FontAwesome
           name={isDark ? 'moon-o' : 'sun-o'}
-          size={20}
+          size={17}
           color={theme.colors.primary}
         />
       </View>
@@ -40,7 +40,7 @@ export function ThemeToggle() {
             styles.toggleCircle,
             {
               backgroundColor: '#fff',
-              transform: [{ translateX: isDark ? 0 : 20 }],
+              transform: [{ translateX: isDark ? 0 : 16 }],
             },
           ]}
         />
@@ -54,11 +54,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    alignSelf: 'flex-start',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    minWidth: 80,
+    minWidth: 68,
   },
   content: {
     flexDirection: 'row',
@@ -66,16 +67,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toggle: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
+    width: 36,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     padding: 2,
   },
   toggleCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

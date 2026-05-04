@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { UserType } from '@/src/types';
 
 /** Base ~44; Home/Treinos/Atletas +15%; Perfil +5%; imagens +21% extra sobre esses valores (10% adicional no ajuste atual). */
@@ -75,6 +76,7 @@ function TabBarPngIcon(props: {
 }
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [userType, setUserType] = useState<UserType | null>(null);
@@ -93,7 +95,7 @@ export default function TabLayout() {
     loadUserType();
   }, []);
 
-  const secondTabTitle = userType === UserType.ATHLETE ? 'Treinos' : 'Atletas';
+  const secondTabTitle = userType === UserType.ATHLETE ? t('tabs.workouts') : t('tabs.athletes');
 
   const homeActive = require('../../assets/images/HouseLaranja2.png');
   const homeInactive = require('../../assets/images/HouseCinza2.png');
@@ -145,7 +147,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarLabelStyle: {
             fontSize: TAB_LABEL_MAIN,
             marginTop: TAB_LABEL_GAP_HOME,
@@ -186,7 +188,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: t('tabs.profile'),
           tabBarIconStyle: {
             width: TAB_ICON_PROFILE,
             height: TAB_ICON_PROFILE,

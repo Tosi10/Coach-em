@@ -10,6 +10,7 @@
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { WorkoutBlock, WorkoutBlockData } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { useTranslation } from 'react-i18next';
 import { Image, Text, View } from 'react-native';
 
 /**
@@ -21,18 +22,18 @@ interface WorkoutDetailsProps {
 }
 
 /**
- * Função auxiliar para obter o nome do bloco em português
+ * Função auxiliar para obter o nome do bloco
  */
-function getBlockName(blockType: WorkoutBlock): string {
+function getBlockName(blockType: WorkoutBlock, t: (key: string) => string): string {
   switch (blockType) {
     case WorkoutBlock.WARM_UP:
-      return 'Aquecimento';
+      return t('createWorkout.blockWarmup');
     case WorkoutBlock.WORK:
-      return 'Parte Principal';
+      return t('createWorkout.blockMain');
     case WorkoutBlock.COOL_DOWN:
-      return 'Finalização';
+      return t('createWorkout.blockCooldown');
     default:
-      return 'Bloco';
+      return t('home.exercise');
   }
 }
 
@@ -53,6 +54,7 @@ function getBlockIcon(blockType: WorkoutBlock) {
  * Componente WorkoutDetails
  */
 export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
 
@@ -87,7 +89,7 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
                 />
               ) : null}
               <Text className="text-lg font-bold" style={{ color: theme.colors.primary }}>
-                {getBlockName(block.blockType)}
+                {getBlockName(block.blockType, t)}
               </Text>
             </View>
             {block.notes && (
@@ -104,7 +106,7 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
           >
             {block.exercises.length === 0 ? (
               <Text className="text-sm italic" style={themeStyles.textSecondary}>
-                Nenhum exercício neste bloco
+                {t('createWorkout.emptyBlock')}
               </Text>
             ) : (
               block.exercises
@@ -124,29 +126,29 @@ export function WorkoutDetails({ blocks, workoutName }: WorkoutDetailsProps) {
                   >
                     {/* Nome do exercício */}
                     <Text className="text-base font-semibold mb-2" style={themeStyles.text}>
-                      {exercise.exercise?.name || `Exercício ${exercise.order}`}
+                      {exercise.exercise?.name || `${t('home.exercise')} ${exercise.order}`}
                     </Text>
 
                     {/* Detalhes do exercício */}
                     <View className="flex-row flex-wrap gap-3">
                       {exercise.sets && (
                         <Text className="text-sm" style={themeStyles.textSecondary}>
-                          Séries: {exercise.sets}
+                          {t('workoutDetails.sets')}: {exercise.sets}
                         </Text>
                       )}
                       {exercise.reps && (
                         <Text className="text-sm" style={themeStyles.textSecondary}>
-                          Reps: {exercise.reps}
+                          {t('workoutDetails.reps')}: {exercise.reps}
                         </Text>
                       )}
                       {exercise.duration && (
                         <Text className="text-sm" style={themeStyles.textSecondary}>
-                          Duração: {exercise.duration}s
+                          {t('exercisesLibrary.duration')}: {exercise.duration}s
                         </Text>
                       )}
                       {exercise.restTime && (
                         <Text className="text-sm" style={themeStyles.textSecondary}>
-                          Descanso: {exercise.restTime}s
+                          {t('workoutDetails.rest')}: {exercise.restTime}s
                         </Text>
                       )}
                     </View>

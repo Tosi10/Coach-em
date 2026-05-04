@@ -28,6 +28,12 @@ export function formatAssignedCalendarDatePtBr(ymd: string): string {
   return parseDateOnlyLocal(ymd).toLocaleDateString('pt-BR');
 }
 
+/** Exibição conforme idioma do app (`pt-BR` | `en`). */
+export function formatAssignedCalendarDateByLocale(ymd: string, language: string): string {
+  const loc = language === 'en' ? 'en-US' : 'pt-BR';
+  return parseDateOnlyLocal(ymd).toLocaleDateString(loc);
+}
+
 /** Timestamp para ordenação: YYYY-MM-DD (calendário) ou ISO/instantâneo. */
 export function parseFlexibleDateMs(value: string): number {
   if (!value || typeof value !== 'string') return NaN;
@@ -44,6 +50,12 @@ export function parseFlexibleDateMs(value: string): number {
 
 export function weekdayLongPtBrFromYmd(ymd: string): string {
   return parseDateOnlyLocal(ymd).toLocaleDateString('pt-BR', { weekday: 'long' });
+}
+
+/** Dia da semana para persistência/acento: pt-BR no app PT, en-US long em EN (valor guardado no doc). */
+export function weekdayLongFromYmdByLocale(ymd: string, language: string): string {
+  const loc = language === 'en' ? 'en-US' : 'pt-BR';
+  return parseDateOnlyLocal(ymd).toLocaleDateString(loc, { weekday: 'long' });
 }
 
 /** Para ordenação: timestamps completos primeiro; campo `date` só como dia local. */
@@ -77,4 +89,32 @@ export function chartDayMonthPtBr(value: string): string {
   const t = String(value).trim();
   const base = /^(\d{4})-(\d{2})-(\d{2})$/.test(t) ? parseDateOnlyLocal(t) : new Date(t);
   return base.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+export function chartDayMonthByLocale(value: string, language: string): string {
+  if (!value) return '';
+  const t = String(value).trim();
+  const base = /^(\d{4})-(\d{2})-(\d{2})$/.test(t) ? parseDateOnlyLocal(t) : new Date(t);
+  const loc = language === 'en' ? 'en-US' : 'pt-BR';
+  return base.toLocaleDateString(loc, { day: '2-digit', month: '2-digit' });
+}
+
+/** Formata datas flexíveis (YYYY-MM-DD ou ISO) para exibição pt-BR consistente. */
+export function formatFlexibleDatePtBr(value: string): string {
+  if (!value || typeof value !== 'string') return '';
+  const t = value.trim();
+  if (!t) return '';
+  const base = /^(\d{4})-(\d{2})-(\d{2})$/.test(t) ? parseDateOnlyLocal(t) : new Date(t);
+  if (Number.isNaN(base.getTime())) return t;
+  return base.toLocaleDateString('pt-BR');
+}
+
+export function formatFlexibleDateByLocale(value: string, language: string): string {
+  if (!value || typeof value !== 'string') return '';
+  const t = value.trim();
+  if (!t) return '';
+  const base = /^(\d{4})-(\d{2})-(\d{2})$/.test(t) ? parseDateOnlyLocal(t) : new Date(t);
+  if (Number.isNaN(base.getTime())) return t;
+  const loc = language === 'en' ? 'en-US' : 'pt-BR';
+  return base.toLocaleDateString(loc);
 }

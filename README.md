@@ -8,6 +8,33 @@ App **React Native (Expo)** para treinadores gerenciarem atletas, treinos e acom
 
 Resumo consolidado do estado atual em `main`:
 
+### Atualização detalhada — 2026-05-04 (i18n + UX + monetização)
+
+Esta rodada focou em deixar o app pronto para release internacional (PT/EN), mantendo regras de negócio e banco intactos.
+
+| Tema | O que foi feito |
+|------|------------------|
+| **Tradução UI (PT/EN)** | Migração extensa de strings hardcoded para `react-i18next` (`t(...)`) em telas críticas de treinador e atleta. Inclui criação/edição de treino e exercício, perfil do atleta, calendário, home, detalhes de treino/template e fluxos auxiliares. |
+| **Arquivos de locale** | Expansão consistente de `src/i18n/locales/pt-BR.ts` e `src/i18n/locales/en.ts` com novos namespaces/chaves: `addAthlete`, `createWorkout`, `createExercise`, `editWorkout`, `editExercise`, `editAssignedWorkout`, `athleteProfile`, `workoutDetails` e complementos em `common`, `workoutsLibrary`, etc. |
+| **Correção de blocos não traduzidos** | Correção no componente compartilhado `src/components/WorkoutDetails.tsx`: nomes de bloco e labels (aquecimento/principal/finalização, séries, reps, duração, descanso, vazio) passaram a respeitar idioma atual. |
+| **Perfil (UX refinada)** | Reorganização do `app/(tabs)/profile.tsx`: idioma e aparência integrados no mesmo card; seletor de idioma em formato segmentado compacto; toggle de tema reduzido e com largura compacta real. |
+| **Theme toggle** | Ajustes no `components/ThemeToggle.tsx`: dimensões menores (trilho/bolinha/ícone), melhor proporção visual e `alignSelf: 'flex-start'` para evitar largura total. |
+| **Tutorial de novo atleta** | Adicionado `FirstTimeTip` em `app/add-athlete.tsx` explicando claramente que a senha criada pelo treinador é **provisória** e deve ser repassada ao atleta para o primeiro login. |
+| **Modais de limite de plano (padrão visual único)** | Padronização dos alertas de limite do plano para `CustomAlert` (substituindo alert nativo branco) em: `create-workout`, `add-athlete`, `create-exercise`, `edit-exercise` e `workouts-library`. Inclui botões **Fechar** / **Ver planos** e navegação para `/subscription`. |
+| **Fluxos preservados** | Alterações mantidas como **UI-only / UX-only**: sem mudanças de contrato de banco, sem alteração de regras de negócio de domínio, sem impactar payloads críticos de Firestore/Functions. |
+| **Validação técnica contínua** | Após os lotes relevantes de alteração: `npx tsc --noEmit` e leitura de lints, ambos sem erros introduzidos nesta rodada. |
+
+### Smoke test recomendado antes de build de loja
+
+1. Treinador: criar/editar treino e exercício com idioma `EN` ativo.
+2. Confirmar labels de bloco em todas as telas de detalhe/listagem (`Warm-up`, `Main`, `Cooldown`).
+3. Criar atleta com senha provisória e validar mensagem/tutorial.
+4. Simular limite do plano grátis e verificar modal padrão (`CustomAlert`) com CTA para planos.
+5. Atleta: abrir treino, concluir, enviar feedback e validar textos no idioma selecionado.
+6. Reiniciar app/Metro e confirmar persistência de idioma/tema.
+
+---
+
 | Tema | Detalhe |
 |------|---------|
 | **Home do atleta** | Card do treinador com **foto**, **nome exibido** e **mensagem** definidos no Perfil do treinador. Leitura em **`coachemAthletes`** (e fallback nos treinos atribuídos). **Não** gravamos isso em `users/{atleta}`: as [regras Firestore](docs/firestore.rules.coachem.production.rules) só permitem o próprio usuário atualizar o próprio `users/{uid}`. |
@@ -28,7 +55,7 @@ Sugestão de ordem para **lançamento** e evolução:
 2. **Teste em build real** — Validar fluxo completo no aparelho físico usando `CHECKLIST_TESTES_MANUAIS.md`.
 3. **Submit** — Fazer `eas submit` (ou auto-submit) para TestFlight / Play Console.
 4. **Alinhamento de marca (externo)** — Atualizar o site da Vision10 para remover referências antigas da marca anterior e manter consistência com Coach'em.
-5. **Pós-lançamento** — Internacionalização (PT/EN), ajustes finos de UX e otimizações de assets.
+5. **Pós-lançamento** — Ajustes finos de UX, otimizações de assets e expansão contínua da cobertura de tradução em telas secundárias.
 
 ---
 
@@ -55,7 +82,7 @@ Coach'em (pasta do repositório: Coach-em)/
 │   └── _layout.tsx      # splash, fontes, preload de imagens
 ├── components/
 ├── src/
-│   ├── contexts/        # Auth, Theme
+│   ├── contexts/        # Auth, Theme, Language (i18n)
 │   ├── services/        # auth, firebase, athletes, workouts…
 │   └── types/
 ├── functions/           # Cloud Functions (ex.: criar atleta com login)

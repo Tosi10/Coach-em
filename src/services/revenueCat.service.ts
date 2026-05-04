@@ -12,6 +12,9 @@ import { COACHEM_PRO_MONTHLY_PRODUCT_ID, REVENUECAT_ENTITLEMENT_PRO } from '@/sr
 let configured = false;
 let lastConfigurationError: string | null = null;
 
+/** Serializa configure: chamadas paralelas (Promise.all / login + ecrã) não podem correr em simultâneo. */
+let configurePromise: Promise<boolean> | null = null;
+
 /** Evita spam no Metro quando `ensureRevenueCatConfigured` é chamado várias vezes sem chave. */
 let warnedMissingIosKeyDev = false;
 let warnedMissingAndroidKeyDev = false;
@@ -30,50 +33,76 @@ function getIosApiKey(): string | undefined {
 export async function ensureRevenueCatConfigured(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   if (configured) return true;
-  lastConfigurationError = null;
-
-  let apiKey: string | undefined;
-  if (Platform.OS === 'ios') {
-    apiKey = getIosApiKey();
-    if (!apiKey && __DEV__ && !warnedMissingIosKeyDev) {
-      warnedMissingIosKeyDev = true;
-      console.warn(
-        '[RevenueCat] iOS: defina EXPO_PUBLIC_REVENUECAT_IOS_API_KEY no .env (chave pública appl_...).'
-      );
-    }
-  } else if (Platform.OS === 'android') {
-    const v = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
-    const t = typeof v === 'string' ? v.trim() : '';
-    apiKey = t || undefined;
-    if (!apiKey && __DEV__ && !warnedMissingAndroidKeyDev) {
-      warnedMissingAndroidKeyDev = true;
-      console.warn('[RevenueCat] Android: falta EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
-    }
-  } else {
-    return false;
+  if (configurePromise) {
+    return configurePromise;
   }
 
-  if (!apiKey) {
-    lastConfigurationError = 'missing_api_key';
-    return false;
-  }
+  /** Atribuir de forma síncrona: evita duas entradas em `configure` antes do microtask da IIFE correr. */
+  let releaseConfigureLock!: (value: boolean) => void;
+  configurePromise = new Promise<boolean>((resolve) => {
+    releaseConfigureLock = resolve;
+  });
 
-  try {
-    try {
-      Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.WARN);
-    } catch (logLevelError) {
-      // Keep going; some runtime/native-module combinations fail here first.
-      console.warn('[RevenueCat] setLogLevel falhou:', logLevelError);
-    }
-    await Purchases.configure({ apiKey });
-    configured = true;
+  const pending = (async (): Promise<boolean> => {
+    if (configured) return true;
     lastConfigurationError = null;
-    return true;
-  } catch (e) {
-    lastConfigurationError = e instanceof Error ? e.message : 'configure_failed';
-    console.warn('[RevenueCat] configure falhou (Expo Go ou módulo indisponível):', e);
-    return false;
-  }
+
+    let apiKey: string | undefined;
+    if (Platform.OS === 'ios') {
+      apiKey = getIosApiKey();
+      if (!apiKey && __DEV__ && !warnedMissingIosKeyDev) {
+        warnedMissingIosKeyDev = true;
+        console.warn(
+          '[RevenueCat] iOS: defina EXPO_PUBLIC_REVENUECAT_IOS_API_KEY no .env (chave pública appl_...).'
+        );
+      }
+    } else if (Platform.OS === 'android') {
+      const v = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+      const t = typeof v === 'string' ? v.trim() : '';
+      apiKey = t || undefined;
+      if (!apiKey && __DEV__ && !warnedMissingAndroidKeyDev) {
+        warnedMissingAndroidKeyDev = true;
+        console.warn('[RevenueCat] Android: falta EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
+      }
+    } else {
+      return false;
+    }
+
+    if (!apiKey) {
+      lastConfigurationError = 'missing_api_key';
+      return false;
+    }
+
+    let result = false;
+    try {
+      try {
+        Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.WARN);
+      } catch (logLevelError) {
+        console.warn('[RevenueCat] setLogLevel falhou:', logLevelError);
+      }
+      await Purchases.configure({ apiKey });
+      configured = true;
+      lastConfigurationError = null;
+      result = true;
+    } catch (e) {
+      lastConfigurationError = e instanceof Error ? e.message : 'configure_failed';
+      console.warn('[RevenueCat] configure falhou (Expo Go ou módulo indisponível):', e);
+      result = false;
+    } finally {
+      configurePromise = null;
+    }
+    return result;
+  })();
+
+  void pending.then(
+    (value) => releaseConfigureLock(value),
+    (e) => {
+      console.warn('[RevenueCat] ensureRevenueCatConfigured: promise interna rejeitou:', e);
+      releaseConfigureLock(false);
+    }
+  );
+
+  return configurePromise;
 }
 
 export function getRevenueCatConfigurationError(): string | null {

@@ -6,7 +6,7 @@
  * (Firebase Auth + Firestore users + coachemAthletes) para o atleta poder fazer login.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dispatchAthleteWorkoutPushReminders = exports.sendEmailVerificationTreina = exports.sendPasswordResetEmailTreina = exports.createAthleteByCoach = void 0;
+exports.revenueCatWebhook = exports.dispatchAthleteWorkoutPushReminders = exports.sendEmailVerificationTreina = exports.sendPasswordResetEmailTreina = exports.createAthleteByCoach = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const params_1 = require("firebase-functions/params");
@@ -23,6 +23,19 @@ const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const FREE_PLAN_ATHLETES_LIMIT = 3;
+const PRO_PLAN_ATHLETES_LIMIT = 25;
+async function getCoachSubscriptionTier(coachId) {
+    const snap = await db.collection("users").doc(coachId).get();
+    const data = snap.data();
+    const tier = data === null || data === void 0 ? void 0 : data.subscriptionTier;
+    if (tier !== "pro")
+        return "free";
+    const exp = data === null || data === void 0 ? void 0 : data.subscriptionExpiresAt;
+    if (exp && typeof exp.toMillis === "function" && exp.toMillis() < Date.now()) {
+        return "free";
+    }
+    return "pro";
+}
 function hourBucket() {
     return Math.floor(Date.now() / HOUR_MS);
 }
@@ -89,12 +102,14 @@ async function consumeCreateAthleteEmailRate(coachId) {
     });
 }
 async function assertCoachAthleteLimit(coachId) {
+    const tier = await getCoachSubscriptionTier(coachId);
+    const limit = tier === "pro" ? PRO_PLAN_ATHLETES_LIMIT : FREE_PLAN_ATHLETES_LIMIT;
     const athletesSnap = await db
         .collection("coachemAthletes")
         .where("coachId", "==", coachId)
         .get();
-    if (athletesSnap.size >= FREE_PLAN_ATHLETES_LIMIT) {
-        throw new https_1.HttpsError("failed-precondition", `Limite do plano gratuito atingido (${FREE_PLAN_ATHLETES_LIMIT} atletas).`);
+    if (athletesSnap.size >= limit) {
+        throw new https_1.HttpsError("failed-precondition", `Limite do seu plano atingido (${limit} atletas).`);
     }
 }
 /** URLs em atributos HTML precisam de & escapado para amp; */
@@ -533,9 +548,8 @@ async function sendExpoPush(message) {
     }
 }
 /**
- * Push remoto para atletas:
- * - 30 minutos antes do treino
- * - na hora do treino
+ * Push remoto para atleta (fallback com app matado ou sem permissão local):
+ * - na hora do treino apenas (janela de até ~1 min após o horário marcado).
  *
  * Roda em loop (scheduler) para funcionar com app em background/fechado.
  *
@@ -609,3 +623,5 @@ exports.dispatchAthleteWorkoutPushReminders = (0, scheduler_1.onSchedule)({
         }
     }
 });
+var revenueCatWebhook_1 = require("./revenueCatWebhook");
+Object.defineProperty(exports, "revenueCatWebhook", { enumerable: true, get: function () { return revenueCatWebhook_1.revenueCatWebhook; } });

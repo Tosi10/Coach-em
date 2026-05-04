@@ -14,6 +14,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Image,
@@ -33,6 +34,7 @@ const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -68,7 +70,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      showAlert('Erro', 'Por favor, preencha todos os campos.', 'warning');
+      showAlert(t('common.error'), t('login.fillAllFields'), 'warning');
       return;
     }
 
@@ -77,7 +79,7 @@ export default function LoginScreen() {
       const user = await signIn({ email, password });
       await persistSessionAndNavigateHome(router.replace, user);
     } catch (err: any) {
-      const msg = err?.message ?? 'Erro ao fazer login';
+      const msg = err?.message ?? t('login.genericLoginError');
       if (msg.toLowerCase().includes('conta de atleta foi bloqueada')) {
         router.replace('/(auth)/blocked');
         return;
@@ -85,25 +87,25 @@ export default function LoginScreen() {
       if (err instanceof EmailNotVerifiedError || msg.toLowerCase().includes('email') && msg.toLowerCase().includes('confirm')) {
         setShowResendVerification(true);
       }
-      showAlert('Erro ao fazer login', msg, 'error');
+      showAlert(t('login.loginErrorTitle'), msg, 'error');
     }
   };
 
   const handleResendVerification = async () => {
     if (!email || !password) {
-      showAlert('Confirmação de email', 'Digite email e senha para reenviar a confirmação.', 'info');
+      showAlert(t('login.emailConfirmationTitle'), t('login.emailConfirmationPrompt'), 'info');
       return;
     }
     try {
       setResendVerificationSending(true);
       await resendVerificationEmail(email, password);
       showAlert(
-        'Email reenviado',
-        'Enviamos novamente o email de confirmação. Verifique caixa de entrada e spam.',
+        t('login.emailResentTitle'),
+        t('login.emailResentBody'),
         'success'
       );
     } catch (err: any) {
-      showAlert('Erro', err?.message ?? 'Não foi possível reenviar o email de confirmação.', 'error');
+      showAlert(t('common.error'), err?.message ?? t('login.resendError'), 'error');
     } finally {
       setResendVerificationSending(false);
     }
@@ -113,8 +115,8 @@ export default function LoginScreen() {
     const e = email.trim().toLowerCase();
     if (!e) {
       showAlert(
-        'Email',
-        'Digite seu email no campo acima para receber o link de recuperação.',
+        t('login.emailFieldTitle'),
+        t('login.enterEmailForReset'),
         'info'
       );
       return;
@@ -123,12 +125,12 @@ export default function LoginScreen() {
       setResetSending(true);
       await sendPasswordResetEmailTo(e);
       showAlert(
-        'Email enviado',
-        'Se existir uma conta com este endereço, você receberá um link para redefinir a senha. Verifique também a pasta de spam.',
+        t('login.resetSentTitle'),
+        t('login.resetSentBody'),
         'success'
       );
     } catch (err: any) {
-      showAlert('Erro', err?.message ?? 'Não foi possível enviar o email.', 'error');
+      showAlert(t('common.error'), err?.message ?? t('login.resetError'), 'error');
     } finally {
       setResetSending(false);
     }
@@ -156,7 +158,7 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
           <Text className="text-base text-center max-w-[260px]" style={{ color: theme.colors.textSecondary, marginTop: -80 }}>
-            Gestão de Performance Esportiva
+            {t('login.tagline')}
           </Text>
         </View>
 
@@ -172,11 +174,11 @@ export default function LoginScreen() {
             }}
           >
             <Text className="text-lg font-semibold mb-5" style={themeStyles.text}>
-              Entrar na sua conta
+              {t('login.title')}
             </Text>
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Email
+              {t('common.email')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3.5 mb-4 text-base"
@@ -189,7 +191,7 @@ export default function LoginScreen() {
                 paddingVertical: 0,
                 textAlignVertical: 'center',
               }}
-              placeholder="seu@email.com"
+              placeholder={t('login.emailPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               value={email}
               onChangeText={setEmail}
@@ -199,7 +201,7 @@ export default function LoginScreen() {
             />
 
             <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.textSecondary }}>
-              Senha
+              {t('common.password')}
             </Text>
             <View className="mb-2" style={{ position: 'relative' }}>
               <TextInput
@@ -240,7 +242,7 @@ export default function LoginScreen() {
             <View className="mb-4 flex-row justify-end">
               <TouchableOpacity onPress={handleForgotPassword} disabled={resetSending || loading} activeOpacity={0.7}>
                 <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
-                  {resetSending ? 'Enviando…' : 'Esqueci minha senha'}
+                  {resetSending ? t('login.sending') : t('login.forgotPassword')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -253,7 +255,7 @@ export default function LoginScreen() {
                   activeOpacity={0.7}
                 >
                   <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
-                    {resendVerificationSending ? 'Reenviando confirmação…' : 'Reenviar email de confirmação'}
+                    {resendVerificationSending ? t('login.resending') : t('login.resendVerification')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -262,13 +264,13 @@ export default function LoginScreen() {
             {error ? (
               <View className="mb-4 rounded-lg py-3 px-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>
                 <Text className="text-xs font-medium mb-1" style={{ color: theme.colors.error }}>
-                  Erro ao conectar
+                  {t('login.connectionError')}
                 </Text>
                 <Text className="text-sm" style={{ color: theme.colors.error }}>
                   {error}
                 </Text>
                 <Text className="text-xs mt-2" style={{ color: theme.colors.textTertiary }}>
-                  Confira o .env (EXPO_PUBLIC_FIREBASE_*) e se o projeto está ativo no Firebase Console.
+                  {t('login.envHint')}
                 </Text>
               </View>
             ) : null}
@@ -289,7 +291,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#ffffff" />
                 ) : (
                   <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
-                    Entrar
+                    {t('login.signIn')}
                   </Text>
                 )}
               </LinearGradient>
@@ -302,12 +304,14 @@ export default function LoginScreen() {
               activeOpacity={0.7}
             >
               <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
-                Não tem uma conta? <Text className="font-semibold">Registre-se</Text>
+                {t('login.noAccountPrefix')}
+                <Text className="font-semibold">{t('login.registerInline')}</Text>
               </Text>
             </TouchableOpacity>
 
             <Text className="text-center text-[11px] mt-3" style={themeStyles.textTertiary}>
-              Desenvolvido por <Text style={{ color: theme.colors.primary }}>Vision10</Text>
+              {t('login.developedBy')}{' '}
+              <Text style={{ color: theme.colors.primary }}>Vision10</Text>
             </Text>
           </View>
         </View>

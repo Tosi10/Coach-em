@@ -7,6 +7,7 @@
  */
 
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { formatFlexibleDatePtBr } from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -31,6 +32,7 @@ export function WorkoutCard({
 }: WorkoutCardProps) {
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
+    const createdAtLabel = formatFlexibleDatePtBr(createdAt);
 
     return (
         <View className="rounded-xl mb-3 border overflow-hidden" style={{
@@ -58,7 +60,7 @@ export function WorkoutCard({
                         {exercisesCount} exercícios
                     </Text>
                     <Text className="text-xs" style={themeStyles.textTertiary}>
-                        Criado em: {createdAt}
+                        Criado em: {createdAtLabel}
                     </Text>
                 </View>
             </TouchableOpacity>

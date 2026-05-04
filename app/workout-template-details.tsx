@@ -12,10 +12,12 @@ import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
 import { deleteWorkoutTemplate, getWorkoutTemplateById } from '@/src/services/workoutTemplates.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
+import { formatFlexibleDateByLocale } from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 // Exercícios padrão para fallback visual dos templates.
@@ -172,6 +174,7 @@ const mockWorkouts = [
 ];
 
 export default function WorkoutTemplateDetailsScreen() {
+    const { t, i18n } = useTranslation();
     const router = useRouter();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
@@ -217,7 +220,7 @@ export default function WorkoutTemplateDetailsScreen() {
                 const workout = await getWorkoutTemplateById(workoutIdString);
                 setAllWorkouts(workout ? [workout] : []);
             } catch (error) {
-                console.error('Erro ao carregar treino:', error);
+                console.error('Error loading workout:', error);
                 setAllWorkouts([]);
             } finally {
                 setLoading(false);
@@ -231,7 +234,7 @@ export default function WorkoutTemplateDetailsScreen() {
         return (
             <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
                 <Text className="text-xl font-bold" style={themeStyles.text}>
-                    Carregando...
+                    {t('workoutTemplateDetails.loading')}
                 </Text>
             </View>
         );
@@ -245,14 +248,14 @@ export default function WorkoutTemplateDetailsScreen() {
         return (
             <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
                 <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                    Treino não encontrado
+                    {t('workoutTemplateDetails.notFound')}
                 </Text>
                 <TouchableOpacity
                     className="rounded-lg py-3 px-6"
                     style={{ backgroundColor: theme.colors.primary }}
                     onPress={() => router.back()}
                 >
-                    <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
+                    <Text className="font-semibold" style={{ color: '#ffffff' }}>{t('common.back')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -262,19 +265,19 @@ export default function WorkoutTemplateDetailsScreen() {
         try {
             if (!workoutIdString) return;
             await deleteWorkoutTemplate(workoutIdString);
-            showAlert('Sucesso', 'Treino deletado com sucesso!', 'success', () => {
+            showAlert(t('common.success'), t('workoutTemplateDetails.deleteSuccess'), 'success', () => {
                 router.back();
             });
         } catch (error) {
-            console.error('Erro ao deletar treino:', error);
-            showAlert('Erro', 'Não foi possível deletar o treino.', 'error');
+            console.error('Error deleting workout:', error);
+            showAlert(t('common.error'), t('workoutTemplateDetails.deleteError'), 'error');
         }
      };
 
      const handleDeleteWorkout = () => {
         showAlert(
-            'Deletar treino',
-            `Tem certeza que deseja deletar o treino "${workout.name}"? Esta ação não pode ser desfeita.`,
+            t('workoutTemplateDetails.deleteTitle'),
+            t('workoutTemplateDetails.deleteConfirm', { name: workout.name }),
             'warning',
             confirmDeleteWorkout
         );
@@ -293,7 +296,7 @@ export default function WorkoutTemplateDetailsScreen() {
                         <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
                     <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                        Voltar
+                        {t('common.back')}
                     </Text>
                 </TouchableOpacity>
 
@@ -308,7 +311,9 @@ export default function WorkoutTemplateDetailsScreen() {
                         </Text>
                     )}
                     <Text className="text-sm mb-4" style={themeStyles.textTertiary}>
-                        Criado em: {workout.createdAt}
+                        {t('workoutTemplateDetails.createdAt', {
+                          date: formatFlexibleDateByLocale(workout.createdAt, i18n.language),
+                        })}
                     </Text>
                 </View>
 
@@ -337,7 +342,7 @@ export default function WorkoutTemplateDetailsScreen() {
                             }}
                         >
                             <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-                                ✏️ Editar
+                                {t('workoutTemplateDetails.editButton')}
                             </Text>
                         </TouchableOpacity>
                         
@@ -353,7 +358,7 @@ export default function WorkoutTemplateDetailsScreen() {
                             onPress={handleDeleteWorkout}
                         >
                             <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
-                                🗑️ Deletar
+                                {t('workoutTemplateDetails.deleteButton')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -366,8 +371,8 @@ export default function WorkoutTemplateDetailsScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 type={alertType}
-                confirmText="OK"
-                cancelText="Cancelar"
+                confirmText={t('common.ok')}
+                cancelText={t('common.cancel')}
                 showCancel={alertType === 'warning'}
                 onConfirm={() => {
                     setAlertVisible(false);

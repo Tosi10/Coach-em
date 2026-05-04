@@ -3,7 +3,7 @@ import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEdito
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createExercise as createExerciseInFirestore, updateExercise } from '@/src/services/exercises.service';
-import { assertCanCreateResource } from '@/src/services/planLimits.service';
+import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { uploadExerciseVideo } from '@/src/services/storage.service';
 import type { Exercise, WorkoutExercise } from '@/src/types';
 import { inferPrescriptionType } from '@/src/utils/workoutPrescription';
@@ -12,9 +12,11 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CreateExerciseScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
     const { theme } = useTheme();
@@ -40,17 +42,31 @@ export default function CreateExerciseScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
     const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>();
+    const [alertOnCancel, setAlertOnCancel] = useState<(() => void) | null>(null);
+    const [alertShowCancel, setAlertShowCancel] = useState(false);
+    const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>(undefined);
+    const [alertCancelText, setAlertCancelText] = useState<string | undefined>(undefined);
 
     const showAlert = (
         title: string,
         message: string,
         type: 'success' | 'error' | 'info' | 'warning' = 'info',
-        onConfirm?: () => void
+        onConfirm?: () => void,
+        options?: {
+          showCancel?: boolean;
+          onCancel?: () => void;
+          confirmText?: string;
+          cancelText?: string;
+        }
     ) => {
         setAlertTitle(title);
         setAlertMessage(message);
         setAlertType(type);
         setAlertOnConfirm(onConfirm ? () => { setAlertVisible(false); onConfirm(); } : undefined);
+        setAlertOnCancel(() => options?.onCancel ?? null);
+        setAlertShowCancel(options?.showCancel ?? false);
+        setAlertConfirmText(options?.confirmText);
+        setAlertCancelText(options?.cancelText);
         setAlertVisible(true);
     };
 
@@ -62,7 +78,7 @@ export default function CreateExerciseScreen() {
     const pickVideo = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          showAlert('Permissão necessária', 'Precisamos acessar sua galeria para escolher um vídeo.', 'warning');
+          showAlert(t('createExercise.permissionTitle'), t('createExercise.permissionBody'), 'warning');
           return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -80,15 +96,15 @@ export default function CreateExerciseScreen() {
     
     const handleSaveExercise = async () => {
         if (!name.trim()) {
-          showAlert('Erro', 'Por favor, preencha o nome do exercício.', 'error');
+          showAlert(t('common.error'), t('createExercise.errNameRequired'), 'error');
           return;
         }
         if (!description.trim()) {
-          showAlert('Erro', 'Por favor, preencha a descrição do exercício.', 'error');
+          showAlert(t('common.error'), t('createExercise.errDescriptionRequired'), 'error');
           return;
         }
         if (muscleGroups.length === 0) {
-          showAlert('Erro', 'Por favor, adicione pelo menos um grupo muscular.', 'error');
+          showAlert(t('common.error'), t('createExercise.errMuscleGroupRequired'), 'error');
           return;
         }
 
@@ -110,7 +126,7 @@ export default function CreateExerciseScreen() {
           description: description.trim(),
           difficulty,
           muscleGroups,
-          equipment: equipment.length > 0 ? equipment : ['Nenhum'],
+          equipment: equipment.length > 0 ? equipment : [t('createExercise.noneEquipment')],
           defaultPrescription: hasAnyPrescription
             ? ({
                 prescriptionType: normalizedPrescriptionType,
@@ -130,7 +146,7 @@ export default function CreateExerciseScreen() {
 
         try {
             if (!user?.id) {
-              showAlert('Erro', 'Você precisa estar logado para criar exercício.', 'error');
+              showAlert(t('common.error'), t('createExercise.errNeedLogin'), 'error');
               return;
             }
             await assertCanCreateResource(user.id, 'exercises');
@@ -150,23 +166,37 @@ export default function CreateExerciseScreen() {
 
             if (videoUploadFailed) {
               showAlert(
-                'Exercício criado',
-                `O exercício "${payload.name}" foi salvo, mas o vídeo não foi enviado. Verifique Firebase Storage (regras, bucket EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).`,
+                t('createExercise.createdTitle'),
+                t('createExercise.createdVideoWarn', { name: payload.name }),
                 'warning',
                 () => setTimeout(() => router.back(), 0)
               );
             } else {
               showAlert(
-                'Exercício criado!',
-                `O exercício "${payload.name}" foi criado com sucesso.`,
+                t('createExercise.createdSuccessTitle'),
+                t('createExercise.createdSuccessBody', { name: payload.name }),
                 'success',
                 () => setTimeout(() => router.back(), 0)
               );
             }
         } catch (error) {
             setUploadingVideo(false);
-            console.error('Erro ao salvar exercício:', error);
-            showAlert('Erro', 'Não foi possível salvar o exercício. Tente novamente.', 'error');
+            console.error('Error saving exercise:', error);
+            if (error instanceof FreePlanLimitError) {
+              showAlert(
+                t('createExercise.planLimitTitle'),
+                error.message,
+                'warning',
+                () => router.push('/subscription'),
+                {
+                  showCancel: true,
+                  confirmText: t('createExercise.viewPlans'),
+                  cancelText: t('common.close'),
+                }
+              );
+              return;
+            }
+            showAlert(t('common.error'), t('createExercise.errSaveFailed'), 'error');
         }
       };
 
@@ -195,20 +225,20 @@ export default function CreateExerciseScreen() {
                         <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
                     <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                        Voltar
+                        {t('common.back')}
                     </Text>
                 </TouchableOpacity>
 
                 <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-                    Criar Novo Exercício
+                    {t('createExercise.title')}
                 </Text>
                 <Text className="mb-6" style={themeStyles.textSecondary}>
-                    Preencha os dados do exercício
+                    {t('createExercise.subtitle')}
                 </Text>
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Nome do Exercício *
+                        {t('createExercise.nameLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3"
@@ -217,7 +247,7 @@ export default function CreateExerciseScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Ex: Agachamento"
+                        placeholder={t('createExercise.namePlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={name}
                         onChangeText={setName}
@@ -227,7 +257,7 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Descrição *
+                        {t('createExercise.descriptionLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3"
@@ -236,7 +266,7 @@ export default function CreateExerciseScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Descreva o exercício..."
+                        placeholder={t('createExercise.descriptionPlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={description}
                         onChangeText={setDescription}
@@ -247,7 +277,7 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Dificuldade *
+                        {t('createExercise.difficultyLabel')}
                     </Text>
 
                     <View className="flex-row">
@@ -268,7 +298,7 @@ export default function CreateExerciseScreen() {
                             }}
                             numberOfLines={1}
                             >
-                            Iniciante
+                            {t('createExercise.difficultyBeginner')}
                             </Text>
                         </TouchableOpacity>
 
@@ -289,7 +319,7 @@ export default function CreateExerciseScreen() {
                             }}
                             numberOfLines={1}
                             >
-                            Intermediário
+                            {t('createExercise.difficultyIntermediate')}
                             </Text>
                         </TouchableOpacity>
                         
@@ -310,7 +340,7 @@ export default function CreateExerciseScreen() {
                             }}
                             numberOfLines={1}
                             >
-                            Avançado
+                            {t('createExercise.difficultyAdvanced')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -319,10 +349,10 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-5 rounded-xl p-4 border" style={themeStyles.cardSecondary}>
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Prescrição padrão para este exercício (opcional)
+                        {t('createExercise.defaultPrescriptionTitle')}
                     </Text>
                     <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
-                        Essa configuração aparece automaticamente quando o exercício for adicionado em um treino.
+                        {t('createExercise.defaultPrescriptionHint')}
                     </Text>
                     <WorkoutPrescriptionEditor
                         value={defaultPrescription}
@@ -337,10 +367,10 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Vídeo do exercício (opcional)
+                        {t('createExercise.videoTitle')}
                     </Text>
                     <Text className="text-xs mb-2" style={themeStyles.textSecondary}>
-                        Um vídeo curto mostrando como fazer o exercício ajuda os atletas.
+                        {t('createExercise.videoHint')}
                     </Text>
                     {!videoUri ? (
                         <TouchableOpacity
@@ -354,17 +384,17 @@ export default function CreateExerciseScreen() {
                         >
                             <FontAwesome name="video-camera" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
                             <Text className="font-semibold" style={{ color: theme.colors.primary }}>
-                                {uploadingVideo ? 'Enviando vídeo...' : 'Selecionar vídeo'}
+                                {uploadingVideo ? t('createExercise.uploadingVideo') : t('createExercise.selectVideo')}
                             </Text>
                         </TouchableOpacity>
                     ) : (
                         <View className="flex-row items-center rounded-lg py-3 px-4 border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
                             <FontAwesome name="check-circle" size={20} color="#10b981" style={{ marginRight: 8 }} />
                             <Text className="flex-1 font-medium" style={themeStyles.text} numberOfLines={1}>
-                                Vídeo selecionado
+                                {t('createExercise.videoSelected')}
                             </Text>
                             <TouchableOpacity onPress={removeVideo} className="rounded-full px-3 py-1" style={{ backgroundColor: theme.colors.backgroundTertiary }}>
-                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>Remover</Text>
+                                <Text style={{ color: theme.colors.primary, fontSize: 12 }}>{t('createExercise.removeVideo')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -372,7 +402,7 @@ export default function CreateExerciseScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Grupos Musculares *
+                        {t('createExercise.muscleGroupsLabel')}
                     </Text>
 
                     <View className="flex-row gap-2 mb-3">
@@ -383,7 +413,7 @@ export default function CreateExerciseScreen() {
                            borderColor: theme.colors.border,
                            color: theme.colors.text,
                          }}
-                         placeholder="Ex: pernas, peito, costas..."
+                         placeholder={t('createExercise.muscleGroupsPlaceholder')}
                          placeholderTextColor={theme.colors.textTertiary}
                          value={newMuscleGroup}
                          onChangeText={setNewMuscleGroup}
@@ -436,14 +466,14 @@ export default function CreateExerciseScreen() {
                         </View>
                     ) : (
                         <Text className="text-sm" style={themeStyles.textTertiary}>
-                            Nenhum grupo muscular adicionado ainda
+                            {t('createExercise.noMuscleGroups')}
                         </Text>
                     )}
 
                     {/* Campo: Equipamentos */}
                         <View className="mb-4">
                         <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                            Equipamentos
+                            {t('createExercise.equipmentLabel')}
                         </Text>
                         
                         <View className="flex-row gap-2 mb-3">
@@ -454,7 +484,7 @@ export default function CreateExerciseScreen() {
                               borderColor: theme.colors.border,
                               color: theme.colors.text,
                             }}
-                            placeholder="Ex: Halteres, Barra, Banco..."
+                            placeholder={t('createExercise.equipmentPlaceholder')}
                             placeholderTextColor={theme.colors.textTertiary}
                             value={newEquipment}
                             onChangeText={setNewEquipment}
@@ -501,7 +531,7 @@ export default function CreateExerciseScreen() {
                             </View>
                         ) : (
                             <Text className="text-sm" style={themeStyles.textTertiary}>
-                            Nenhum equipamento adicionado ainda
+                            {t('createExercise.noEquipment')}
                             </Text>
                         )}
                         </View>
@@ -524,7 +554,7 @@ export default function CreateExerciseScreen() {
                 disabled={uploadingVideo}
                 >
                 <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                    {uploadingVideo ? '⏳ Salvando...' : '💾 Salvar Exercício'}
+                    {uploadingVideo ? t('createExercise.saving') : t('createExercise.saveButton')}
                 </Text>
                 </TouchableOpacity>
 
@@ -539,8 +569,14 @@ export default function CreateExerciseScreen() {
             title={alertTitle}
             message={alertMessage}
             type={alertType}
-            confirmText="OK"
+            confirmText={alertConfirmText ?? t('common.ok')}
+            cancelText={alertCancelText ?? t('common.cancel')}
+            showCancel={alertShowCancel}
             onConfirm={handleConfirmAlert}
+            onCancel={() => {
+                setAlertVisible(false);
+                alertOnCancel?.();
+            }}
         />
         </>
     )

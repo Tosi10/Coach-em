@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { useTranslation } from 'react-i18next';
 
 type FirstTimeTipProps = {
   storageKey: string;
@@ -16,6 +17,7 @@ export const FirstTimeTip: React.FC<FirstTimeTipProps> = ({
   title,
   description,
 }) => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [visible, setVisible] = useState(false);
@@ -82,7 +84,7 @@ export const FirstTimeTip: React.FC<FirstTimeTipProps> = ({
               className="px-4 py-2 rounded-lg"
               style={{ backgroundColor: theme.colors.primary }}
             >
-              <Text className="text-xs font-semibold text-black">Entendi</Text>
+              <Text className="text-xs font-semibold text-black">{t('common.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </View>

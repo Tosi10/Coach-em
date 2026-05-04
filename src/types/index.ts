@@ -48,6 +48,9 @@ export interface Coach extends BaseUser {
   specialization?: string; // Ex: "Futebol", "Atletismo", etc.
   athletes?: string[]; // Array de IDs dos atletas vinculados
   welcomeMessage?: string; // Mensagem opcional exibida para atletas
+  /** Preenchido pelo backend (ex.: webhook RevenueCat). Ausente = plano grátis. */
+  subscriptionTier?: 'free' | 'pro';
+  subscriptionExpiresAt?: Date | string | FirestoreTimestamp;
 }
 
 /**

@@ -9,12 +9,18 @@ import {
     setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
-import { assignedSortTimestamp, formatAssignedCalendarDatePtBr, getLocalTodayYmd, parseDateOnlyLocal } from '@/src/utils/dateOnly';
+import {
+  assignedSortTimestamp,
+  formatAssignedCalendarDateByLocale,
+  getLocalTodayYmd,
+  parseDateOnlyLocal,
+} from '@/src/utils/dateOnly';
 import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -22,6 +28,7 @@ import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabTwoScreen() {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
@@ -34,15 +41,21 @@ export default function TabTwoScreen() {
   // Atletas derivados dos treinos (Firestore) – só para COACH
   const [athletes, setAthletes] = useState<Array<{ id: string; name: string; photoURL?: string; status?: string }>>([]);
 
+  const displayWorkoutStatus = (status: string) => {
+    if (status === 'Concluído') return t('tabTwo.statusCompleted');
+    if (status === 'Pendente') return t('tabTwo.statusPending');
+    return status;
+  };
+
   const getAthleteStatusMeta = (status?: string) => {
     const normalized = String(status || '').toLowerCase();
     if (normalized === 'bloqueado') {
-      return { label: 'Bloqueado', color: '#ef4444' };
+      return { label: t('common.blocked'), color: '#ef4444' };
     }
     if (normalized === 'conta removida') {
-      return { label: 'Conta removida', color: theme.colors.textTertiary };
+      return { label: t('common.accountRemoved'), color: theme.colors.textTertiary };
     }
-    return { label: 'Ativo', color: theme.colors.textSecondary };
+    return { label: t('common.active'), color: theme.colors.textSecondary };
   };
   
   // Estados para treinos do atleta
@@ -166,11 +179,11 @@ export default function TabTwoScreen() {
   const handleDeleteWorkout = async (workoutIds: string[], isGroup: boolean) => {
     const workoutCount = workoutIds.length;
     const message = isGroup
-      ? `Tem certeza que deseja deletar este grupo de ${workoutCount} treino${workoutCount !== 1 ? 's' : ''}?`
-      : `Tem certeza que deseja deletar este treino?`;
+      ? t('tabTwo.deleteGroupConfirm', { count: workoutCount })
+      : t('tabTwo.deleteOneConfirm');
 
     showAlert(
-      'Deletar treino',
+      t('tabTwo.deleteWorkoutTitle'),
       message,
       'warning',
       async () => {
@@ -178,10 +191,14 @@ export default function TabTwoScreen() {
           const { deleteAssignedWorkouts } = await import('@/src/services/assignedWorkouts.service');
           await deleteAssignedWorkouts(workoutIds);
           await loadAthleteWorkouts();
-          showAlert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`, 'success');
+          showAlert(
+            t('tabTwo.successTitle'),
+            workoutCount !== 1 ? t('tabTwo.deleteSuccessMany') : t('tabTwo.deleteSuccessOne'),
+            'success'
+          );
         } catch (error) {
           console.error('Erro ao deletar treino:', error);
-          showAlert('Erro', 'Não foi possível deletar o treino. Tente novamente.', 'error');
+          showAlert(t('common.error'), t('tabTwo.deleteError'), 'error');
         }
       }
     );
@@ -192,18 +209,18 @@ export default function TabTwoScreen() {
     try {
       if (userType === UserType.ATHLETE) {
         await loadAthleteWorkouts();
-        showToast('Treinos atualizados!', 'success');
+        showToast(t('tabTwo.workoutsUpdated'), 'success');
       } else {
         // Simular carregamento de dados para treinador
         await new Promise(resolve => setTimeout(resolve, 1000));
-        showToast('Lista de atletas atualizada!', 'success');
+        showToast(t('tabTwo.athletesListUpdated'), 'success');
       }
     } catch (error) {
-      showToast('Erro ao atualizar', 'error');
+      showToast(t('tabTwo.refreshError'), 'error');
     } finally {
       setRefreshing(false);
     }
-  }, [showToast, userType]);
+  }, [showToast, userType, t]);
 
   // Se for ATLETA, mostrar treinos
   if (userType === UserType.ATHLETE) {
@@ -334,10 +351,10 @@ export default function TabTwoScreen() {
         <View className="px-6 pb-20" style={{ paddingTop: insets.top + 20 }}>
           {/* Título */}
           <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-            Meus Treinos
+            {t('tabTwo.myWorkouts')}
           </Text>
           <Text className="mb-6" style={themeStyles.textSecondary}>
-            Visualize seus treinos agendados e histórico de treinos realizados
+            {t('tabTwo.myWorkoutsSubtitle')}
           </Text>
 
           {/* Sub-tabs: Próximos, Histórico e Calendário */}
@@ -358,7 +375,7 @@ export default function TabTwoScreen() {
                   color: workoutSubTab === 'proximos' ? theme.colors.text : theme.colors.textTertiary
                 }}
               >
-                Próximos
+                {t('tabTwo.upcoming')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -376,7 +393,7 @@ export default function TabTwoScreen() {
                   color: workoutSubTab === 'calendario' ? theme.colors.text : theme.colors.textTertiary
                 }}
               >
-                Calendário
+                {t('tabTwo.calendarTab')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -395,7 +412,7 @@ export default function TabTwoScreen() {
                   color: workoutSubTab === 'historico' ? theme.colors.text : theme.colors.textTertiary
                 }}
               >
-                Histórico
+                {t('tabTwo.history')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -430,20 +447,25 @@ export default function TabTwoScreen() {
                   }}
                 />
                 <View className="flex-row mt-3 justify-between">
-                  <Text className="text-xs" style={{ color: '#fb923c' }}>• Pendente</Text>
-                  <Text className="text-xs" style={{ color: '#10b981' }}>• Concluído</Text>
+                  <Text className="text-xs" style={{ color: '#fb923c' }}>{t('tabTwo.legendPending')}</Text>
+                  <Text className="text-xs" style={{ color: '#10b981' }}>{t('tabTwo.legendCompleted')}</Text>
                 </View>
               </View>
 
               {selectedDateWorkouts.length === 0 ? (
                 <EmptyState
                   icon="calendar"
-                  message={`Nenhum treino em ${formatAssignedCalendarDatePtBr(selectedCalendarDate)}.`}
+                  message={t('tabTwo.noWorkoutsOnDate', {
+                    date: formatAssignedCalendarDateByLocale(selectedCalendarDate, i18n.language),
+                  })}
                 />
               ) : (
                 <>
                   <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
-                    {selectedDateWorkouts.length} treino{selectedDateWorkouts.length !== 1 ? 's' : ''} em {formatAssignedCalendarDatePtBr(selectedCalendarDate)}
+                    {t('tabTwo.workoutsOnDate', {
+                      count: selectedDateWorkouts.length,
+                      date: formatAssignedCalendarDateByLocale(selectedCalendarDate, i18n.language),
+                    })}
                   </Text>
                   {selectedDateWorkouts.map((workout: any) => {
                     const feedbackIconSrc = getFeedbackIconSource(workout.feedback, workout.feedbackEmoji);
@@ -478,7 +500,8 @@ export default function TabTwoScreen() {
                             </Text>
                             {workout.completedDate ? (
                               <Text className="text-xs" style={themeStyles.textTertiary}>
-                                Feedback registrado {workout.feedback ? `• Nível ${workout.feedback}/5` : ''}
+                                {t('tabTwo.feedbackRecorded')}{' '}
+                                {workout.feedback ? t('tabTwo.feedbackLevel', { level: workout.feedback }) : ''}
                               </Text>
                             ) : null}
                           </View>
@@ -496,7 +519,7 @@ export default function TabTwoScreen() {
                                 className="text-xs font-semibold"
                                 style={{ color: workout.status === 'Concluído' ? '#10b981' : '#fb923c' }}
                               >
-                                {workout.status}
+                                {displayWorkoutStatus(workout.status)}
                               </Text>
                             </View>
                             {workout.status === 'Concluído' && feedbackIconSrc ? (
@@ -520,9 +543,11 @@ export default function TabTwoScreen() {
           {workoutsToDisplay.length === 0 ? (
             <EmptyState
               imageSource={require('../../assets/images/Coracao.png')}
-              message={workoutSubTab === 'historico' 
-                ? "Você ainda não concluiu nenhum treino."
-                : "Você não tem treinos agendados."}
+              message={
+                workoutSubTab === 'historico'
+                  ? t('tabTwo.emptyHistory')
+                  : t('tabTwo.emptyUpcoming')
+              }
               actionLabel={workoutSubTab === 'historico' ? undefined : undefined}
               onAction={undefined}
             />
@@ -561,15 +586,21 @@ export default function TabTwoScreen() {
                             </Text>
                           </View>
                           <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                            {group.length} treino{group.length !== 1 ? 's' : ''} agendado{group.length !== 1 ? 's' : ''}
+                            {t('tabTwo.groupScheduled', { count: group.length })}
                           </Text>
                           <Text className="text-xs" style={themeStyles.textTertiary}>
-                            Próximo: {parseDateOnlyLocal(group[0].date).toLocaleDateString('pt-BR', { 
-                              weekday: 'long', 
-                              day: '2-digit', 
-                              month: 'long' 
-                            })}
-                            {group[0].scheduledTime ? ` às ${group[0].scheduledTime}` : ''}
+                            {t('tabTwo.nextLabel')}{' '}
+                            {parseDateOnlyLocal(group[0].date).toLocaleDateString(
+                              i18n.language === 'en' ? 'en-US' : 'pt-BR',
+                              {
+                                weekday: 'long',
+                                day: '2-digit',
+                                month: 'long',
+                              }
+                            )}
+                            {group[0].scheduledTime
+                              ? ` ${t('tabTwo.atTime')} ${group[0].scheduledTime}`
+                              : ''}
                           </Text>
                         </TouchableOpacity>
                         
@@ -607,12 +638,15 @@ export default function TabTwoScreen() {
                               {workout.name}
                             </Text>
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                              {formatAssignedCalendarDatePtBr(workout.date)} • {workout.dayOfWeek}
+                              {formatAssignedCalendarDateByLocale(workout.date, i18n.language)} • {workout.dayOfWeek}
                               {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
                             </Text>
                             {workout.completedDate && (
                               <Text className="text-xs" style={themeStyles.textTertiary}>
-                                Concluído em: {new Date(workout.completedDate).toLocaleDateString('pt-BR')}
+                                {t('tabTwo.completedOn')}{' '}
+                                {new Date(workout.completedDate).toLocaleDateString(
+                                  i18n.language === 'en' ? 'en-US' : 'pt-BR'
+                                )}
                               </Text>
                             )}
                           </View>
@@ -628,7 +662,7 @@ export default function TabTwoScreen() {
                                 }}
                               >
                                 <Text className="text-xs font-semibold" style={{ color: '#10b981' }}>
-                                  {workout.status}
+                                  {displayWorkoutStatus(workout.status)}
                                 </Text>
                               </View>
                               
@@ -655,9 +689,12 @@ export default function TabTwoScreen() {
                   onPress={() => setWorkoutsToShow(workoutsToShow + 5)}
                 >
                   <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-                    Carregar mais ({workoutSubTab === 'historico' 
-                      ? completedWorkouts.length - workoutsToShow 
-                      : pendingWorkouts.length - workoutsToShow} restantes)
+                    {t('tabTwo.loadMore', {
+                      remaining:
+                        workoutSubTab === 'historico'
+                          ? completedWorkouts.length - workoutsToShow
+                          : pendingWorkouts.length - workoutsToShow,
+                    })}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -673,8 +710,8 @@ export default function TabTwoScreen() {
             title={alertTitle}
             message={alertMessage}
             type={alertType}
-            confirmText="OK"
-            cancelText="Cancelar"
+            confirmText={t('common.ok')}
+            cancelText={t('common.cancel')}
             showCancel={alertType === 'warning'}
             onConfirm={() => {
                 setAlertVisible(false);
@@ -705,16 +742,16 @@ export default function TabTwoScreen() {
       <View className="px-6 pb-20" style={{ paddingTop: insets.top + 20 }}>
         {/* Título */}
         <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-          Meus Atletas
+          {t('tabTwo.myAthletes')}
         </Text>
         <Text className="mb-6" style={themeStyles.textSecondary}>
-          Gerencie seus atletas e atribua treinos personalizados
+          {t('tabTwo.myAthletesSubtitle')}
         </Text>
 
         {/* Contador e botão Adicionar atleta */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold" style={themeStyles.text}>
-            Total: {athletes.length} atleta{athletes.length !== 1 ? 's' : ''}
+            {t('tabTwo.totalAthletes', { count: athletes.length })}
           </Text>
           <TouchableOpacity
             className="rounded-xl py-2.5 px-4 flex-row items-center"
@@ -722,7 +759,9 @@ export default function TabTwoScreen() {
             onPress={() => router.push('/add-athlete')}
           >
             <FontAwesome name="plus" size={14} color="#fff" style={{ marginRight: 8 }} />
-            <Text className="font-semibold text-sm" style={{ color: '#fff' }}>Adicionar atleta</Text>
+            <Text className="font-semibold text-sm" style={{ color: '#fff' }}>
+              {t('tabTwo.addAthlete')}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -730,8 +769,8 @@ export default function TabTwoScreen() {
         {athletes.length === 0 ? (
           <EmptyState
             icon="users"
-            message="Cadastre um atleta para depois atribuir treinos a ele."
-            actionLabel="Cadastrar atleta"
+            message={t('tabTwo.emptyAthletes')}
+            actionLabel={t('tabTwo.registerAthlete')}
             onAction={() => router.push('/add-athlete')}
           />
         ) : (

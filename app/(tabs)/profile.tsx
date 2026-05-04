@@ -6,6 +6,7 @@
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { CustomAlert } from '@/components/CustomAlert';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
@@ -16,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
@@ -41,6 +43,8 @@ const inputBorderColor = (isDark: boolean) =>
 const SUPPORT_EMAIL = 'adm.ecg.19@gmail.com';
 const SUPPORT_WHATSAPP_E164 = '5541992522854';
 export default function ProfileScreen() {
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto, updateDisplayName } = useAuthContext();
@@ -77,8 +81,8 @@ export default function ProfileScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'Permissão',
-        'Precisamos acessar a galeria para você escolher a foto de perfil.'
+        t('profile.permissionGallery'),
+        t('profile.permissionGalleryMsg')
       );
       return;
     }
@@ -104,9 +108,8 @@ export default function ProfileScreen() {
       setPhotoSavedVisible(true);
     } catch (e: any) {
       Alert.alert(
-        'Foto de perfil',
-        e?.message ??
-          'Não foi possível enviar a foto. Confira o Firebase Storage e as regras de segurança.'
+        t('profile.photoErrorTitle'),
+        e?.message ?? t('profile.photoErrorBody')
       );
     } finally {
       setPhotoUploading(false);
@@ -141,11 +144,11 @@ export default function ProfileScreen() {
   const submitDisplayName = async () => {
     const normalized = nameDraft.trim().replace(/\s+/g, ' ');
     if (normalized.length < 2) {
-      Alert.alert('Nome', 'Informe um nome com pelo menos 2 caracteres.');
+      Alert.alert(t('profile.nameFieldTitle'), t('profile.nameMin'));
       return;
     }
     if (normalized.length > 60) {
-      Alert.alert('Nome', 'Use no máximo 60 caracteres.');
+      Alert.alert(t('profile.nameFieldTitle'), t('profile.nameMax'));
       return;
     }
 
@@ -155,7 +158,7 @@ export default function ProfileScreen() {
       setNameModalOpen(false);
       setNameSavedVisible(true);
     } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível atualizar o nome.');
+      Alert.alert(t('common.error'), e?.message ?? t('profile.nameUpdateError'));
     } finally {
       setNameBusy(false);
     }
@@ -163,24 +166,24 @@ export default function ProfileScreen() {
 
   const submitChangePassword = async () => {
     if (!currentPwd || !newPwd) {
-      Alert.alert('Campos', 'Preencha senha atual e nova senha.');
+      Alert.alert(t('profile.fieldsTitle'), t('profile.fieldsPassword'));
       return;
     }
     if (newPwd !== confirmPwd) {
-      Alert.alert('Senhas', 'A confirmação não coincide com a nova senha.');
+      Alert.alert(t('profile.passwordsMismatch'), t('profile.passwordsMismatchMsg'));
       return;
     }
     if (newPwd.length < 6) {
-      Alert.alert('Senha', 'A nova senha deve ter no mínimo 6 caracteres.');
+      Alert.alert(t('profile.passwordShort'), t('profile.passwordShortMsg'));
       return;
     }
     setPwdBusy(true);
     try {
       await changePassword(currentPwd, newPwd);
       setChangeModalOpen(false);
-      Alert.alert('Senha alterada', 'Sua senha foi atualizada com sucesso.');
+      Alert.alert(t('profile.passwordChangedTitle'), t('profile.passwordChangedMsg'));
     } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível alterar a senha.');
+      Alert.alert(t('common.error'), e?.message ?? t('profile.passwordChangeError'));
     } finally {
       setPwdBusy(false);
     }
@@ -192,7 +195,7 @@ export default function ProfileScreen() {
 
   const submitDeleteAccount = async () => {
     if (!deletePwd.trim()) {
-      Alert.alert('Senha', 'Digite sua senha atual para confirmar a exclusão.');
+      Alert.alert(t('profile.passwordShort'), t('profile.deleteNeedPassword'));
       return;
     }
     setDeleteBusy(true);
@@ -202,7 +205,7 @@ export default function ProfileScreen() {
       setDeleteModalOpen(false);
       router.replace('/(auth)/login');
     } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível excluir a conta.');
+      Alert.alert(t('common.error'), e?.message ?? t('profile.deleteError'));
     } finally {
       setDeleteBusy(false);
     }
@@ -212,7 +215,7 @@ export default function ProfileScreen() {
     const url = `mailto:${SUPPORT_EMAIL}?subject=Suporte%20Coach%27em`;
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
-      Alert.alert('Suporte', `Não foi possível abrir o email. Contato: ${SUPPORT_EMAIL}`);
+      Alert.alert(t('profile.supportTitle'), t('profile.supportOpenEmailError', { email: SUPPORT_EMAIL }));
       return;
     }
     await Linking.openURL(url);
@@ -222,7 +225,7 @@ export default function ProfileScreen() {
     const url = `https://wa.me/${SUPPORT_WHATSAPP_E164}`;
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
-      Alert.alert('Suporte', 'Não foi possível abrir o WhatsApp no momento.');
+      Alert.alert(t('profile.supportTitle'), t('profile.supportWhatsAppError'));
       return;
     }
     await Linking.openURL(url);
@@ -231,7 +234,7 @@ export default function ProfileScreen() {
   const openPolicy = async () => {
     const canOpen = await Linking.canOpenURL(TREINA_PRIVACY_URL);
     if (!canOpen) {
-      Alert.alert('Privacidade', 'Não foi possível abrir a Política de Privacidade.');
+      Alert.alert(t('profile.privacyTitle'), t('profile.privacyOpenError'));
       return;
     }
     await Linking.openURL(TREINA_PRIVACY_URL);
@@ -240,7 +243,7 @@ export default function ProfileScreen() {
   const openTerms = async () => {
     const canOpen = await Linking.canOpenURL(TREINA_TERMS_URL);
     if (!canOpen) {
-      Alert.alert('Termos', 'Não foi possível abrir os Termos de Uso.');
+      Alert.alert(t('profile.termsTitle'), t('profile.termsOpenError'));
       return;
     }
     await Linking.openURL(TREINA_TERMS_URL);
@@ -253,7 +256,7 @@ export default function ProfileScreen() {
     const normalizedName = coachPublicName.trim();
     const normalized = coachWelcomeMessage.trim();
     if (normalized.length > MAX_COACH_MESSAGE_LENGTH) {
-      Alert.alert('Mensagem', `Use no máximo ${MAX_COACH_MESSAGE_LENGTH} caracteres.`);
+      Alert.alert(t('profile.coachMessageSection'), t('profile.messageTooLong', { max: MAX_COACH_MESSAGE_LENGTH }));
       return;
     }
     setSavingCoachMessage(true);
@@ -273,7 +276,7 @@ export default function ProfileScreen() {
       });
       setCoachMessageSavedVisible(true);
     } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível salvar a mensagem.');
+      Alert.alert(t('common.error'), e?.message ?? t('profile.messageSaveError'));
     } finally {
       setSavingCoachMessage(false);
     }
@@ -308,10 +311,10 @@ export default function ProfileScreen() {
         style={{ paddingTop: insets.top + (isCoach ? 20 : 20) }}
       >
         <Text className="text-2xl font-bold mb-1" style={themeStyles.text}>
-          Perfil
+          {t('profile.title')}
         </Text>
         <Text className="mb-6 text-sm" style={themeStyles.textSecondary}>
-          Configurações da sua conta
+          {t('profile.subtitle')}
         </Text>
 
         <View
@@ -352,14 +355,14 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <View className="ml-4 flex-1">
               <Text className="text-lg font-semibold" style={themeStyles.text}>
-                {user?.displayName ?? 'Usuário'}
+                {user?.displayName ?? t('common.user')}
               </Text>
               <Text className="text-sm" style={themeStyles.textSecondary}>
                 {user?.email}
               </Text>
               <TouchableOpacity onPress={openNameModal} activeOpacity={0.7} className="mt-2 self-start">
                 <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
-                  Editar nome
+                  {t('profile.editName')}
                 </Text>
               </TouchableOpacity>
               <View
@@ -367,35 +370,115 @@ export default function ProfileScreen() {
                 style={{ backgroundColor: theme.colors.primary + '20' }}
               >
                 <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
-                  {isCoach ? 'Treinador' : 'Atleta'}
+                  {isCoach ? t('common.coach') : t('common.athlete')}
                 </Text>
               </View>
             </View>
           </View>
           <Text className="text-xs" style={themeStyles.textSecondary}>
-            Toque na foto para escolher uma imagem da galeria.
+            {t('profile.tapPhoto')}
           </Text>
-        </View>
-
-        <View className="mb-6">
-          <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-            Aparência
-          </Text>
-          <View className="rounded-2xl border p-4" style={[themeStyles.card, { borderWidth: 1 }]}>
-            <ThemeToggle />
+          <View className="mt-4 pt-4" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
+            <View className="flex-row items-end" style={{ gap: 12 }}>
+              <View className="flex-1">
+                <Text className="text-xs font-medium mb-2" style={themeStyles.textSecondary}>
+                  {t('profile.languageSection')}
+                </Text>
+                <View
+                  className="rounded-xl border p-1 flex-row"
+                  style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
+                >
+                  <TouchableOpacity
+                    className="flex-1 py-2.5 rounded-lg items-center"
+                    style={{
+                      backgroundColor:
+                        language === 'pt-BR'
+                          ? theme.mode === 'dark'
+                            ? theme.colors.primary + '2e'
+                            : theme.colors.primary + '1f'
+                          : 'transparent',
+                    }}
+                    onPress={() => void setLanguage('pt-BR')}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      className="font-semibold text-xs"
+                      style={{ color: language === 'pt-BR' ? theme.colors.primary : theme.colors.textSecondary }}
+                    >
+                      {t('profile.languagePortuguese')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className="flex-1 py-2.5 rounded-lg items-center"
+                    style={{
+                      backgroundColor:
+                        language === 'en'
+                          ? theme.mode === 'dark'
+                            ? theme.colors.primary + '2e'
+                            : theme.colors.primary + '1f'
+                          : 'transparent',
+                    }}
+                    onPress={() => void setLanguage('en')}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      className="font-semibold text-xs"
+                      style={{ color: language === 'en' ? theme.colors.primary : theme.colors.textSecondary }}
+                    >
+                      {t('profile.languageEnglish')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View className="items-start">
+                <Text className="text-xs font-medium mb-2" style={themeStyles.textSecondary}>
+                  {t('profile.appearance')}
+                </Text>
+                <ThemeToggle />
+              </View>
+            </View>
           </View>
         </View>
 
         {isCoach && (
           <View className="mb-6">
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-              Mensagem para atletas
+              {t('profile.planSection')}
+            </Text>
+            <View className="rounded-2xl border overflow-hidden" style={{ borderColor: theme.colors.border, borderWidth: 1 }}>
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4"
+                style={{ backgroundColor: theme.colors.card }}
+                onPress={() => router.push('/subscription')}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <FontAwesome name="credit-card-alt" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
+                  <View className="flex-1">
+                    <Text className="font-semibold" style={themeStyles.text}>
+                      {t('profile.planRowTitle')}
+                    </Text>
+                    <Text className="text-xs mt-0.5" style={themeStyles.textSecondary} numberOfLines={2}>
+                      {t('profile.planRowSubtitle')}
+                    </Text>
+                  </View>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {isCoach && (
+          <View className="mb-6">
+            <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+              {t('profile.coachMessageSection')}
             </Text>
             <View className="rounded-2xl border p-4" style={[themeStyles.card, { borderWidth: 1 }]}>
               <TextInput
                 value={coachPublicName}
                 onChangeText={setCoachPublicName}
-                placeholder="Nome exibido para seus atletas"
+                placeholder={t('profile.publicNamePlaceholder')}
                 placeholderTextColor={theme.colors.textSecondary}
                 style={[
                   inputStyle,
@@ -410,7 +493,7 @@ export default function ProfileScreen() {
               <TextInput
                 value={coachWelcomeMessage}
                 onChangeText={setCoachWelcomeMessage}
-                placeholder="Ex: Foco total essa semana. Qualquer dúvida, me chame."
+                placeholder={t('profile.welcomePlaceholder')}
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline
                 maxLength={MAX_COACH_MESSAGE_LENGTH}
@@ -440,7 +523,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   <Text className="text-xs font-semibold text-black">
-                    {savingCoachMessage ? 'Salvando...' : 'Salvar mensagem'}
+                    {savingCoachMessage ? t('profile.savingMessage') : t('profile.saveMessage')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -449,7 +532,7 @@ export default function ProfileScreen() {
         )}
 
         <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-          Segurança
+          {t('profile.security')}
         </Text>
         <View
           className="rounded-2xl border overflow-hidden mb-6"
@@ -468,7 +551,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <FontAwesome name="lock" size={20} color={theme.colors.primary} style={{ marginRight: 12 }} />
               <Text className="font-semibold" style={themeStyles.text}>
-                Alterar senha
+                {t('profile.changePassword')}
               </Text>
             </View>
             <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
@@ -478,7 +561,7 @@ export default function ProfileScreen() {
         {isCoach && (
           <>
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-              Suporte Vision10
+              {t('profile.supportSection')}
             </Text>
             <View
               className="rounded-2xl border overflow-hidden mb-6"
@@ -498,7 +581,7 @@ export default function ProfileScreen() {
                   <FontAwesome name="envelope-o" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
                   <View className="flex-1">
                     <Text className="font-semibold" style={themeStyles.text}>
-                      Email de suporte
+                      {t('profile.supportEmail')}
                     </Text>
                     <Text className="text-xs mt-0.5" style={themeStyles.textSecondary} numberOfLines={1}>
                       {SUPPORT_EMAIL}
@@ -518,7 +601,7 @@ export default function ProfileScreen() {
                   <FontAwesome name="whatsapp" size={20} color="#25D366" style={{ marginRight: 12 }} />
                   <View className="flex-1">
                     <Text className="font-semibold" style={themeStyles.text}>
-                      WhatsApp de suporte
+                      {t('profile.supportWhatsApp')}
                     </Text>
                     <Text className="text-xs mt-0.5" style={themeStyles.textSecondary}>
                       +55 41 99252-2854
@@ -532,7 +615,7 @@ export default function ProfileScreen() {
         )}
 
         <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-          Jurídico
+          {t('profile.legal')}
         </Text>
         <View
           className="rounded-2xl border overflow-hidden mb-6"
@@ -551,7 +634,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <FontAwesome name="shield" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
               <Text className="font-semibold" style={themeStyles.text}>
-                Política de Privacidade
+                {t('profile.privacyPolicy')}
               </Text>
             </View>
             <FontAwesome name="external-link" size={14} color={theme.colors.textTertiary} />
@@ -566,7 +649,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <FontAwesome name="file-text-o" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
               <Text className="font-semibold" style={themeStyles.text}>
-                Termos de Uso
+                {t('profile.termsOfUse')}
               </Text>
             </View>
             <FontAwesome name="external-link" size={14} color={theme.colors.textTertiary} />
@@ -574,7 +657,7 @@ export default function ProfileScreen() {
         </View>
 
         <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-          Conta
+          {t('profile.account')}
         </Text>
         <View
           className="rounded-2xl border overflow-hidden"
@@ -594,7 +677,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <FontAwesome name="sign-out" size={20} color={theme.colors.error} style={{ marginRight: 12 }} />
               <Text className="font-semibold" style={{ color: theme.colors.error }}>
-                Sair da conta
+                {t('profile.logout')}
               </Text>
             </View>
             {loading || loggingOut ? (
@@ -613,7 +696,7 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <FontAwesome name="trash-o" size={20} color={theme.colors.error} style={{ marginRight: 12 }} />
               <Text className="font-semibold" style={{ color: theme.colors.error }}>
-                Excluir conta
+                {t('profile.deleteAccount')}
               </Text>
             </View>
             <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
@@ -622,7 +705,7 @@ export default function ProfileScreen() {
 
         <View className="mt-8 rounded-xl py-3 px-4" style={{ backgroundColor: theme.colors.backgroundSecondary }}>
           <Text className="text-xs text-center" style={themeStyles.textTertiary}>
-            Esqueceu a senha? Use &quot;Esqueci minha senha&quot; na tela de login para receber o link por email.
+            {t('profile.forgotPasswordHint')}
           </Text>
         </View>
       </View>
@@ -647,17 +730,17 @@ export default function ProfileScreen() {
             style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-2" style={themeStyles.text}>
-              Editar nome
+              {t('profile.editNameModalTitle')}
             </Text>
             <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-              Este nome será usado no seu perfil e na saudação do dashboard.
+              {t('profile.editNameModalHint')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3 mb-5 text-base"
               style={inputStyle}
               value={nameDraft}
               onChangeText={setNameDraft}
-              placeholder="Digite seu nome"
+              placeholder={t('profile.namePlaceholderModal')}
               placeholderTextColor={theme.colors.textTertiary}
               maxLength={60}
             />
@@ -669,7 +752,7 @@ export default function ProfileScreen() {
                 disabled={nameBusy}
               >
                 <Text className="font-semibold" style={themeStyles.text}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -681,7 +764,7 @@ export default function ProfileScreen() {
                 {nameBusy ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="font-semibold text-white">Salvar</Text>
+                  <Text className="font-semibold text-white">{t('common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -709,10 +792,10 @@ export default function ProfileScreen() {
             style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-4" style={themeStyles.text}>
-              Alterar senha
+              {t('profile.changePasswordModalTitle')}
             </Text>
             <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
-              Senha atual
+              {t('profile.currentPassword')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3 mb-3 text-base"
@@ -724,7 +807,7 @@ export default function ProfileScreen() {
               placeholderTextColor={theme.colors.textTertiary}
             />
             <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
-              Nova senha
+              {t('profile.newPassword')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3 mb-3 text-base"
@@ -732,11 +815,11 @@ export default function ProfileScreen() {
               secureTextEntry
               value={newPwd}
               onChangeText={setNewPwd}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('profile.newPasswordPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
             />
             <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
-              Confirmar nova senha
+              {t('profile.confirmNewPassword')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3 mb-5 text-base"
@@ -744,7 +827,7 @@ export default function ProfileScreen() {
               secureTextEntry
               value={confirmPwd}
               onChangeText={setConfirmPwd}
-              placeholder="Repita a nova senha"
+              placeholder={t('profile.repeatNewPassword')}
               placeholderTextColor={theme.colors.textTertiary}
             />
             <View className="flex-row gap-3">
@@ -755,7 +838,7 @@ export default function ProfileScreen() {
                 disabled={pwdBusy}
               >
                 <Text className="font-semibold" style={themeStyles.text}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -767,7 +850,7 @@ export default function ProfileScreen() {
                 {pwdBusy ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="font-semibold text-white">Salvar</Text>
+                  <Text className="font-semibold text-white">{t('common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -795,10 +878,10 @@ export default function ProfileScreen() {
             style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
           >
             <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.error }}>
-              Excluir conta
+              {t('profile.deleteModalTitle')}
             </Text>
             <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-              Digite sua senha atual para confirmar. Sua conta de autenticação e seu perfil serão removidos.
+              {t('profile.deleteModalHint')}
             </Text>
             <TextInput
               className="w-full rounded-xl px-4 py-3 mb-5 text-base"
@@ -806,7 +889,7 @@ export default function ProfileScreen() {
               secureTextEntry
               value={deletePwd}
               onChangeText={setDeletePwd}
-              placeholder="Senha atual"
+              placeholder={t('profile.deletePlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
             />
             <View className="flex-row gap-3">
@@ -817,7 +900,7 @@ export default function ProfileScreen() {
                 disabled={deleteBusy}
               >
                 <Text className="font-semibold" style={themeStyles.text}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -829,7 +912,7 @@ export default function ProfileScreen() {
                 {deleteBusy ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="font-semibold text-white">Excluir</Text>
+                  <Text className="font-semibold text-white">{t('profile.deleteButton')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -839,11 +922,11 @@ export default function ProfileScreen() {
 
       <CustomAlert
         visible={deleteConfirmVisible}
-        title="Excluir conta"
-        message="Esta ação é permanente. Seus dados de perfil serão removidos. Treinos e histórico podem permanecer conforme as regras do app. Deseja continuar?"
+        title={t('profile.deleteConfirmTitle')}
+        message={t('profile.deleteConfirmMsg')}
         type="warning"
-        confirmText="Continuar"
-        cancelText="Cancelar"
+        confirmText={t('common.continue')}
+        cancelText={t('common.cancel')}
         showCancel
         onConfirm={() => {
           setDeleteConfirmVisible(false);
@@ -855,30 +938,30 @@ export default function ProfileScreen() {
 
       <CustomAlert
         visible={coachMessageSavedVisible}
-        title="Mensagem salva"
-        message="Sua mensagem para atletas foi atualizada."
+        title={t('profile.messageSavedTitle')}
+        message={t('profile.messageSavedBody')}
         type="success"
-        confirmText="OK"
+        confirmText={t('common.ok')}
         onConfirm={() => setCoachMessageSavedVisible(false)}
         onCancel={() => setCoachMessageSavedVisible(false)}
       />
 
       <CustomAlert
         visible={nameSavedVisible}
-        title="Perfil"
-        message="Nome atualizado com sucesso."
+        title={t('profile.nameSavedTitle')}
+        message={t('profile.nameSavedBody')}
         type="success"
-        confirmText="OK"
+        confirmText={t('common.ok')}
         onConfirm={() => setNameSavedVisible(false)}
         onCancel={() => setNameSavedVisible(false)}
       />
 
       <CustomAlert
         visible={photoSavedVisible}
-        title="Foto de perfil"
-        message="Foto atualizada com sucesso."
+        title={t('profile.photoSavedTitle')}
+        message={t('profile.photoSavedBody')}
         type="success"
-        confirmText="OK"
+        confirmText={t('common.ok')}
         onConfirm={() => setPhotoSavedVisible(false)}
         onCancel={() => setPhotoSavedVisible(false)}
       />

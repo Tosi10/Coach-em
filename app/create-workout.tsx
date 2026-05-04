@@ -19,13 +19,14 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { listExercisesByCoachId } from '@/src/services/exercises.service';
 import { createWorkoutTemplate } from '@/src/services/workoutTemplates.service';
-import { assertCanCreateResource } from '@/src/services/planLimits.service';
+import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Exercícios padrão de academia para iniciar os treinos do treinador.
@@ -39,6 +40,7 @@ const normalizeSearchText = (value: string) =>
         .trim();
 
 export default function CreateWorkoutScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
     const { theme } = useTheme();
@@ -68,17 +70,31 @@ export default function CreateWorkoutScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
     const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
+    const [alertOnCancel, setAlertOnCancel] = useState<(() => void) | null>(null);
+    const [alertShowCancel, setAlertShowCancel] = useState(false);
+    const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>(undefined);
+    const [alertCancelText, setAlertCancelText] = useState<string | undefined>(undefined);
 
     const showAlert = (
         title: string,
         message: string,
         type: 'success' | 'error' | 'info' | 'warning' = 'info',
-        onConfirm?: () => void
+        onConfirm?: () => void,
+        options?: {
+            showCancel?: boolean;
+            onCancel?: () => void;
+            confirmText?: string;
+            cancelText?: string;
+        }
     ) => {
         setAlertTitle(title);
         setAlertMessage(message);
         setAlertType(type);
         setAlertOnConfirm(() => onConfirm ?? null);
+        setAlertOnCancel(() => options?.onCancel ?? null);
+        setAlertShowCancel(options?.showCancel ?? false);
+        setAlertConfirmText(options?.confirmText);
+        setAlertCancelText(options?.cancelText);
         setAlertVisible(true);
     };
 
@@ -95,7 +111,7 @@ export default function CreateWorkoutScreen() {
             );
             setAllExercises(combined);
         } catch (error) {
-            console.error('Erro ao carregar exercícios:', error);
+            console.error('Error loading exercises:', error);
             setAllExercises(mockExercises);
         }
     }, [user?.id]);
@@ -207,13 +223,13 @@ export default function CreateWorkoutScreen() {
     const handleSaveWorkout = async() => {
         // Validação básica
         if (!workoutName.trim()) {
-            showAlert('Erro', 'Por favor, preencha o nome do treino.', 'error');
+            showAlert(t('common.error'), t('createWorkout.errNameRequired'), 'error');
             return;
         }
 
         // Validação: somente o bloco principal é obrigatório.
         if (workExercises.length === 0) {
-            showAlert('Erro', 'Nova regra: adicione pelo menos 1 exercício no bloco Principal.', 'error');
+            showAlert(t('common.error'), t('createWorkout.errMainBlockRequired'), 'error');
             return;
         }
 
@@ -245,7 +261,7 @@ export default function CreateWorkoutScreen() {
         try {
             const coachId = user?.id;
             if (!coachId) {
-                showAlert('Erro', 'Você precisa estar logado para criar um treino.', 'error');
+                showAlert(t('common.error'), t('createWorkout.errNeedLogin'), 'error');
                 return;
             }
             await assertCanCreateResource(coachId, 'workoutTemplates');
@@ -257,17 +273,33 @@ export default function CreateWorkoutScreen() {
             });
 
             showAlert(
-                'Treino Criado!',
-                `Treino "${workoutName}" criado com sucesso!\n\n` +
-                `Aquecimento: ${warmUpExercises.length} exercício(s)\n` +
-                `Principal: ${workExercises.length} exercício(s)\n` +
-                `Finalização: ${coolDownExercises.length} exercício(s)`,
+                t('createWorkout.createdTitle'),
+                t('createWorkout.createdBody', {
+                  name: workoutName,
+                  warmup: warmUpExercises.length,
+                  work: workExercises.length,
+                  cooldown: coolDownExercises.length,
+                }),
                 'success',
                 () => router.back()
             );
         } catch (error){
-            console.error('Erro ao salvar treino:', error);
-            showAlert('Erro', 'Não foi possível salvar o treino. Por favor, tente novamente.', 'error');
+            console.error('Error saving workout:', error);
+            if (error instanceof FreePlanLimitError) {
+                showAlert(
+                    t('createWorkout.planLimitTitle'),
+                    error.message,
+                    'warning',
+                    () => router.push('/subscription'),
+                    {
+                        showCancel: true,
+                        confirmText: t('createWorkout.viewPlans'),
+                        cancelText: t('common.close'),
+                    }
+                );
+                return;
+            }
+            showAlert(t('common.error'), t('createWorkout.errSaveFailed'), 'error');
         }
     };
 
@@ -373,11 +405,11 @@ export default function CreateWorkoutScreen() {
     const getBlockName = (blockType: WorkoutBlock) => {
         switch (blockType) {
             case WorkoutBlock.WARM_UP:
-                return 'Aquecimento';
+                return t('createWorkout.blockWarmup');
             case WorkoutBlock.WORK:
-                return 'Principal';
+                return t('createWorkout.blockMain');
             case WorkoutBlock.COOL_DOWN:
-                return 'Finalização';
+                return t('createWorkout.blockCooldown');
         }
     };
 
@@ -409,7 +441,7 @@ export default function CreateWorkoutScreen() {
                         onPress={() => setSelectingForBlock(blockType)}
                     >
                         <Text className="font-semibold text-sm" style={{ color: theme.colors.primary }}>
-                            + Adicionar Exercício
+                            {t('createWorkout.addExercise')}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -418,7 +450,7 @@ export default function CreateWorkoutScreen() {
                 {exercises.length === 0 ? (
                     <View className="rounded-xl p-4 border" style={themeStyles.card}>
                         <Text className="text-center" style={themeStyles.textSecondary}>
-                            Nenhum exercício adicionado ainda
+                            {t('createWorkout.emptyBlock')}
                         </Text>
                     </View>
                 ) : (
@@ -476,22 +508,22 @@ export default function CreateWorkoutScreen() {
                         <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                     </View>
                     <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                        Voltar
+                        {t('common.back')}
                     </Text>
                 </TouchableOpacity>
 
                 {/* Título */}
                 <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-                    Criar Novo Treino
+                    {t('createWorkout.title')}
                 </Text>
                 <Text className="mb-6" style={themeStyles.textSecondary}>
-                    Monte seu treino livremente. Apenas o bloco Principal é obrigatório.
+                    {t('createWorkout.subtitle')}
                 </Text>
 
                 {/* Formulário básico */}
                 <View className="mb-6">
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Nome do Treino *
+                        {t('createWorkout.nameLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3 mb-4"
@@ -500,14 +532,14 @@ export default function CreateWorkoutScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Ex: Treino de Força - Pernas"
+                        placeholder={t('createWorkout.namePlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={workoutName}
                         onChangeText={setWorkoutName}
                     />
 
                     <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                        Descrição (opcional)
+                        {t('createWorkout.descriptionLabel')}
                     </Text>
                     <TextInput
                         className="border rounded-lg px-4 py-3"
@@ -516,7 +548,7 @@ export default function CreateWorkoutScreen() {
                           borderColor: theme.colors.border,
                           color: theme.colors.text,
                         }}
-                        placeholder="Descreva o objetivo do treino..."
+                        placeholder={t('createWorkout.descriptionPlaceholder')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={workoutDescription}
                         onChangeText={setWorkoutDescription}
@@ -542,7 +574,9 @@ export default function CreateWorkoutScreen() {
                         <View className="rounded-3xl p-6 w-full max-h-[80%] min-h-[70%] border" style={themeStyles.card}>
                             {/* Título */}
                             <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                                Selecionar Exercício para {selectingForBlock ? getBlockName(selectingForBlock) : ''}
+                                {t('createWorkout.selectExerciseFor', {
+                                  block: selectingForBlock ? getBlockName(selectingForBlock) : '',
+                                })}
                             </Text>
 
                             {/* BUSCA POR TEXTO */}
@@ -553,7 +587,7 @@ export default function CreateWorkoutScreen() {
                                   borderColor: theme.colors.border,
                                   color: theme.colors.text,
                                 }}
-                                placeholder="Buscar exercício..."
+                                placeholder={t('createWorkout.searchPlaceholder')}
                                 placeholderTextColor={theme.colors.textTertiary}
                                 value={searchExerciseText}
                                 onChangeText={setSearchExerciseText}
@@ -562,7 +596,7 @@ export default function CreateWorkoutScreen() {
                             {/* FILTRO POR TIPO DE EXERCÍCIO */}
                             <View className="mb-3">
                                 <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                                    Tipo de Exercício
+                                    {t('createWorkout.exerciseType')}
                                 </Text>
                                 <ScrollView
                                     horizontal
@@ -588,7 +622,7 @@ export default function CreateWorkoutScreen() {
                                             ? '#ffffff'
                                             : theme.colors.text
                                         }}>
-                                            🔥 Aquecimento
+                                            {t('createWorkout.filterWarmup')}
                                         </Text>
                                     </TouchableOpacity>
 
@@ -610,7 +644,7 @@ export default function CreateWorkoutScreen() {
                                             ? '#ffffff'
                                             : theme.colors.text
                                         }}>
-                                            💪 Treino
+                                            {t('createWorkout.filterWork')}
                                         </Text>
                                     </TouchableOpacity>
 
@@ -632,7 +666,7 @@ export default function CreateWorkoutScreen() {
                                             ? '#ffffff'
                                             : theme.colors.text
                                         }}>
-                                            🧘 Finalização
+                                            {t('createWorkout.filterCooldown')}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -642,7 +676,7 @@ export default function CreateWorkoutScreen() {
                             {/* FILTRO POR GRUPO MUSCULAR */}
                             <View className="mb-3">
                                 <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-                                    Grupo Muscular
+                                    {t('createWorkout.muscleGroup')}
                                 </Text>
                                 <ScrollView 
                                     horizontal 
@@ -665,7 +699,7 @@ export default function CreateWorkoutScreen() {
                                                 ? '#ffffff'
                                                 : theme.colors.text
                                             }}>
-                                                Todos
+                                                {t('createWorkout.all')}
                                             </Text>
                                         </TouchableOpacity>
 
@@ -706,7 +740,7 @@ export default function CreateWorkoutScreen() {
                             >
                                 {getFilteredExercises().length === 0 ? (
                                     <Text className="text-center py-8" style={themeStyles.textSecondary}>
-                                        Nenhum exercício encontrado
+                                        {t('createWorkout.noExercisesFound')}
                                     </Text>
                                 ) : (
                                     getFilteredExercises().map((exercise) => (
@@ -768,7 +802,7 @@ export default function CreateWorkoutScreen() {
                                 }}
                             >
                                 <Text className="text-center font-bold" style={{ color: theme.colors.primary }}>
-                                    Cancelar
+                                    {t('common.cancel')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -792,7 +826,7 @@ export default function CreateWorkoutScreen() {
                     onPress={handleSaveWorkout}
                 >
                     <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-                        💾 Salvar Treino
+                        {t('createWorkout.saveButton')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -803,10 +837,16 @@ export default function CreateWorkoutScreen() {
             title={alertTitle}
             message={alertMessage}
             type={alertType}
-            confirmText="OK"
+            confirmText={alertConfirmText ?? t('common.ok')}
+            cancelText={alertCancelText ?? t('common.cancel')}
+            showCancel={alertShowCancel}
             onConfirm={() => {
                 setAlertVisible(false);
                 alertOnConfirm?.();
+            }}
+            onCancel={() => {
+                setAlertVisible(false);
+                alertOnCancel?.();
             }}
         />
     </>

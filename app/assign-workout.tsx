@@ -9,16 +9,18 @@ import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.s
 import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import {
-  formatAssignedCalendarDatePtBr,
+  formatAssignedCalendarDateByLocale,
+  formatFlexibleDateByLocale,
   getLocalTodayYmd,
   parseDateOnlyLocal,
-  weekdayLongPtBrFromYmd,
+  weekdayLongFromYmdByLocale,
 } from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -208,6 +210,7 @@ function isDateThisWeek(dateString: string): boolean {
 }
 
 export default function AssignWorkoutScreen() {
+    const { t, i18n } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
     const { theme } = useTheme();
@@ -271,13 +274,24 @@ export default function AssignWorkoutScreen() {
       );
     }, [athleteId, user?.id]);
 
+    const shortAthleteId =
+      athleteId && athleteId.length > 8 ? athleteId.slice(-8) : athleteId ?? '';
     const athlete = athleteId
       ? {
           id: athleteId,
-          name: athleteName ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}`,
-          status: athleteStatus ?? 'Ativo',
+          name:
+            athleteName ??
+            t('assignWorkout.athleteFallback', {
+              id: shortAthleteId,
+            }),
+          status: athleteStatus ?? t('assignWorkout.statusActive'),
         }
       : null;
+
+    const displayAthleteStatus = (s: string) => {
+      if (s === 'Ativo' || s === 'Active') return t('assignWorkout.statusActive');
+      return s;
+    };
 
     // Carregar templates do Firestore
     const loadAllWorkouts = useCallback(async () => {
@@ -301,7 +315,9 @@ export default function AssignWorkoutScreen() {
     }, [loadAllWorkouts]);
 
     const getRecurringSummary = (dates: string[]): string =>
-        `${dates.length} treino${dates.length !== 1 ? 's' : ''} em datas selecionadas manualmente`;
+        dates.length === 1
+          ? t('assignWorkout.recurringSummaryOne', { count: dates.length })
+          : t('assignWorkout.recurringSummaryMany', { count: dates.length });
 
     // Função auxiliar para mostrar alertas customizados
     const showAlert = (
@@ -319,31 +335,31 @@ export default function AssignWorkoutScreen() {
 
     const handleAssignWorkout = async () => {
         if (!selectedWorkoutId) {
-            showAlert('Erro', 'Por favor, selecione um treino.', 'error');
+            showAlert(t('common.error'), t('assignWorkout.errSelectWorkout'), 'error');
             return;
         }
 
         const workout = allWorkouts.find(w => w.id === selectedWorkoutId);
 
         if(!workout) {
-            showAlert('Erro', 'Treino não encontrado.', 'error');
+            showAlert(t('common.error'), t('assignWorkout.errWorkoutNotFound'), 'error');
             return;
         }
 
         if(!athlete) {
-            showAlert('Erro', 'Atleta não encontrado.', 'error');
+            showAlert(t('common.error'), t('assignWorkout.errAthleteNotFound'), 'error');
             return;
         }
 
         // Validar recorrência
         if (isRecurring) {
             if (recurringDates.length === 0) {
-                showAlert('Erro', 'Selecione pelo menos uma data no calendário recorrente.', 'error');
+                showAlert(t('common.error'), t('assignWorkout.errRecurringDate'), 'error');
                 return;
             }
         } else {
             if(!selectedDate || selectedDate.trim() === '') {
-                showAlert('Erro', 'Por favor, informe a data do treino.', 'error');
+                showAlert(t('common.error'), t('assignWorkout.errDateRequired'), 'error');
                 return;
             }
         }
@@ -351,7 +367,7 @@ export default function AssignWorkoutScreen() {
         try {
             const coachId = user?.id;
             if (!coachId) {
-                showAlert('Erro', 'Você precisa estar logado para atribuir treinos.', 'error');
+                showAlert(t('common.error'), t('assignWorkout.errLogin'), 'error');
                 return;
             }
 
@@ -366,7 +382,7 @@ export default function AssignWorkoutScreen() {
             }
 
             if (datesToAssign.length === 0) {
-                showAlert('Erro', 'Nenhuma data válida foi gerada para esse padrão de recorrência.', 'error');
+                showAlert(t('common.error'), t('assignWorkout.errNoValidDates'), 'error');
                 return;
             }
 
@@ -376,7 +392,7 @@ export default function AssignWorkoutScreen() {
             const normalizedCoachName =
                 (typeof (user as any)?.publicCoachName === 'string' && (user as any).publicCoachName.trim()) ||
                 (typeof user?.displayName === 'string' && user.displayName.trim()) ||
-                'Treinador(a)';
+                t('assignWorkout.coachDefaultName');
 
             const newAssignments = datesToAssign.map((date) => {
                 const assignedWorkoutId = `assigned_${Date.now()}_${Math.random().toString(36).substr(2,9)}_${date}`;
@@ -392,7 +408,7 @@ export default function AssignWorkoutScreen() {
                     status: 'Pendente',
                     coach: normalizedCoachName,
                     coachPublicName: normalizedCoachName,
-                    dayOfWeek: weekdayLongPtBrFromYmd(date),
+                    dayOfWeek: weekdayLongFromYmdByLocale(date, i18n.language),
                     isToday: date === todayStr,
                     isThisWeek: isDateThisWeek(date),
                     createdAt: new Date().toISOString(),
@@ -424,11 +440,19 @@ export default function AssignWorkoutScreen() {
             }
             
             const message = isRecurring
-                ? `Treino "${workout.name}" atribuído para ${athlete.name}: ${getRecurringSummary(datesToAssign)}.`
-                : `Treino "${workout.name}" atribuído para ${athlete.name} em ${selectedDate}`;
+                ? t('assignWorkout.assignedRecurring', {
+                    name: workout.name,
+                    athlete: athlete.name,
+                    summary: getRecurringSummary(datesToAssign),
+                  })
+                : t('assignWorkout.assignedSingle', {
+                    name: workout.name,
+                    athlete: athlete.name,
+                    date: formatAssignedCalendarDateByLocale(selectedDate, i18n.language),
+                  });
 
             showAlert(
-                'Treino Atribuído!',
+                t('assignWorkout.assignedTitle'),
                 message,
                 'success',
                 () => router.back()
@@ -437,8 +461,8 @@ export default function AssignWorkoutScreen() {
         } catch(error) {
             console.error('Erro ao salvar treino:', error);
             showAlert(
-                'Erro',
-                'Não foi possível salvar o treino. Tente novamente.',
+                t('common.error'),
+                t('assignWorkout.saveError'),
                 'error'
             );
         }
@@ -453,21 +477,21 @@ export default function AssignWorkoutScreen() {
                         <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
                             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                         </View>
-                        <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>Voltar</Text>
+                        <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>{t('common.back')}</Text>
                     </TouchableOpacity>
-                    <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>Atribuir treino</Text>
-                    <Text className="mb-6" style={themeStyles.textSecondary}>Selecione o atleta para atribuir o treino.</Text>
+                    <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>{t('assignWorkout.title')}</Text>
+                    <Text className="mb-6" style={themeStyles.textSecondary}>{t('assignWorkout.selectAthleteSubtitle')}</Text>
                     {athletesList.length === 0 ? (
                         <View className="rounded-xl p-6 border" style={themeStyles.card}>
                             <Text className="text-center mb-4" style={themeStyles.textSecondary}>
-                                Nenhum atleta cadastrado. Cadastre um na aba Atletas primeiro.
+                                {t('assignWorkout.noAthletes')}
                             </Text>
                             <TouchableOpacity
                                 className="rounded-xl py-3"
                                 style={{ backgroundColor: theme.colors.primary }}
                                 onPress={() => router.back()}
                             >
-                                <Text className="font-semibold text-center" style={{ color: '#fff' }}>Voltar</Text>
+                                <Text className="font-semibold text-center" style={{ color: '#fff' }}>{t('common.back')}</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -479,7 +503,7 @@ export default function AssignWorkoutScreen() {
                                 onPress={() => router.push({ pathname: '/assign-workout', params: { athleteId: a.id } })}
                             >
                                 <Text className="text-lg font-semibold" style={themeStyles.text}>{a.name}</Text>
-                                <Text className="text-sm mt-1" style={themeStyles.textSecondary}>Toque para atribuir treino</Text>
+                                <Text className="text-sm mt-1" style={themeStyles.textSecondary}>{t('assignWorkout.tapToAssign')}</Text>
                             </TouchableOpacity>
                         ))
                     )}
@@ -492,9 +516,9 @@ export default function AssignWorkoutScreen() {
     if (!athlete) {
         return (
             <View className="flex-1 justify-center items-center px-6" style={themeStyles.bg}>
-                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>Atleta não encontrado</Text>
+                <Text className="text-xl font-bold mb-4" style={themeStyles.text}>{t('assignWorkout.athleteNotFoundTitle')}</Text>
                 <TouchableOpacity className="rounded-lg py-3 px-6" style={{ backgroundColor: theme.colors.primary }} onPress={() => router.back()}>
-                    <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
+                    <Text className="font-semibold" style={{ color: '#ffffff' }}>{t('common.back')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -505,9 +529,9 @@ export default function AssignWorkoutScreen() {
             <ScrollView className="flex-1" style={themeStyles.bg}>
                 <View className="px-6 pt-20 pb-20">
                     <FirstTimeTip
-                      storageKey="tutorial_assign_workout_v1"
-                      title="Atribuir treino para o atleta"
-                      description="Escolha um atleta (se necessário), selecione um treino da sua biblioteca, defina datas únicas ou recorrentes e confirme para criar os treinos atribuídos."
+                      storageKey="tutorial_assign_workout_v2"
+                      title={t('assignWorkout.tipTitle')}
+                      description={t('assignWorkout.tipDescription')}
                     />
                     {/* Header com botão voltar melhorado */}
                     <TouchableOpacity 
@@ -519,15 +543,15 @@ export default function AssignWorkoutScreen() {
                             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
                         </View>
                         <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                            Voltar
+                            {t('common.back')}
                         </Text>
                     </TouchableOpacity>
 
                     <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-                        Atribuir Treino
+                        {t('assignWorkout.titleH1')}
                     </Text>
                     <Text className="mb-6" style={themeStyles.textSecondary}>
-                        Escolha um treino e a data para {athlete.name}
+                        {t('assignWorkout.chooseWorkoutDate', { name: athlete.name })}
                     </Text>
 
                     <View className="rounded-lg p-4 mb-6 border" style={themeStyles.card}>
@@ -535,13 +559,13 @@ export default function AssignWorkoutScreen() {
                             {athlete.name}
                         </Text>
                         <Text style={themeStyles.textSecondary}>
-                            {athlete.status}
+                            {displayAthleteStatus(athlete.status)}
                         </Text>
                     </View>
 
                     <View className="mb-6">
                         <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                            Selecionar Treino *
+                            {t('assignWorkout.selectWorkout')}
                         </Text>
 
                         {/* Botão para abrir modal de seleção */}
@@ -579,7 +603,10 @@ export default function AssignWorkoutScreen() {
                                                 {selectedWorkout?.description}
                                             </Text>
                                             <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
-                                                📋 {totalExercises} exercícios • Criado em {selectedWorkout?.createdAt}
+                                                {t('assignWorkout.exercisesCount', {
+                                                  count: totalExercises,
+                                                  date: formatFlexibleDateByLocale(selectedWorkout?.createdAt ?? '', i18n.language),
+                                                })}
                                             </Text>
                                         </>
                                     );
@@ -587,7 +614,7 @@ export default function AssignWorkoutScreen() {
                             ) : (
                                 <View className="flex-row items-center justify-between">
                                     <Text className="text-base" style={themeStyles.textSecondary}>
-                                        Toque para selecionar um treino
+                                        {t('assignWorkout.tapSelectWorkout')}
                                     </Text>
                                     <FontAwesome name="chevron-right" size={16} color={theme.colors.textTertiary} />
                                 </View>
@@ -608,7 +635,7 @@ export default function AssignWorkoutScreen() {
                                     {/* Header do Modal */}
                                     <View className="flex-row justify-between items-center mb-4">
                                         <Text className="text-xl font-bold" style={themeStyles.text}>
-                                            Selecionar Treino
+                                            {t('assignWorkout.modalSelectWorkout')}
                                         </Text>
                                         <TouchableOpacity
                                             onPress={() => setShowWorkoutModal(false)}
@@ -628,7 +655,7 @@ export default function AssignWorkoutScreen() {
                                         {allWorkouts.length === 0 ? (
                                             <View className="rounded-xl p-6 mb-2" style={themeStyles.cardSecondary}>
                                                 <Text className="text-center" style={themeStyles.textSecondary}>
-                                                    Nenhum treino disponível
+                                                    {t('assignWorkout.noWorkoutsAvailable')}
                                                 </Text>
                                             </View>
                                         ) : (
@@ -670,8 +697,11 @@ export default function AssignWorkoutScreen() {
                                                                 <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
                                                                     {workout.description}
                                                                 </Text>
-                                                                <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
-                                                                    📋 {totalExercises} exercícios • Criado em {workout.createdAt}
+                                                                        <Text className="text-sm font-medium" style={{ color: theme.colors.primary }}>
+                                                                    {t('assignWorkout.exercisesCount', {
+                                                                      count: totalExercises,
+                                                                      date: formatFlexibleDateByLocale(workout.createdAt, i18n.language),
+                                                                    })}
                                                                 </Text>
                                                             </View>
                                                             {isSelected && (
@@ -692,7 +722,7 @@ export default function AssignWorkoutScreen() {
 
                     <View className="mb-6">
                         <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-                            Data do Treino *
+                            {t('assignWorkout.workoutDate')}
                         </Text>
 
                         {/* Toggle entre data única e recorrente */}
@@ -709,7 +739,7 @@ export default function AssignWorkoutScreen() {
                                     ? (theme.mode === 'dark' ? '#000' : '#fff')
                                     : theme.colors.textSecondary
                                 }}>
-                                    Data Única
+                                    {t('assignWorkout.singleDate')}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -724,7 +754,7 @@ export default function AssignWorkoutScreen() {
                                     ? (theme.mode === 'dark' ? '#000' : '#fff')
                                     : theme.colors.textSecondary
                                 }}>
-                                    Recorrente
+                                    {t('assignWorkout.recurring')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -738,17 +768,17 @@ export default function AssignWorkoutScreen() {
                                     onPress={() => setShowCalendar(true)}
                                 >
                                     <Text style={themeStyles.text}>
-                                        {selectedDate ? formatAssignedCalendarDatePtBr(selectedDate) : 'Selecione uma data'}
+                                        {selectedDate ? formatAssignedCalendarDateByLocale(selectedDate, i18n.language) : t('assignWorkout.pickDate')}
                                     </Text>
                                 </TouchableOpacity>
                                 <Text className="text-xs" style={themeStyles.textTertiary}>
-                                    Toque para abrir o calendário
+                                    {t('assignWorkout.openCalendarHint')}
                                 </Text>
                             </View>
                         ) : (
                             // Recorrente
                             <View>
-                                <Text className="font-semibold mb-2" style={themeStyles.text}>Datas recorrentes:</Text>
+                                <Text className="font-semibold mb-2" style={themeStyles.text}>{t('assignWorkout.recurringDates')}</Text>
                                 <TouchableOpacity
                                     className="border rounded-lg px-4 py-3 mb-4"
                                     style={themeStyles.card}
@@ -756,8 +786,10 @@ export default function AssignWorkoutScreen() {
                                 >
                                     <Text style={themeStyles.text}>
                                         {recurringDates.length > 0
-                                            ? `${recurringDates.length} data${recurringDates.length !== 1 ? 's' : ''} selecionada${recurringDates.length !== 1 ? 's' : ''}`
-                                            : 'Selecionar datas no calendário'}
+                                            ? recurringDates.length === 1
+                                              ? t('assignWorkout.datesSelectedOne', { count: recurringDates.length })
+                                              : t('assignWorkout.datesSelectedMany', { count: recurringDates.length })
+                                            : t('assignWorkout.selectDatesCalendar')}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -771,7 +803,7 @@ export default function AssignWorkoutScreen() {
                                                 .slice()
                                                 .sort((a, b) => a.localeCompare(b))
                                                 .slice(0, 6)
-                                                .map(formatAssignedCalendarDatePtBr)
+                                                .map((d) => formatAssignedCalendarDateByLocale(d, i18n.language))
                                                 .join(' • ')}
                                             {recurringDates.length > 6 ? ' ...' : ''}
                                         </Text>
@@ -781,7 +813,7 @@ export default function AssignWorkoutScreen() {
                                             onPress={() => setRecurringDates([])}
                                         >
                                             <Text className="text-xs font-semibold" style={themeStyles.textSecondary}>
-                                                Limpar datas
+                                                {t('assignWorkout.clearDates')}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
@@ -802,7 +834,7 @@ export default function AssignWorkoutScreen() {
                                 <View className="rounded-3xl p-6 border w-full max-w-md" style={themeStyles.card}>
                                     <View className="flex-row justify-between items-center mb-4">
                                         <Text className="text-xl font-bold" style={themeStyles.text}>
-                                            Selecionar Data
+                                            {t('assignWorkout.selectDateModal')}
                                         </Text>
                                         <TouchableOpacity
                                             onPress={() => setShowCalendar(false)}
@@ -870,10 +902,10 @@ export default function AssignWorkoutScreen() {
                     {/* Horário do treino (para avisos e lembretes) - abre modal com todo o dia de 30 em 30 min */}
                     <View className="mb-6">
                         <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
-                            Horário do treino *
+                            {t('assignWorkout.workoutTime')}
                         </Text>
                         <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
-                            Toque para escolher o horário (lembretes: 1h antes, 30 min antes e na hora)
+                            {t('assignWorkout.timeHint')}
                         </Text>
                         <TouchableOpacity
                             className="border rounded-xl px-4 py-3 flex-row items-center justify-between"
@@ -903,7 +935,7 @@ export default function AssignWorkoutScreen() {
                                 >
                                     <View className="flex-row justify-between items-center p-4 border-b" style={{ borderBottomColor: theme.colors.border }}>
                                         <Text className="text-xl font-bold" style={themeStyles.text}>
-                                            Escolher horário
+                                            {t('assignWorkout.chooseTimeModal')}
                                         </Text>
                                         <TouchableOpacity
                                             onPress={() => setShowTimeModal(false)}
@@ -977,7 +1009,7 @@ export default function AssignWorkoutScreen() {
                         onPress={handleAssignWorkout}
                     >
                         <Text className="font-semibold text-center text-lg" style={{ color: theme.colors.primary }}>
-                            ✅ Atribuir Treino
+                            {t('assignWorkout.assignButton')}
                         </Text>
                     </TouchableOpacity>
 
@@ -991,7 +1023,7 @@ export default function AssignWorkoutScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 type={alertType}
-                confirmText="OK"
+                confirmText={t('common.ok')}
                 onConfirm={() => {
                     setAlertVisible(false);
                     alertOnConfirm?.();

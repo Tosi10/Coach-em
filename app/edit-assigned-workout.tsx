@@ -16,11 +16,13 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const mockExercises: Exercise[] = DEFAULT_EXERCISES;
 
 export default function EditAssignedWorkoutScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { theme } = useTheme();
@@ -69,7 +71,7 @@ export default function EditAssignedWorkoutScreen() {
         if (!assignedWorkoutIdString) return;
         const assigned = await getAssignedWorkoutById(assignedWorkoutIdString);
         if (!assigned) {
-          showAlert('Erro', 'Treino atribuído não encontrado.', 'error', () => router.back());
+          showAlert(t('common.error'), t('editAssignedWorkout.notFound'), 'error', () => router.back());
           return;
         }
         setWorkoutName(assigned.name || '');
@@ -87,8 +89,8 @@ export default function EditAssignedWorkoutScreen() {
         setCoolDownExercises(coolBlock?.exercises ?? []);
         setCoolDownNotes(coolBlock?.notes ?? '');
       } catch (error) {
-        console.error('Erro ao carregar treino atribuído:', error);
-        showAlert('Erro', 'Não foi possível carregar o treino.', 'error', () => router.back());
+        console.error('Error loading assigned workout:', error);
+        showAlert(t('common.error'), t('editAssignedWorkout.loadError'), 'error', () => router.back());
       } finally {
         setLoading(false);
       }
@@ -104,7 +106,7 @@ export default function EditAssignedWorkoutScreen() {
         mergeDefaultExercisesWithCoachSaved(mockExercises, saved, coachId ?? undefined)
       );
     } catch (error) {
-      console.error('Erro ao carregar exercícios:', error);
+      console.error('Error loading exercises:', error);
     }
   }, [user?.id]);
 
@@ -201,7 +203,7 @@ export default function EditAssignedWorkoutScreen() {
 
   const handleSave = async () => {
     if (!workoutName.trim()) {
-      showAlert('Erro', 'Preencha o nome do treino.', 'error');
+      showAlert(t('common.error'), t('createWorkout.errNameRequired'), 'error');
       return;
     }
     if (!assignedWorkoutIdString) return;
@@ -216,10 +218,10 @@ export default function EditAssignedWorkoutScreen() {
         description: workoutDescription.trim(),
         blocks,
       });
-      showAlert('Sucesso', 'Treino atualizado com sucesso!', 'success', () => router.back());
+      showAlert(t('common.success'), t('editAssignedWorkout.updatedSuccess'), 'success', () => router.back());
     } catch (error) {
-      console.error('Erro ao atualizar treino atribuído:', error);
-      showAlert('Erro', 'Não foi possível atualizar o treino.', 'error');
+      console.error('Error updating assigned workout:', error);
+      showAlert(t('common.error'), t('editAssignedWorkout.updateError'), 'error');
     }
   };
 
@@ -233,11 +235,11 @@ export default function EditAssignedWorkoutScreen() {
     <View className="mb-6">
       <Text className="text-xl font-bold mb-3" style={themeStyles.text}>{title}</Text>
       <View className="mb-3">
-        <Text className="font-semibold mb-2" style={themeStyles.text}>Notas do Bloco</Text>
+        <Text className="font-semibold mb-2" style={themeStyles.text}>{t('editWorkout.blockNotes')}</Text>
         <TextInput
           className="border rounded-lg px-4 py-3"
           style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-          placeholder="Ex: Aquecimento de 5 minutos"
+          placeholder={t('editWorkout.blockNotesPlaceholder')}
           placeholderTextColor={theme.colors.textTertiary}
           value={notes}
           onChangeText={setNotes}
@@ -250,13 +252,13 @@ export default function EditAssignedWorkoutScreen() {
         style={{ backgroundColor: theme.colors.primary }}
         onPress={() => { setCurrentBlock(blockType); setShowExerciseModal(true); }}
       >
-        <Text className="font-semibold text-center" style={{ color: '#ffffff' }}>➕ Adicionar Exercício</Text>
+        <Text className="font-semibold text-center" style={{ color: '#ffffff' }}>{t('createWorkout.addExercise')}</Text>
       </TouchableOpacity>
       {exercises.map((exercise, index) => (
         <View key={index} className="rounded-xl p-4 mb-3 border" style={themeStyles.card}>
           <View className="flex-row justify-between items-start mb-2">
             <Text className="text-lg font-semibold flex-1" style={themeStyles.text}>
-              {exercise.exercise?.name || 'Exercício'}
+              {exercise.exercise?.name || t('home.exercise')}
             </Text>
             <TouchableOpacity
               className="rounded-lg px-3 py-1"
@@ -287,7 +289,7 @@ export default function EditAssignedWorkoutScreen() {
         </View>
       ))}
       {exercises.length === 0 && (
-        <Text className="text-center py-4" style={themeStyles.textSecondary}>Nenhum exercício adicionado ainda</Text>
+        <Text className="text-center py-4" style={themeStyles.textSecondary}>{t('createWorkout.emptyBlock')}</Text>
       )}
     </View>
   );
@@ -295,7 +297,7 @@ export default function EditAssignedWorkoutScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
-        <Text className="text-xl font-bold" style={themeStyles.text}>Carregando...</Text>
+        <Text className="text-xl font-bold" style={themeStyles.text}>{t('workoutTemplateDetails.loading')}</Text>
       </View>
     );
   }
@@ -307,31 +309,31 @@ export default function EditAssignedWorkoutScreen() {
           <View className="rounded-full w-10 h-10 items-center justify-center mr-3 border" style={themeStyles.cardSecondary}>
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
-          <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>Voltar</Text>
+          <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>{t('common.back')}</Text>
         </TouchableOpacity>
 
-        <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>Editar treino atribuído</Text>
+        <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>{t('editAssignedWorkout.title')}</Text>
         <Text className="mb-6" style={themeStyles.textSecondary}>
-          Ajuste exercícios (adicione ou remova) conforme a necessidade do atleta
+          {t('editAssignedWorkout.subtitle')}
         </Text>
 
         <View className="mb-6">
-          <Text className="font-semibold mb-2" style={themeStyles.text}>Nome do Treino *</Text>
+          <Text className="font-semibold mb-2" style={themeStyles.text}>{t('createWorkout.nameLabel')}</Text>
           <TextInput
             className="border rounded-lg px-4 py-3"
             style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-            placeholder="Ex: Treino de Força - Pernas"
+            placeholder={t('createWorkout.namePlaceholder')}
             placeholderTextColor={theme.colors.textTertiary}
             value={workoutName}
             onChangeText={setWorkoutName}
           />
         </View>
         <View className="mb-6">
-          <Text className="font-semibold mb-2" style={themeStyles.text}>Descrição (opcional)</Text>
+          <Text className="font-semibold mb-2" style={themeStyles.text}>{t('createWorkout.descriptionLabel')}</Text>
           <TextInput
             className="border rounded-lg px-4 py-3"
             style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }}
-            placeholder="Descreva o treino..."
+            placeholder={t('createWorkout.descriptionPlaceholder')}
             placeholderTextColor={theme.colors.textTertiary}
             multiline
             numberOfLines={3}
@@ -340,16 +342,16 @@ export default function EditAssignedWorkoutScreen() {
           />
         </View>
 
-        {renderBlock('🔥 Aquecimento', warmUpExercises, WorkoutBlock.WARM_UP, warmUpNotes, setWarmUpNotes)}
-        {renderBlock('💪 Treino Principal', workExercises, WorkoutBlock.WORK, workNotes, setWorkNotes)}
-        {renderBlock('🧘 Finalização', coolDownExercises, WorkoutBlock.COOL_DOWN, coolDownNotes, setCoolDownNotes)}
+        {renderBlock(t('createWorkout.filterWarmup'), warmUpExercises, WorkoutBlock.WARM_UP, warmUpNotes, setWarmUpNotes)}
+        {renderBlock(t('editWorkout.mainBlockTitle'), workExercises, WorkoutBlock.WORK, workNotes, setWorkNotes)}
+        {renderBlock(t('createWorkout.filterCooldown'), coolDownExercises, WorkoutBlock.COOL_DOWN, coolDownNotes, setCoolDownNotes)}
 
         <TouchableOpacity
           className="rounded-lg py-4 px-6 mt-6"
           style={{ backgroundColor: theme.colors.primary, shadowColor: theme.colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 }}
           onPress={handleSave}
         >
-          <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>💾 Salvar alterações</Text>
+          <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>{t('editExercise.saveChanges')}</Text>
         </TouchableOpacity>
 
         <Modal
@@ -364,21 +366,21 @@ export default function EditAssignedWorkoutScreen() {
           <View className="flex-1 bg-black/50 justify-center items-center p-6">
             <View className="rounded-3xl p-6 w-full max-h-[80%] min-h-[70%] border" style={themeStyles.card}>
               <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-2xl font-bold" style={themeStyles.text}>Selecionar Exercício</Text>
+                <Text className="text-2xl font-bold" style={themeStyles.text}>{t('editWorkout.selectExerciseTitle')}</Text>
                 <TouchableOpacity onPress={() => { setShowExerciseModal(false); setCurrentBlock(null); resetFilters(); }}>
-                  <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>Fechar</Text>
+                  <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>{t('editWorkout.close')}</Text>
                 </TouchableOpacity>
               </View>
               <TextInput
                 className="border rounded-lg px-4 py-2 mb-3"
                 style={{ backgroundColor: theme.colors.backgroundTertiary, borderColor: theme.colors.border, color: theme.colors.text }}
-                placeholder="Buscar exercício..."
+                placeholder={t('createWorkout.searchPlaceholder')}
                 placeholderTextColor={theme.colors.textTertiary}
                 value={searchExerciseText}
                 onChangeText={setSearchExerciseText}
               />
               <View className="mb-3">
-                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Tipo</Text>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>{t('exercisesLibrary.type')}</Text>
                 <View className="flex-row gap-2">
                   {(['warmup', 'work', 'cooldown'] as const).map(type => (
                     <TouchableOpacity
@@ -388,14 +390,14 @@ export default function EditAssignedWorkoutScreen() {
                       onPress={() => setSelectedExerciseType(selectedExerciseType === type ? null : type)}
                     >
                       <Text className="text-sm font-semibold" style={{ color: selectedExerciseType === type ? '#ffffff' : theme.colors.text }}>
-                        {type === 'warmup' ? '🔥 Aquecimento' : type === 'work' ? '💪 Treino' : '🧘 Finalização'}
+                        {type === 'warmup' ? t('createWorkout.filterWarmup') : type === 'work' ? t('createWorkout.filterWork') : t('createWorkout.filterCooldown')}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
               <View className="mb-3">
-                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>Grupo Muscular</Text>
+                <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>{t('createWorkout.muscleGroup')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
                   <View className="flex-row gap-2">
                     <TouchableOpacity
@@ -403,7 +405,7 @@ export default function EditAssignedWorkoutScreen() {
                       style={{ backgroundColor: selectedMuscleGroup === null ? theme.colors.primary : theme.colors.backgroundTertiary }}
                       onPress={() => setSelectedMuscleGroup(null)}
                     >
-                      <Text className="text-sm font-semibold" style={{ color: selectedMuscleGroup === null ? '#ffffff' : theme.colors.text }}>Todos</Text>
+                      <Text className="text-sm font-semibold" style={{ color: selectedMuscleGroup === null ? '#ffffff' : theme.colors.text }}>{t('createWorkout.all')}</Text>
                     </TouchableOpacity>
                     {getAllMuscleGroups().map(group => (
                       <TouchableOpacity
@@ -420,7 +422,7 @@ export default function EditAssignedWorkoutScreen() {
               </View>
               <ScrollView>
                 {getFilteredExercises().length === 0 ? (
-                  <Text className="text-center py-8" style={themeStyles.textSecondary}>Nenhum exercício encontrado</Text>
+                  <Text className="text-center py-8" style={themeStyles.textSecondary}>{t('createWorkout.noExercisesFound')}</Text>
                 ) : (
                   getFilteredExercises().map(exercise => (
                     <TouchableOpacity
@@ -451,7 +453,7 @@ export default function EditAssignedWorkoutScreen() {
           title={alertTitle}
           message={alertMessage}
           type={alertType}
-          confirmText="OK"
+          confirmText={t('common.ok')}
           onConfirm={() => { setAlertVisible(false); alertOnConfirm?.(); }}
         />
       </View>

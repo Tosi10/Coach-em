@@ -2,9 +2,11 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function BlockedAccountScreen() {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const router = useRouter();
@@ -26,13 +28,12 @@ export default function BlockedAccountScreen() {
             <FontAwesome name="lock" size={22} color="#ef4444" />
           </View>
           <Text className="text-xl font-bold text-center" style={themeStyles.text}>
-            Conta bloqueada
+            {t('blocked.title')}
           </Text>
         </View>
 
         <Text className="text-center text-sm leading-6 mb-6" style={themeStyles.textSecondary}>
-          Seu acesso foi bloqueado pelo treinador responsável. Entre em contato com ele para
-          solicitar o desbloqueio da conta.
+          {t('blocked.body')}
         </Text>
 
         <TouchableOpacity
@@ -41,7 +42,7 @@ export default function BlockedAccountScreen() {
           onPress={() => router.replace('/(auth)/login')}
         >
           <Text className="text-center font-semibold" style={{ color: theme.colors.primary }}>
-            Voltar para login
+            {t('blocked.backToLogin')}
           </Text>
         </TouchableOpacity>
       </View>

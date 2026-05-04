@@ -74,6 +74,19 @@ service cloud.firestore {
         .hasOnly(['displayName', 'sport', 'status', 'blockedAt', 'updatedAt']);
     }
 
+    /** Apenas RevenueCat (webhook) ou Admin SDK; o app não altera estes campos. */
+    function coachEmBillingFieldsUnchanged() {
+      let ch = request.resource.data.diff(resource.data).changedKeys();
+      return !ch.hasAny([
+        'subscriptionTier',
+        'subscriptionExpiresAt',
+        'revenueCatSyncedAt',
+        'revenueCatLastEventType',
+        'revenueCatEnvironment',
+        'revenueCatWebhookUpdatedAt',
+      ]);
+    }
+
     function treinaExerciseReadable() {
       return isSignedIn() && (
         resource.data.createdBy == request.auth.uid
@@ -116,6 +129,7 @@ service cloud.firestore {
 
       // Não permite escalar userType nem trocar email/createdAt
       allow update: if isSignedIn()
+        && coachEmBillingFieldsUnchanged()
         && request.resource.data.userType == resource.data.userType
         && request.resource.data.email == resource.data.email
         && request.resource.data.createdAt == resource.data.createdAt

@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { ToastProvider } from '@/components/ToastProvider';
 import { AuthProvider } from '@/src/contexts/AuthContext';
+import { LanguageProvider } from '@/src/contexts/LanguageContext';
 import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 import Constants from 'expo-constants';
 import { auth } from '@/src/services/firebase.config';
@@ -379,6 +380,16 @@ function RootLayoutNavContent() {
             },
           }} 
         />
+        <Stack.Screen
+          name="subscription"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right' as const,
+            contentStyle: {
+              backgroundColor: '#0a0a0a',
+            },
+          }}
+        />
         <Stack.Screen 
           name="modal" 
           options={{ 
@@ -399,11 +410,13 @@ function RootLayoutNavContent() {
 function RootLayoutNav() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <RootLayoutNavContent />
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <RootLayoutNavContent />
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

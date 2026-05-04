@@ -19,6 +19,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -35,6 +36,7 @@ const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function AthleteLegalAcceptanceScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -91,11 +93,10 @@ export default function AthleteLegalAcceptanceScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
-          Bem-vindo ao Coach'em
+          {t('athleteLegal.title')}
         </Text>
         <Text className="text-base mb-6 leading-6" style={{ color: theme.colors.textSecondary }}>
-          Antes de usar o app, confirme que leu e aceita os documentos legais. O seu treinador continua
-          responsável pela orientação desportiva.
+          {t('athleteLegal.subtitle')}
         </Text>
 
         <TouchableOpacity
@@ -115,21 +116,21 @@ export default function AthleteLegalAcceptanceScreen() {
             {accepted ? <FontAwesome name="check" size={14} color="#ffffff" /> : null}
           </View>
           <Text className="flex-1 ml-3 text-sm leading-5" style={{ color: theme.colors.textSecondary }}>
-            Li e aceito os{' '}
+            {t('athleteLegal.acceptPrefix')}{' '}
             <Text
               onPress={() => Linking.openURL(TREINA_TERMS_URL)}
               style={{ color: theme.colors.primary, fontWeight: '600' }}
               accessibilityRole="link"
             >
-              Termos de Uso
+              {t('athleteLegal.termsLink')}
             </Text>
-            {' e a '}
+            {t('athleteLegal.acceptBetween')}
             <Text
               onPress={() => Linking.openURL(TREINA_PRIVACY_URL)}
               style={{ color: theme.colors.primary, fontWeight: '600' }}
               accessibilityRole="link"
             >
-              Política de Privacidade
+              {t('athleteLegal.privacyLink')}
             </Text>
             .
           </Text>
@@ -146,13 +147,13 @@ export default function AthleteLegalAcceptanceScreen() {
           }}
         >
           <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
-            Continuar
+            {t('common.continue')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => signOut()} className="py-3" activeOpacity={0.7}>
           <Text className="text-center text-sm" style={{ color: theme.colors.textTertiary }}>
-            Sair da conta
+            {t('profile.logout')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

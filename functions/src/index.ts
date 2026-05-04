@@ -25,6 +25,19 @@ const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const FREE_PLAN_ATHLETES_LIMIT = 3;
+const PRO_PLAN_ATHLETES_LIMIT = 25;
+
+async function getCoachSubscriptionTier(coachId: string): Promise<"free" | "pro"> {
+  const snap = await db.collection("users").doc(coachId).get();
+  const data = snap.data();
+  const tier = data?.subscriptionTier;
+  if (tier !== "pro") return "free";
+  const exp = data?.subscriptionExpiresAt as admin.firestore.Timestamp | undefined;
+  if (exp && typeof exp.toMillis === "function" && exp.toMillis() < Date.now()) {
+    return "free";
+  }
+  return "pro";
+}
 
 function hourBucket(): number {
   return Math.floor(Date.now() / HOUR_MS);
@@ -118,14 +131,16 @@ async function consumeCreateAthleteEmailRate(coachId: string): Promise<void> {
 }
 
 async function assertCoachAthleteLimit(coachId: string): Promise<void> {
+  const tier = await getCoachSubscriptionTier(coachId);
+  const limit = tier === "pro" ? PRO_PLAN_ATHLETES_LIMIT : FREE_PLAN_ATHLETES_LIMIT;
   const athletesSnap = await db
     .collection("coachemAthletes")
     .where("coachId", "==", coachId)
     .get();
-  if (athletesSnap.size >= FREE_PLAN_ATHLETES_LIMIT) {
+  if (athletesSnap.size >= limit) {
     throw new HttpsError(
       "failed-precondition",
-      `Limite do plano gratuito atingido (${FREE_PLAN_ATHLETES_LIMIT} atletas).`
+      `Limite do seu plano atingido (${limit} atletas).`
     );
   }
 }
@@ -763,3 +778,5 @@ export const dispatchAthleteWorkoutPushReminders = onSchedule(
     }
   }
 );
+
+export { revenueCatWebhook } from "./revenueCatWebhook";

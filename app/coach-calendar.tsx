@@ -12,10 +12,12 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 export default function CoachCalendarScreen() {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
   const { theme } = useTheme();
@@ -41,8 +43,9 @@ export default function CoachCalendarScreen() {
 
   const getAthleteName = useCallback(
     (athleteId: string) =>
-      athletesMap[athleteId] ?? `Atleta ${athleteId.length > 8 ? athleteId.slice(-8) : athleteId}`,
-    [athletesMap]
+      athletesMap[athleteId] ??
+      t('coachCalendar.athleteFallback', { id: athleteId.length > 8 ? athleteId.slice(-8) : athleteId }),
+    [athletesMap, t]
   );
 
   const loadWorkouts = useCallback(async () => {
@@ -56,7 +59,7 @@ export default function CoachCalendarScreen() {
       const list = await listAssignedWorkoutsByCoachId(user.id);
       setAssignedWorkouts(list);
     } catch (e) {
-      console.warn('Erro ao carregar treinos:', e);
+      console.warn('Failed to load workouts:', e);
       setAssignedWorkouts([]);
     } finally {
       setLoading(false);
@@ -108,15 +111,15 @@ export default function CoachCalendarScreen() {
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
           <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </TouchableOpacity>
 
         <Text className="text-3xl font-bold mb-2" style={themeStyles.text}>
-          Minha agenda
+          {t('coachCalendar.title')}
         </Text>
         <Text className="mb-6" style={themeStyles.textSecondary}>
-          Treinos atribuídos por data
+          {t('coachCalendar.subtitle')}
         </Text>
 
         <View className="rounded-xl border overflow-hidden mb-6" style={themeStyles.card}>
@@ -143,15 +146,18 @@ export default function CoachCalendarScreen() {
         </View>
 
         <Text className="text-lg font-bold mb-3" style={themeStyles.text}>
-          {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+          {new Date(selectedDate + 'T12:00:00').toLocaleDateString(
+            i18n.language === 'en' ? 'en-US' : 'pt-BR',
+            { weekday: 'long', day: '2-digit', month: 'long' }
+          )}
         </Text>
 
         {loading ? (
-          <Text style={themeStyles.textSecondary}>Carregando…</Text>
+          <Text style={themeStyles.textSecondary}>{t('coachCalendar.loading')}</Text>
         ) : dayWorkouts.length === 0 ? (
           <View className="rounded-xl p-6 border" style={themeStyles.card}>
             <Text className="text-center" style={themeStyles.textSecondary}>
-              Nenhum treino neste dia
+              {t('coachCalendar.emptyDay')}
             </Text>
           </View>
         ) : (
@@ -195,7 +201,7 @@ export default function CoachCalendarScreen() {
                         }}
                       >
                         <Text className="text-xs font-semibold" style={{ color: isCompleted ? '#10b981' : '#f59e0b' }}>
-                          {isCompleted ? 'Concluído' : 'Pendente'}
+                          {isCompleted ? t('tabTwo.statusCompleted') : t('tabTwo.statusPending')}
                         </Text>
                       </View>
                     </View>

@@ -12,7 +12,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { assignedSortTimestamp, chartDayMonthPtBr, formatAssignedCalendarDatePtBr, getLocalTodayYmd, parseDateOnlyLocal, toLocalCalendarYmd } from '@/src/utils/dateOnly';
+import { assignedSortTimestamp, chartDayMonthByLocale, formatAssignedCalendarDateByLocale, getLocalTodayYmd, parseDateOnlyLocal, toLocalCalendarYmd } from '@/src/utils/dateOnly';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { LineChart } from 'react-native-gifted-charts';
@@ -35,6 +36,7 @@ const mockEvolutionData = [
 ];
 
 export default function AthleteProfileScreen() {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { athleteId } = useLocalSearchParams();
   const { theme } = useTheme();
@@ -44,7 +46,7 @@ export default function AthleteProfileScreen() {
   const athleteIdString = Array.isArray(athleteId) ? athleteId[0] : athleteId;
   
   const [athlete, setAthlete] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'treinos' | 'graficos'>('graficos');
+  const [activeTab, setActiveTab] = useState<'workouts' | 'charts'>('charts');
   const [athleteWorkouts, setAthleteWorkouts] = useState<any[]>([]);
   const [hasTrainedToday, setHasTrainedToday] = useState(false);
   
@@ -53,7 +55,7 @@ export default function AthleteProfileScreen() {
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [availableExercises, setAvailableExercises] = useState<any[]>([]);
   const [workoutsToShow, setWorkoutsToShow] = useState(5); // Mostrar apenas 5 treinos inicialmente
-  const [workoutSubTab, setWorkoutSubTab] = useState<'historico' | 'proximos'>('proximos'); // Sub-tab dentro de Treinos
+  const [workoutSubTab, setWorkoutSubTab] = useState<'history' | 'upcoming'>('upcoming'); // Sub-tab dentro de Treinos
 
   // Estados para CustomAlert
   const [alertVisible, setAlertVisible] = useState(false);
@@ -90,8 +92,8 @@ export default function AthleteProfileScreen() {
 
   const formatBrDate = (value?: string) => {
     if (!value) return '--';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return formatAssignedCalendarDatePtBr(value);
-    return new Date(value).toLocaleDateString('pt-BR');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return formatAssignedCalendarDateByLocale(value, i18n.language);
+    return new Date(value).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR');
   };
 
   const applyPresetPeriod = useCallback((preset: '30' | '90') => {
@@ -144,7 +146,7 @@ export default function AthleteProfileScreen() {
       });
       setHasTrainedToday(trainedToday);
     } catch (error) {
-      console.error('Erro ao carregar treinos do atleta:', error);
+      console.error('Error loading athlete workouts:', error);
     }
   }, [athleteIdString]);
 
@@ -231,7 +233,7 @@ export default function AthleteProfileScreen() {
         setWeightHistory([]);
       }
     } catch (error) {
-      console.error('Erro ao carregar histórico de peso:', error);
+      console.error('Error loading weight history:', error);
     }
   };
 
@@ -249,21 +251,21 @@ export default function AthleteProfileScreen() {
       const { deleteAssignedWorkouts } = await import('@/src/services/assignedWorkouts.service');
       await deleteAssignedWorkouts(workoutIds);
       await loadAthleteWorkouts();
-      showAlert('✅ Sucesso', `Treino${workoutCount !== 1 ? 's' : ''} deletado${workoutCount !== 1 ? 's' : ''} com sucesso!`, 'success');
+      showAlert(t('common.success'), t('athleteProfile.workoutDeleted', { count: workoutCount }), 'success');
     } catch (error) {
-      console.error('Erro ao deletar treino:', error);
-      showAlert('Erro', 'Não foi possível deletar o treino. Tente novamente.', 'error');
+      console.error('Error deleting workout:', error);
+      showAlert(t('common.error'), t('athleteProfile.deleteWorkoutError'), 'error');
     }
   };
 
   const handleDeleteWorkout = (workoutIds: string[], isGroup: boolean = false) => {
     const workoutCount = workoutIds.length;
     const message = isGroup 
-      ? `Deseja deletar este grupo de ${workoutCount} treino${workoutCount !== 1 ? 's' : ''}?`
-      : `Deseja deletar este treino?`;
+      ? t('athleteProfile.confirmDeleteGroup', { count: workoutCount })
+      : t('athleteProfile.confirmDeleteSingle');
 
     showAlert(
-      'Confirmar exclusão',
+      t('athleteProfile.confirmDeleteTitle'),
       message,
       'warning',
       () => confirmDeleteWorkout(workoutIds, workoutCount)
@@ -275,10 +277,10 @@ export default function AthleteProfileScreen() {
     const shouldBlock = !isBlocked;
 
     showAlert(
-      shouldBlock ? 'Bloquear conta do atleta' : 'Desbloquear conta do atleta',
+      shouldBlock ? t('athleteProfile.blockAthleteTitle') : t('athleteProfile.unblockAthleteTitle'),
       shouldBlock
-        ? 'Este atleta não conseguirá mais fazer login no app até ser desbloqueado.'
-        : 'Este atleta voltará a conseguir fazer login normalmente.',
+        ? t('athleteProfile.blockAthleteMessage')
+        : t('athleteProfile.unblockAthleteMessage'),
       'warning',
       async () => {
         if (!athleteIdString) return;
@@ -287,15 +289,15 @@ export default function AthleteProfileScreen() {
           await setAthleteBlockedStatus(athleteIdString, shouldBlock);
           await loadAthleteFromFirestore();
           showAlert(
-            'Sucesso',
+            t('common.success'),
             shouldBlock
-              ? 'Conta do atleta bloqueada com sucesso.'
-              : 'Conta do atleta desbloqueada com sucesso.',
+              ? t('athleteProfile.blockSuccess')
+              : t('athleteProfile.unblockSuccess'),
             'success'
           );
         } catch (error) {
-          console.error('Erro ao alterar bloqueio do atleta:', error);
-          showAlert('Erro', 'Não foi possível atualizar o status da conta.', 'error');
+          console.error('Error updating athlete account status:', error);
+          showAlert(t('common.error'), t('athleteProfile.accountStatusUpdateError'), 'error');
         }
       }
     );
@@ -303,8 +305,8 @@ export default function AthleteProfileScreen() {
 
   const handleDeleteAthlete = () => {
     showAlert(
-      'Excluir atleta',
-      'Esta ação remove o atleta da sua lista. Treinos e histórico vinculados podem permanecer para consistência de dados. Deseja continuar?',
+      t('athleteProfile.deleteAthleteTitle'),
+      t('athleteProfile.deleteAthleteMessage'),
       'warning',
       async () => {
         if (!athleteIdString) return;
@@ -312,14 +314,14 @@ export default function AthleteProfileScreen() {
           const { deleteAthlete } = await import('@/src/services/athletes.service');
           await deleteAthlete(athleteIdString);
           showAlert(
-            'Sucesso',
-            'Atleta removido da sua lista com sucesso.',
+            t('common.success'),
+            t('athleteProfile.deleteAthleteSuccess'),
             'success',
             () => router.back()
           );
         } catch (error) {
-          console.error('Erro ao excluir atleta:', error);
-          showAlert('Erro', 'Não foi possível excluir o atleta agora. Tente novamente.', 'error');
+          console.error('Error deleting athlete:', error);
+          showAlert(t('common.error'), t('athleteProfile.deleteAthleteError'), 'error');
         }
       }
     );
@@ -329,11 +331,11 @@ export default function AthleteProfileScreen() {
     const name = editAthleteName.trim();
     const sport = editAthleteSport.trim();
     if (!name) {
-      showAlert('Nome do atleta', 'Informe o nome do atleta.', 'warning');
+      showAlert(t('athleteProfile.athleteNameTitle'), t('athleteProfile.athleteNameRequired'), 'warning');
       return;
     }
     if (name.length > 60) {
-      showAlert('Nome do atleta', 'Use no máximo 60 caracteres para o nome.', 'warning');
+      showAlert(t('athleteProfile.athleteNameTitle'), t('athleteProfile.athleteNameMaxLength'), 'warning');
       return;
     }
     if (!athleteIdString) return;
@@ -347,10 +349,10 @@ export default function AthleteProfileScreen() {
       });
       setEditAthleteModalVisible(false);
       await loadAthleteFromFirestore();
-      showAlert('Dados atualizados', 'Dados do atleta atualizados com sucesso.', 'success');
+      showAlert(t('athleteProfile.updatedDataTitle'), t('athleteProfile.updatedDataSuccess'), 'success');
     } catch (error) {
-      console.error('Erro ao atualizar atleta:', error);
-      showAlert('Erro', 'Não foi possível atualizar os dados do atleta.', 'error');
+      console.error('Error updating athlete:', error);
+      showAlert(t('common.error'), t('athleteProfile.updateAthleteError'), 'error');
     } finally {
       setSavingAthleteData(false);
     }
@@ -358,11 +360,11 @@ export default function AthleteProfileScreen() {
 
   const handleGeneratePdfReport = async () => {
     if (!athleteIdString || !reportStartDate || !reportEndDate) {
-      showAlert('Período', 'Selecione o período do relatório.', 'warning');
+      showAlert(t('athleteProfile.periodTitle'), t('athleteProfile.selectPeriod'), 'warning');
       return;
     }
     if (new Date(reportStartDate).getTime() > new Date(reportEndDate).getTime()) {
-      showAlert('Período inválido', 'A data inicial deve ser menor ou igual à data final.', 'warning');
+      showAlert(t('athleteProfile.invalidPeriodTitle'), t('athleteProfile.invalidPeriodMessage'), 'warning');
       return;
     }
     setIsGeneratingReport(true);
@@ -377,13 +379,13 @@ export default function AthleteProfileScreen() {
       const file = await generateAthleteReportPdf(reportData);
       const shared = await sharePdf(file.uri);
       if (shared) {
-        showAlert('Relatório PDF', 'Relatório gerado e pronto para compartilhamento.', 'success');
+        showAlert(t('athleteProfile.pdfReportTitle'), t('athleteProfile.pdfGeneratedShared'), 'success');
       } else {
-        showAlert('Relatório PDF', `PDF gerado em: ${file.fileName}`, 'info');
+        showAlert(t('athleteProfile.pdfReportTitle'), t('athleteProfile.pdfGeneratedAt', { fileName: file.fileName }), 'info');
       }
     } catch (error: any) {
-      console.error('Erro ao gerar relatório PDF:', error);
-      showAlert('Erro', error?.message || 'Não foi possível gerar o relatório PDF.', 'error');
+      console.error('Error generating PDF report:', error);
+      showAlert(t('common.error'), error?.message || t('athleteProfile.pdfGenerationError'), 'error');
     } finally {
       setIsGeneratingReport(false);
     }
@@ -392,13 +394,13 @@ export default function AthleteProfileScreen() {
   if (!athlete) {
     return (
       <View className="flex-1 items-center justify-center" style={themeStyles.bg}>
-        <Text className="text-xl" style={themeStyles.text}>Atleta não encontrado</Text>
+        <Text className="text-xl" style={themeStyles.text}>{t('athleteProfile.notFound')}</Text>
         <TouchableOpacity
           className="rounded-lg py-3 px-6 mt-4"
           style={{ backgroundColor: theme.colors.primary }}
           onPress={() => router.back()}
         >
-          <Text className="font-semibold" style={{ color: '#ffffff' }}>Voltar</Text>
+          <Text className="font-semibold" style={{ color: '#ffffff' }}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -421,7 +423,7 @@ export default function AthleteProfileScreen() {
             <FontAwesome name="arrow-left" size={18} color={theme.colors.primary} />
           </View>
           <Text className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </TouchableOpacity>
         {/* Seção de perfil do atleta */}
@@ -465,7 +467,7 @@ export default function AthleteProfileScreen() {
                   color: isRemoved ? theme.colors.textTertiary : isBlocked ? '#ef4444' : '#10b981',
                 }}
               >
-                {isRemoved ? 'Conta removida' : isBlocked ? 'Bloqueado' : 'Ativo'}
+                {isRemoved ? t('common.accountRemoved') : isBlocked ? t('common.blocked') : t('common.active')}
               </Text>
             </View>
             
@@ -478,7 +480,7 @@ export default function AthleteProfileScreen() {
                 }}
               >
                 <Text className="font-semibold text-sm" style={{ color: '#10b981' }}>
-                  Treinou Hoje
+                  {t('athleteProfile.trainedToday')}
                 </Text>
               </View>
             ) : (
@@ -489,7 +491,7 @@ export default function AthleteProfileScreen() {
                 }}
               >
                 <Text className="font-semibold text-sm" style={themeStyles.textTertiary}>
-                  Não treinou hoje
+                  {t('athleteProfile.notTrainedToday')}
                 </Text>
               </View>
             )}
@@ -501,51 +503,51 @@ export default function AthleteProfileScreen() {
           <TouchableOpacity
             className="flex-1 py-3 border-b-2"
             style={{
-              borderBottomColor: activeTab === 'graficos' ? theme.colors.primary : 'transparent',
+              borderBottomColor: activeTab === 'charts' ? theme.colors.primary : 'transparent',
             }}
-            onPress={() => setActiveTab('graficos')}
+            onPress={() => setActiveTab('charts')}
           >
             <Text
               className="text-center font-semibold"
               style={{
-                color: activeTab === 'graficos' ? theme.colors.text : theme.colors.textTertiary
+                color: activeTab === 'charts' ? theme.colors.text : theme.colors.textTertiary
               }}
             >
-              Gráficos
+              {t('athleteProfile.chartsTab')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             className="flex-1 py-3 border-b-2"
             style={{
-              borderBottomColor: activeTab === 'treinos' ? theme.colors.primary : 'transparent',
+              borderBottomColor: activeTab === 'workouts' ? theme.colors.primary : 'transparent',
             }}
-            onPress={() => setActiveTab('treinos')}
+            onPress={() => setActiveTab('workouts')}
           >
             <Text
               className="text-center font-semibold"
               style={{
-                color: activeTab === 'treinos' ? theme.colors.text : theme.colors.textTertiary
+                color: activeTab === 'workouts' ? theme.colors.text : theme.colors.textTertiary
               }}
             >
-              Treinos
+              {t('athleteProfile.workoutsTab')}
             </Text>
           </TouchableOpacity>
 
         </View>
 
         {/* Conteúdo das Tabs */}
-        {activeTab === 'graficos' && (
+        {activeTab === 'charts' && (
           <View className="mb-6">
             <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
-              Evolução de Peso/Carga
+              {t('home.weightProgress')}
             </Text>
             
             {/* Seletor de Exercício */}
             {availableExercises.length > 0 ? (
               <>
                 <View className="mb-1">
-                  <Text className="text-sm mb-2" style={themeStyles.textSecondary}>Selecione o exercício:</Text>
+                  <Text className="text-sm mb-2" style={themeStyles.textSecondary}>{t('home.selectExercise')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
                     <View className="flex-row gap-2">
                       {availableExercises.map((exercise) => (
@@ -579,13 +581,13 @@ export default function AthleteProfileScreen() {
                 {weightHistory.length > 0 ? (
                   <View className="rounded-xl p-4 mb-0 border" style={themeStyles.card}>
                     <Text className="font-semibold mb-2 text-center" style={themeStyles.text}>
-                      {availableExercises.find(e => e.id === selectedExercise)?.name || 'Exercício'}
+                      {availableExercises.find(e => e.id === selectedExercise)?.name || t('home.exercise')}
                     </Text>
                     
                     <LineChart
                       data={weightHistory.map((record, index) => ({
                         value: record.weight,
-                        label: chartDayMonthPtBr(record.date),
+                        label: chartDayMonthByLocale(record.date, i18n.language),
                       }))}
                       width={280}
                       height={200}
@@ -620,7 +622,7 @@ export default function AthleteProfileScreen() {
                       showVerticalLines={false}
                       xAxisLabelsVerticalShift={10}
                       xAxisLabelTexts={weightHistory.map((record) => 
-                        chartDayMonthPtBr(record.date)
+                        chartDayMonthByLocale(record.date, i18n.language)
                       )}
                       pointerConfig={{
                         pointer1Color: '#fb923c',
@@ -660,7 +662,7 @@ export default function AthleteProfileScreen() {
                         <View className="flex-row justify-between">
                           <View>
                             <Text className="text-xs" style={themeStyles.textTertiary}>
-                              Primeiro registro
+                              {t('athleteProfile.firstRecord')}
                             </Text>
                             <Text className="font-semibold" style={themeStyles.text}>
                               {weightHistory[0]?.weight} kg
@@ -668,7 +670,7 @@ export default function AthleteProfileScreen() {
                           </View>
                           <View>
                             <Text className="text-xs" style={themeStyles.textTertiary}>
-                              Último registro
+                              {t('athleteProfile.lastRecord')}
                             </Text>
                             <Text className="font-semibold" style={themeStyles.text}>
                               {weightHistory[weightHistory.length - 1]?.weight} kg
@@ -676,7 +678,7 @@ export default function AthleteProfileScreen() {
                           </View>
                           <View>
                             <Text className="text-xs" style={themeStyles.textTertiary}>
-                              Evolução
+                              {t('athleteProfile.progress')}
                             </Text>
                             <Text
                               className="font-semibold"
@@ -701,10 +703,10 @@ export default function AthleteProfileScreen() {
                 ) : (
                   <View className="rounded-xl p-8 items-center border" style={themeStyles.card}>
                     <Text className="text-center" style={themeStyles.textSecondary}>
-                      Nenhum registro de peso encontrado para este exercício.
+                      {t('athleteProfile.noWeightRecordsForExercise')}
                     </Text>
                     <Text className="text-sm text-center mt-2" style={themeStyles.textTertiary}>
-                      Registre o peso usado durante os treinos para ver a evolução aqui.
+                      {t('athleteProfile.registerWeightHint')}
                     </Text>
                   </View>
                 )}
@@ -712,10 +714,10 @@ export default function AthleteProfileScreen() {
             ) : (
               <View className="rounded-xl p-8 items-center border mb-4" style={themeStyles.card}>
                 <Text className="text-center mb-2" style={themeStyles.textSecondary}>
-                  Nenhum exercício com registro de peso ainda.
+                  {t('athleteProfile.noExerciseWeightRecords')}
                 </Text>
                 <Text className="text-sm text-center" style={themeStyles.textTertiary}>
-                  Complete treinos e registre o peso usado para ver a evolução aqui.
+                  {t('athleteProfile.completeWorkoutsWeightHint')}
                 </Text>
               </View>
             )}
@@ -723,46 +725,46 @@ export default function AthleteProfileScreen() {
           </View>
         )}
 
-        {activeTab === 'treinos' && (
+        {activeTab === 'workouts' && (
           <View className="mb-6">
             {/* Sub-tabs dentro de Treinos */}
             <View className="flex-row mb-4" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
               <TouchableOpacity
                 className="flex-1 py-2 border-b-2"
                 style={{
-                  borderBottomColor: workoutSubTab === 'proximos' ? theme.colors.primary : 'transparent',
+                  borderBottomColor: workoutSubTab === 'upcoming' ? theme.colors.primary : 'transparent',
                 }}
                 onPress={() => {
-                  setWorkoutSubTab('proximos');
+                  setWorkoutSubTab('upcoming');
                   setWorkoutsToShow(5); // Resetar paginação ao trocar de aba
                 }}
               >
                 <Text
                   className="text-center font-semibold"
                   style={{
-                    color: workoutSubTab === 'proximos' ? theme.colors.text : theme.colors.textTertiary
+                    color: workoutSubTab === 'upcoming' ? theme.colors.text : theme.colors.textTertiary
                   }}
                 >
-                  Próximos
+                  {t('home.upcomingWorkouts')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="flex-1 py-2 border-b-2"
                 style={{
-                  borderBottomColor: workoutSubTab === 'historico' ? theme.colors.primary : 'transparent',
+                  borderBottomColor: workoutSubTab === 'history' ? theme.colors.primary : 'transparent',
                 }}
                 onPress={() => {
-                  setWorkoutSubTab('historico');
+                  setWorkoutSubTab('history');
                   setWorkoutsToShow(5); // Resetar paginação ao trocar de aba
                 }}
               >
                 <Text
                   className="text-center font-semibold"
                   style={{
-                    color: workoutSubTab === 'historico' ? theme.colors.text : theme.colors.textTertiary
+                    color: workoutSubTab === 'history' ? theme.colors.text : theme.colors.textTertiary
                   }}
                 >
-                  Histórico
+                  {t('athleteProfile.historyTab')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -770,7 +772,7 @@ export default function AthleteProfileScreen() {
             {athleteWorkouts.length === 0 ? (
               <View className="rounded-xl p-6 border" style={themeStyles.card}>
                 <Text className="text-center" style={themeStyles.textSecondary}>
-                  Nenhum treino atribuído ainda
+                  {t('athleteProfile.noAssignedWorkouts')}
                 </Text>
               </View>
             ) : (
@@ -783,7 +785,7 @@ export default function AthleteProfileScreen() {
                   const completedWorkouts = athleteWorkouts.filter((w: any) => w.status === 'Concluído');
                   const pendingWorkouts = athleteWorkouts.filter((w: any) => w.status !== 'Concluído');
                   
-                  if (workoutSubTab === 'historico') {
+                  if (workoutSubTab === 'history') {
                     // HISTÓRICO - Treinos concluídos
                     const sortedCompleted = [...completedWorkouts].sort((a: any, b: any) => {
                       const dateA = assignedSortTimestamp(a);
@@ -799,7 +801,7 @@ export default function AthleteProfileScreen() {
                         {workoutsToDisplay.length === 0 ? (
                           <View className="rounded-xl p-6 border" style={themeStyles.card}>
                             <Text className="text-center" style={themeStyles.textSecondary}>
-                              Nenhum treino concluído ainda
+                              {t('athleteProfile.noCompletedWorkouts')}
                             </Text>
                           </View>
                         ) : (
@@ -829,11 +831,11 @@ export default function AthleteProfileScreen() {
                                       {workout.name}
                                     </Text>
                                     <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                      {formatAssignedCalendarDatePtBr(workout.date)} • {workout.dayOfWeek}
+                                      {formatAssignedCalendarDateByLocale(workout.date, i18n.language)} • {workout.dayOfWeek}
                                     </Text>
                                     {workout.completedDate && (
                                       <Text className="text-xs" style={themeStyles.textTertiary}>
-                                        Concluído em: {new Date(workout.completedDate).toLocaleDateString('pt-BR')}
+                                        {t('athleteProfile.completedAt')} {new Date(workout.completedDate).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR')}
                                       </Text>
                                     )}
                                   </View>
@@ -877,7 +879,7 @@ export default function AthleteProfileScreen() {
                                   >
                                     <FontAwesome name="trash" size={12} color="#ef4444" />
                                     <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
-                                      Deletar
+                                      {t('athleteProfile.delete')}
                                     </Text>
                                   </TouchableOpacity>
                                 </View>
@@ -894,7 +896,7 @@ export default function AthleteProfileScreen() {
                             onPress={() => setWorkoutsToShow(workoutsToShow + 5)}
                           >
                             <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-                              Carregar mais ({sortedCompleted.length - workoutsToShow} restantes)
+                              {t('athleteProfile.loadMoreRemaining', { count: sortedCompleted.length - workoutsToShow })}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -971,7 +973,7 @@ export default function AthleteProfileScreen() {
                           <View className="rounded-xl border overflow-hidden" style={themeStyles.card}>
                             <EmptyState
                               imageSource={require('../assets/images/Coracao.png')}
-                              message="Não há treinos agendados."
+                              message={t('athleteProfile.noScheduledWorkouts')}
                             />
                           </View>
                         ) : (
@@ -1009,10 +1011,10 @@ export default function AthleteProfileScreen() {
                                           {item.name}
                                         </Text>
                                         <Text className="text-sm mb-1" style={{ color: theme.colors.primary }}>
-                                          {dayOfWeek} • {totalCount} treino{totalCount !== 1 ? 's' : ''}
+                                          {dayOfWeek} • {t('athleteProfile.workoutsCount', { count: totalCount })}
                                         </Text>
                                         <Text className="text-xs" style={themeStyles.textSecondary}>
-                                          {firstDate.toLocaleDateString('pt-BR')} até {lastDate.toLocaleDateString('pt-BR')}
+                                          {firstDate.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR')} {t('athleteProfile.until')} {lastDate.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR')}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
@@ -1025,7 +1027,7 @@ export default function AthleteProfileScreen() {
                                         }}
                                       >
                                         <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
-                                          Pendente
+                                          {t('tabTwo.statusPending')}
                                         </Text>
                                       </View>
                                       {/* Botão Editar - treino atribuído (ex.: atleta com dor, ajustar exercícios) */}
@@ -1044,7 +1046,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="pencil" size={12} color="#10b981" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
-                                          Editar
+                                          {t('workoutTemplateDetails.edit')}
                                         </Text>
                                       </TouchableOpacity>
                                       {/* Botão de deletar */}
@@ -1061,7 +1063,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="trash" size={12} color="#ef4444" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
-                                          Deletar
+                                          {t('athleteProfile.delete')}
                                         </Text>
                                       </TouchableOpacity>
                                     </View>
@@ -1091,7 +1093,7 @@ export default function AthleteProfileScreen() {
                                           {item.workout.name}
                                         </Text>
                                         <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
-                                          {formatAssignedCalendarDatePtBr(item.workout.date)} • {item.workout.dayOfWeek}
+                                          {formatAssignedCalendarDateByLocale(item.workout.date, i18n.language)} • {item.workout.dayOfWeek}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
@@ -1123,7 +1125,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="pencil" size={12} color="#10b981" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
-                                          Editar
+                                          {t('workoutTemplateDetails.edit')}
                                         </Text>
                                       </TouchableOpacity>
                                       {/* Botão de deletar */}
@@ -1139,7 +1141,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="trash" size={12} color="#ef4444" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#ef4444' }}>
-                                          Deletar
+                                          {t('athleteProfile.delete')}
                                         </Text>
                                       </TouchableOpacity>
                                     </View>
@@ -1157,7 +1159,7 @@ export default function AthleteProfileScreen() {
                             onPress={() => setWorkoutsToShow(workoutsToShow + 5)}
                           >
                             <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-                              Carregar mais ({allWorkoutsToShow.length - workoutsToShow} restantes)
+                              {t('athleteProfile.loadMoreRemaining', { count: allWorkoutsToShow.length - workoutsToShow })}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1196,7 +1198,7 @@ export default function AthleteProfileScreen() {
               resizeMode="contain"
             />
             <Text className="font-bold text-center text-lg" style={{ color: theme.colors.primary }}>
-              Atribuir Treino
+              {t('assignWorkout.titleH1')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -1209,23 +1211,25 @@ export default function AthleteProfileScreen() {
           const lastFeedback = workoutsWithFeedback[0];
           if (!lastFeedback) return null;
           const dateStr = lastFeedback.completedDate || lastFeedback.date;
-          const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+          const formattedDateRaw = dateStr
+            ? new Date(dateStr).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : '';
           const label = getFeedbackLabel(lastFeedback.feedback, lastFeedback.feedbackEmoji);
           const feedbackMessage =
-            lastFeedback.feedbackText || (label ? `Sentiu: ${label}` : '');
+            lastFeedback.feedbackText || (label ? t('athleteProfile.feltLabel', { label }) : '');
           const feedbackIconSrc = getFeedbackIconSource(lastFeedback.feedback, lastFeedback.feedbackEmoji);
           if (!feedbackMessage && !feedbackIconSrc) return null;
           return (
             <View className="rounded-xl p-4 border mt-4" style={themeStyles.card}>
               <Text className="font-semibold mb-3" style={themeStyles.text}>
-                Último Feedback
+                {t('athleteProfile.lastFeedback')}
               </Text>
               <View className="flex-row items-start gap-2">
                 {feedbackIconSrc ? (
                   <Image source={feedbackIconSrc} style={{ width: 28, height: 28 }} resizeMode="contain" />
                 ) : null}
                 <Text className="text-sm leading-5 flex-1" style={themeStyles.textSecondary}>
-                  {athlete.name} disse: "{feedbackMessage}"{formattedDate ? ` - ${formattedDate}` : ''}
+                  {t('athleteProfile.athleteSaid', { athleteName: athlete.name, feedbackMessage, formattedDate: formattedDateRaw ? ` - ${formattedDateRaw}` : '' })}
                 </Text>
               </View>
             </View>
@@ -1235,7 +1239,7 @@ export default function AthleteProfileScreen() {
         <View className="rounded-xl border p-4" style={[themeStyles.card, { marginTop: 74 }]}>
           <View className="flex-row items-center justify-between mb-3">
             <Text className="font-semibold" style={themeStyles.text}>
-              Relatório PDF do atleta
+              {t('athleteProfile.athletePdfReport')}
             </Text>
             <Text className="text-xs" style={themeStyles.textSecondary}>
               Coach'em / Vision10
@@ -1252,7 +1256,7 @@ export default function AthleteProfileScreen() {
               onPress={() => applyPresetPeriod('30')}
             >
               <Text className="text-xs font-semibold" style={{ color: reportPreset === '30' ? theme.colors.primary : theme.colors.textSecondary }}>
-                30 dias
+                {t('athleteProfile.days30')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1264,7 +1268,7 @@ export default function AthleteProfileScreen() {
               onPress={() => applyPresetPeriod('90')}
             >
               <Text className="text-xs font-semibold" style={{ color: reportPreset === '90' ? theme.colors.primary : theme.colors.textSecondary }}>
-                90 dias
+                {t('athleteProfile.days90')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1276,7 +1280,7 @@ export default function AthleteProfileScreen() {
               onPress={() => setReportPreset('custom')}
             >
               <Text className="text-xs font-semibold" style={{ color: reportPreset === 'custom' ? theme.colors.primary : theme.colors.textSecondary }}>
-                Personalizado
+                {t('athleteProfile.custom')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1290,7 +1294,7 @@ export default function AthleteProfileScreen() {
                 setReportDateModalVisible(true);
               }}
             >
-              <Text className="text-[11px]" style={themeStyles.textSecondary}>Início</Text>
+              <Text className="text-[11px]" style={themeStyles.textSecondary}>{t('athleteProfile.start')}</Text>
               <Text className="text-sm font-semibold" style={themeStyles.text}>{formatBrDate(reportStartDate)}</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1301,7 +1305,7 @@ export default function AthleteProfileScreen() {
                 setReportDateModalVisible(true);
               }}
             >
-              <Text className="text-[11px]" style={themeStyles.textSecondary}>Fim</Text>
+              <Text className="text-[11px]" style={themeStyles.textSecondary}>{t('athleteProfile.end')}</Text>
               <Text className="text-sm font-semibold" style={themeStyles.text}>{formatBrDate(reportEndDate)}</Text>
             </TouchableOpacity>
           </View>
@@ -1318,7 +1322,7 @@ export default function AthleteProfileScreen() {
               <>
                 <FontAwesome name="file-pdf-o" size={16} color="#000" />
                 <Text className="font-semibold ml-2" style={{ color: '#000' }}>
-                  Gerar relatório PDF
+                  {t('athleteProfile.generatePdfReport')}
                 </Text>
               </>
             )}
@@ -1340,7 +1344,7 @@ export default function AthleteProfileScreen() {
             activeOpacity={0.8}
           >
             <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-              ✏️ Editar dados do atleta
+              {t('athleteProfile.editAthleteData')}
             </Text>
           </TouchableOpacity>
         )}
@@ -1362,7 +1366,7 @@ export default function AthleteProfileScreen() {
               className="font-semibold text-center"
               style={{ color: isBlocked ? '#10b981' : '#ef4444' }}
             >
-              {isBlocked ? '🔓 Desbloquear conta do atleta' : '🔒 Bloquear conta do atleta'}
+              {isBlocked ? t('athleteProfile.unblockAthleteButton') : t('athleteProfile.blockAthleteButton')}
             </Text>
           </TouchableOpacity>
         )}
@@ -1378,7 +1382,7 @@ export default function AthleteProfileScreen() {
             activeOpacity={0.8}
           >
             <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
-              🗑️ Excluir atleta
+              {t('athleteProfile.deleteAthleteButton')}
             </Text>
           </TouchableOpacity>
         )}
@@ -1389,7 +1393,7 @@ export default function AthleteProfileScreen() {
             style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }}
           >
             <Text className="text-center text-xs" style={themeStyles.textSecondary}>
-              Este atleta removeu a conta de login. Os dados foram mantidos apenas para histórico do treinador.
+              {t('athleteProfile.removedAccountHint')}
             </Text>
           </View>
         )}
@@ -1401,8 +1405,8 @@ export default function AthleteProfileScreen() {
           title={alertTitle}
           message={alertMessage}
           type={alertType}
-          confirmText="OK"
-          cancelText="Cancelar"
+          confirmText={t('common.ok')}
+          cancelText={t('common.cancel')}
           showCancel={alertType === 'warning'}
           onConfirm={() => {
               setAlertVisible(false);
@@ -1424,7 +1428,7 @@ export default function AthleteProfileScreen() {
         <View className="flex-1 justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <View className="rounded-2xl p-4" style={themeStyles.card}>
             <Text className="font-semibold mb-2" style={themeStyles.text}>
-              Selecionar data de {reportPickingDate === 'start' ? 'início' : 'fim'}
+              {t('athleteProfile.selectDateOf', { period: reportPickingDate === 'start' ? t('athleteProfile.startLower') : t('athleteProfile.endLower') })}
             </Text>
             <Calendar
               onDayPress={(day) => {
@@ -1458,7 +1462,7 @@ export default function AthleteProfileScreen() {
               style={{ borderColor: theme.colors.border, borderWidth: 1 }}
               onPress={() => setReportDateModalVisible(false)}
             >
-              <Text className="text-center font-semibold" style={themeStyles.text}>Fechar</Text>
+              <Text className="text-center font-semibold" style={themeStyles.text}>{t('editWorkout.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1480,14 +1484,14 @@ export default function AthleteProfileScreen() {
         >
           <View className="rounded-2xl p-5 border" style={themeStyles.card}>
             <Text className="text-xl font-bold mb-2" style={themeStyles.text}>
-              Editar atleta
+              {t('athleteProfile.editAthleteTitle')}
             </Text>
             <Text className="text-sm mb-4" style={themeStyles.textSecondary}>
-              Atualize os dados que aparecem para o treinador e para o perfil do atleta.
+              {t('athleteProfile.editAthleteSubtitle')}
             </Text>
 
             <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-              Nome
+              {t('athleteProfile.nameLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 mb-4 text-base"
@@ -1501,13 +1505,13 @@ export default function AthleteProfileScreen() {
               }}
               value={editAthleteName}
               onChangeText={setEditAthleteName}
-              placeholder="Nome do atleta"
+              placeholder={t('athleteProfile.namePlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               editable={!savingAthleteData}
             />
 
             <Text className="text-sm font-semibold mb-2" style={themeStyles.text}>
-              Esporte
+              {t('athleteProfile.sportLabel')}
             </Text>
             <TextInput
               className="rounded-xl border px-4 mb-5 text-base"
@@ -1521,7 +1525,7 @@ export default function AthleteProfileScreen() {
               }}
               value={editAthleteSport}
               onChangeText={setEditAthleteSport}
-              placeholder="Ex: Corrida, Musculação, Futebol"
+              placeholder={t('athleteProfile.sportPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
               editable={!savingAthleteData}
             />
@@ -1537,7 +1541,7 @@ export default function AthleteProfileScreen() {
               activeOpacity={0.85}
             >
               <Text className="font-bold text-center" style={{ color: '#ffffff' }}>
-                {savingAthleteData ? 'Salvando...' : 'Salvar alterações'}
+                {savingAthleteData ? t('common.saving') : t('editExercise.saveChanges')}
               </Text>
             </TouchableOpacity>
 
@@ -1549,7 +1553,7 @@ export default function AthleteProfileScreen() {
               activeOpacity={0.8}
             >
               <Text className="font-semibold text-center" style={themeStyles.text}>
-                Cancelar
+                {t('common.cancel')}
               </Text>
             </TouchableOpacity>
           </View>

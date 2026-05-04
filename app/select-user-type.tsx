@@ -2,6 +2,7 @@ import { UserType } from "@/src/types";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -9,6 +10,7 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 
 
 export default function SelectUserTypeScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
@@ -30,7 +32,7 @@ export default function SelectUserTypeScreen() {
     return (
         <View className="flex-1 items-center justify-center px-6" style={themeStyles.bg}>
             <Text className="text-3xl font-bold mb-8" style={themeStyles.text}>
-                Escolha seu perfil
+                {t('selectUserType.title')}
             </Text>
             
             <View className="flex-row gap-4 w-full">
@@ -58,7 +60,7 @@ export default function SelectUserTypeScreen() {
                       ? theme.colors.primary
                       : theme.colors.textSecondary
                   }}>
-                        Treinador
+                        {t('selectUserType.coach')}
                     </Text>
                 </TouchableOpacity>
 
@@ -86,7 +88,7 @@ export default function SelectUserTypeScreen() {
                         ? theme.colors.primary
                         : theme.colors.textSecondary
                     }}>
-                        Atleta
+                        {t('selectUserType.athlete')}
                     </Text>
                 </TouchableOpacity>
             </View>

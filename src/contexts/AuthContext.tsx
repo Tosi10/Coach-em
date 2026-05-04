@@ -21,6 +21,7 @@ import { User, UserType } from '@/src/types';
 import { onAuthStateChanged } from 'firebase/auth';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { auth } from '@/src/services/firebase.config';
+import { syncRevenueCatWithFirebaseUser } from '@/src/services/revenueCat.service';
 
 type AuthContextValue = {
   user: User | null;
@@ -50,18 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       setError(null);
-      if (firebaseUser) {
-        try {
-          const userData = await getCurrentUser();
-          setUser(userData);
-        } catch (e: any) {
-          setError(e?.message ?? 'Erro ao carregar perfil');
+      try {
+        if (firebaseUser) {
+          try {
+            const userData = await getCurrentUser();
+            setUser(userData);
+          } catch (e: any) {
+            setError(e?.message ?? 'Erro ao carregar perfil');
+            setUser(null);
+          }
+        } else {
           setUser(null);
         }
-      } else {
-        setUser(null);
+      } finally {
+        await syncRevenueCatWithFirebaseUser(firebaseUser?.uid ?? null);
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
