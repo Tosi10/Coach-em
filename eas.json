@@ -1,6 +1,7 @@
 {
   "build": {
     "development": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -8,6 +9,7 @@
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
@@ -20,6 +22,7 @@
       }
     },
     "production": {
+      "environment": "production",
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
@@ -27,6 +30,7 @@
         "buildType": "apk"
       },
       "ios": {
+        "distribution": "store",
         "autoIncrement": true
       }
     }
