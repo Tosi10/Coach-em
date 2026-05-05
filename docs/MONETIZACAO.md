@@ -1,12 +1,12 @@
 # Plano de monetização — Coach'em
 
-Documento vivo para orientar produto, implementação e conformidade. Última revisão conceitual alinhada ao app publicado na App Store e limites atuais do plano gratuito. **Última atualização de checklist:** 2026-05-02 (A/B/C storefront + RC + `.env`/EAS + código base de limites e SDK RevenueCat marcados como feitos; paywall + webhook + build dev iPhone pendentes). **Diário de execução/debug:** 2026-05-04 (ver secção “Diário — 2026-05-04”).
+Documento vivo para orientar produto, implementação e conformidade. Última revisão conceitual alinhada ao app publicado na App Store e limites atuais do plano gratuito. **Última atualização de checklist:** 2026-05-02 (A/B/C storefront + RC + `.env`/EAS + código base de limites e SDK RevenueCat marcados como feitos; paywall + webhook + build dev iPhone pendentes). **Diário de execução/debug:** 2026-05-04 (inclui **H** — causa raiz Git + commit `4fe7b2d` + build; ver “Diário — 2026-05-04”).
 
 ---
 
 ## Diário — 2026-05-04 (debug IAP / RevenueCat / App Store Connect)
 
-Resumo **operacional** do que foi tentado hoje para destravar compra Pro mensal e metadados Apple — para não repetir loops nem “achismos”.
+Resumo **operacional** do que foi tentado hoje para destravar compra Pro mensal e metadados Apple — para não repetir loops nem “achismos”. **Leitura obrigatória se os builds “não mudam nada”:** secção **H** (push vs `origin/main` + commit `4fe7b2d`).
 
 ### A) Sintomas no app (TestFlight / iPhone)
 
@@ -43,12 +43,73 @@ Havia leitura da chave iOS assim: `process.env.EXPO_PUBLIC_...?.trim()`.
 - Vários builds iOS `production` foram disparados ao longo do dia (incremento remoto de `ios.buildNumber` via EAS).
 - **Créditos EAS**: o próprio CLI reportou uso alto (~91% do incluso no mês) num build — builds custam; daqui pra frente: **1 mudança lógica por tentativa** + checklist antes de rebuild.
 
-### G) Próximo passo único (definição de sucesso)
+### G) Próximo passo único (definição de sucesso) — checklist técnico
 
-- **Build `production` iOS** com o commit que contém o fix de inlining da `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` + UI de diagnóstico.
+- **Código no remoto antes do EAS:** fluxo típico da Expo = clone do **GitHub**; **obrigatório** `git push origin main` (ou a branch que o perfil usa) **antes** do `eas build`, senão o `.ipa` compila commits antigos do `origin/main`.
+- **Build `production` iOS** com commit que inclua: inlining seguro da `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` (secção **D**), lock síncrono em `ensureRevenueCatConfigured`, **`finally` que limpa `configurePromise` em todos os returns** (secção **H**), e `app/subscription.tsx` com **`RC:`** + compra/restauro a voltarem a chamar `ensure` (secção **H**).
+- No painel **EAS**, confirmar o **SHA do commit** do build (não é segredo — é rastreabilidade).
 - **Sucesso** se no TestFlight:
   - RevenueCat **configura** (some o estado “sem chave”), e/ou
-  - aparece `RC:` com erro **real** (não “missing env”) — aí o próximo passo é correção de SDK/native (ex.: compatibilidade New Architecture / `react-native-purchases`), já com evidência.
+  - aparece **`RC:`** com erro **concreto** (`missing_api_key`, mensagem nativa, etc.) — aí o próximo passo é EAS/env, RC/App Store, ou compatibilidade SDK/native, **já com evidência na UI**.
+
+### H) Causa raiz de “TestFlight igual” + o que foi fechado no Git/código (2026-05-04, fim do dia)
+
+**Problema operacional (principal):** o `main` **local** tinha vários commits (incl. `949110a` — RevenueCat lock + inlining), mas o **`origin/main` no GitHub ficou em `b8e1732`** durante vários `eas build`. A cloud EAS compila o **remoto** → os builds TestFlight **não incluíam** paywall/diagnóstico/RevenueCat novos, mesmo com commit e mensagem corretos no PC. Sintoma: mesmo ecrã, **sem linha `RC:`** (UI antiga ou bundle antigo).
+
+**Correção Git (feita no repo):**
+
+- `git push origin main` bem-sucedido: `b8e1732..4fe7b2d` em `https://github.com/Tosi10/Coach-em.git`.
+- **HEAD remoto** passou a ser **`4fe7b2d`** — *“fix(ios): RevenueCat - finally liberta lock em todos os paths; compra/restauro re-await ensure”*.
+
+**Correções de código em `4fe7b2d` (resumo):**
+
+- **`src/services/revenueCat.service.ts`:** o `finally { configurePromise = null }` estava **só** à volta do `try` do `Purchases.configure`; returns cedo (`missing_api_key`, plataforma desconhecida, `configured` já true) **saltavam** esse `finally` → `configurePromise` podia ficar preso numa promise já resolvida e **impedir novas tentativas** de `configure`. **Correção:** `try/catch/finally` à volta de **todo** o corpo async do configure, com **`configurePromise = null` sempre no `finally`**.
+- **Mesmo ficheiro:** `lastConfigurationError` em paths que antes devolviam `false` sem detalhe (ex.: `web`, plataforma não iOS/Android), e no handler de **rejeição** da promise interna.
+- **`app/subscription.tsx`:** em **compra** e **restauro**, **`await ensureRevenueCatConfigured()`** antes de confiar só no estado do último `reload` — evita alerta “detalhes vazios” por estado React desatualizado.
+
+**Histórico de commits relevantes no `main` (ordem):** `5597525` (inlining + diagnóstico), `949110a` (lock síncrono inicial), **`4fe7b2d`** (finally global + re-await na UI).
+
+**Build disparado após o push (comando registado):**
+
+```bash
+eas build -p ios --profile production --auto-submit
+```
+
+**Lição explícita:** “commit local” ≠ “código no build da EAS”. Para o fluxo standard: **`commit` → `push` → confirmar SHA no GitHub e no painel EAS → `eas build`**.
+
+### I) Atualização — 2026-05-05 (oferta em falta, fallback e diagnóstico explícito)
+
+**Estado observado no TestFlight (build 1.0.35):**
+
+- RC inicializa (sumiu erro de configuração), mas a UI mostra “**Oferta não encontrada**”.
+- Build `1.0.35` foi confirmado via EAS com commit **`8d85ad3`** (`gitCommitHash` no `eas build:list`), ou seja, já continha o fallback de compra por produto direto.
+
+**Conclusão técnica desta etapa:**
+
+- O problema deixou de ser “chave/env/SDK não inicializa”.
+- O gargalo passou a ser **catálogo retornado em runtime** (offering vazio e/ou `getProducts` vazio no device), mesmo com RC/ASC visualmente corretos.
+
+**Mudanças aplicadas no código (2026-05-05):**
+
+- `src/services/revenueCat.service.ts`
+  - Fallback de compra por produto direto (`getProducts([coachem_pro_monthly])` + `purchaseStoreProduct`) quando package do offering não vem.
+  - Nova função `collectRevenueCatDiagnostics()` para gerar snapshot com:
+    - `canMakePayments`
+    - offering current (`identifier`)
+    - número/lista de packages da offering
+    - número/lista de produtos retornados por `getProducts`
+    - erro técnico atual (`lastConfigurationError`)
+- `app/subscription.tsx`
+  - Quando `monthlyPackage` está vazio e RC configurado, a tela passa a exibir **`RC DIAG: ...`** com métricas objetivas.
+  - Em falha de compra, atualiza novamente o diagnóstico para mostrar estado real pós-tentativa.
+
+**Objetivo da instrumentação:**
+
+- Parar interpretação ambígua de mensagem genérica.
+- Distinguir claramente:
+  - problema de offering current,
+  - problema de retorno de produtos da Apple (`getProducts`),
+  - ou bloqueio de pagamento (`canMakePayments=false`).
 
 ---
 

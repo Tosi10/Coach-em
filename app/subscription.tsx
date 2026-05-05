@@ -9,6 +9,7 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { FREE_PLAN_LIMITS, PRO_PLAN_LIMITS } from '@/src/constants/freePlan';
 import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
 import {
+  collectRevenueCatDiagnostics,
   ensureRevenueCatConfigured,
   fetchCustomerInfo,
   getRevenueCatConfigurationError,
@@ -60,6 +61,7 @@ export default function SubscriptionScreen() {
   const [configured, setConfigured] = useState(false);
   const [rcConfigError, setRcConfigError] = useState<string | null>(null);
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
+  const [rcDiagLine, setRcDiagLine] = useState<string | null>(null);
   const [loadingScreen, setLoadingScreen] = useState(true);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -104,6 +106,14 @@ export default function SubscriptionScreen() {
       setRcConfigError(getRevenueCatConfigurationError());
       setStorePro(isProEntitlementActive(info));
       setMonthlyPackage(pkg);
+      if (rcOk && !pkg) {
+        const diag = await collectRevenueCatDiagnostics();
+        setRcDiagLine(
+          `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}`
+        );
+      } else {
+        setRcDiagLine(null);
+      }
     } catch (e) {
       console.warn('[subscription] reload', e);
     } finally {
@@ -168,6 +178,7 @@ export default function SubscriptionScreen() {
       showCoachAlert(t('subscription.configTitle'), body, 'warning');
       setConfigured(false);
       setRcConfigError(hint);
+      setRcDiagLine(null);
       return;
     }
     setConfigured(true);
@@ -190,6 +201,10 @@ export default function SubscriptionScreen() {
       if (isUserCancelledPurchaseError(e)) return;
       const msg = e instanceof Error ? e.message : t('subscription.purchaseError');
       showCoachAlert(t('subscription.purchaseTitle'), msg, 'error');
+      const diag = await collectRevenueCatDiagnostics();
+      setRcDiagLine(
+        `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}`
+      );
     } finally {
       setPurchaseBusy(false);
     }
@@ -436,9 +451,16 @@ export default function SubscriptionScreen() {
                     )}
                   </TouchableOpacity>
                   {!monthlyPackage && configured && (
-                    <Text className="text-xs mb-3 text-center" style={themeStyles.textTertiary}>
-                      {t('subscription.offeringMissing')}
-                    </Text>
+                    <>
+                      <Text className="text-xs mb-2 text-center" style={themeStyles.textTertiary}>
+                        {t('subscription.offeringMissing')}
+                      </Text>
+                      {rcDiagLine ? (
+                        <Text className="text-[11px] mb-3 text-center" style={themeStyles.textTertiary}>
+                          RC DIAG: {rcDiagLine}
+                        </Text>
+                      ) : null}
+                    </>
                   )}
                 </>
               )}

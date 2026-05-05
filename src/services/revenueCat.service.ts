@@ -19,6 +19,18 @@ let configurePromise: Promise<boolean> | null = null;
 let warnedMissingIosKeyDev = false;
 let warnedMissingAndroidKeyDev = false;
 
+export type RevenueCatDiagnostics = {
+  configured: boolean;
+  lastError: string | null;
+  canMakePayments: boolean | null;
+  currentOfferingId: string | null;
+  packagesCount: number | null;
+  packageProductIds: string[];
+  directProductsCount: number | null;
+  directProductIds: string[];
+  targetProductId: string;
+};
+
 function getIosApiKey(): string | undefined {
   // IMPORTANT: do not use optional chaining directly on `process.env.EXPO_PUBLIC_*`
   // — Metro may fail to inline EXPO_PUBLIC values in release bundles.
@@ -171,6 +183,54 @@ export async function getCoachProMonthlyStoreProduct(): Promise<PurchasesStorePr
     console.warn('[RevenueCat] getProducts falhou:', e);
     return null;
   }
+}
+
+export async function collectRevenueCatDiagnostics(): Promise<RevenueCatDiagnostics> {
+  const diagnostics: RevenueCatDiagnostics = {
+    configured,
+    lastError: lastConfigurationError,
+    canMakePayments: null,
+    currentOfferingId: null,
+    packagesCount: null,
+    packageProductIds: [],
+    directProductsCount: null,
+    directProductIds: [],
+    targetProductId: COACHEM_PRO_MONTHLY_PRODUCT_ID,
+  };
+
+  const ok = await ensureRevenueCatConfigured();
+  diagnostics.configured = ok;
+  diagnostics.lastError = lastConfigurationError;
+  if (!ok) {
+    return diagnostics;
+  }
+
+  try {
+    diagnostics.canMakePayments = await Purchases.canMakePayments();
+  } catch (e) {
+    diagnostics.lastError = e instanceof Error ? e.message : diagnostics.lastError;
+  }
+
+  try {
+    const offerings = await Purchases.getOfferings();
+    const current = offerings.current;
+    diagnostics.currentOfferingId = current?.identifier ?? null;
+    diagnostics.packagesCount = current?.availablePackages.length ?? 0;
+    diagnostics.packageProductIds =
+      current?.availablePackages.map((pkg) => pkg.product.identifier).filter(Boolean) ?? [];
+  } catch (e) {
+    diagnostics.lastError = e instanceof Error ? e.message : diagnostics.lastError;
+  }
+
+  try {
+    const products = await Purchases.getProducts([COACHEM_PRO_MONTHLY_PRODUCT_ID]);
+    diagnostics.directProductsCount = products.length;
+    diagnostics.directProductIds = products.map((p) => p.identifier).filter(Boolean);
+  } catch (e) {
+    diagnostics.lastError = e instanceof Error ? e.message : diagnostics.lastError;
+  }
+
+  return diagnostics;
 }
 
 export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo> {
