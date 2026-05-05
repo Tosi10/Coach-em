@@ -15,7 +15,7 @@ import {
   getCoachProMonthlyPackage,
   isProEntitlementActive,
   isUserCancelledPurchaseError,
-  purchasePackage,
+  purchaseCoachProMonthly,
   restorePurchases,
 } from '@/src/services/revenueCat.service';
 import {
@@ -177,13 +177,9 @@ export default function SubscriptionScreen() {
     if (!pkg) {
       pkg = await getCoachProMonthlyPackage();
     }
-    if (!pkg) {
-      showCoachAlert(t('subscription.purchaseTitle'), t('subscription.purchaseNoPackage'), 'warning');
-      return;
-    }
     setPurchaseBusy(true);
     try {
-      const info = await purchasePackage(pkg);
+      const info = await purchaseCoachProMonthly(pkg);
       setStorePro(isProEntitlementActive(info));
       showCoachAlert(
         t('subscription.purchaseDoneTitle'),

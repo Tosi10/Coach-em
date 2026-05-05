@@ -5,7 +5,7 @@
  */
 
 import { Platform } from 'react-native';
-import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
+import Purchases, { type CustomerInfo, type PurchasesPackage, type PurchasesStoreProduct } from 'react-native-purchases';
 
 import { COACHEM_PRO_MONTHLY_PRODUCT_ID, REVENUECAT_ENTITLEMENT_PRO } from '@/src/constants/subscriptions';
 
@@ -156,8 +156,43 @@ export async function getCoachProMonthlyPackage(): Promise<PurchasesPackage | nu
   return byProduct ?? current.monthly ?? current.availablePackages[0] ?? null;
 }
 
+/**
+ * Fallback quando `offerings.current` não devolve package:
+ * tenta buscar o produto direto pelo Product ID configurado na App Store.
+ */
+export async function getCoachProMonthlyStoreProduct(): Promise<PurchasesStoreProduct | null> {
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) return null;
+  try {
+    const products = await Purchases.getProducts([COACHEM_PRO_MONTHLY_PRODUCT_ID]);
+    return products[0] ?? null;
+  } catch (e) {
+    lastConfigurationError = e instanceof Error ? e.message : 'products_fetch_failed';
+    console.warn('[RevenueCat] getProducts falhou:', e);
+    return null;
+  }
+}
+
 export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo> {
   const { customerInfo } = await Purchases.purchasePackage(pkg);
+  return customerInfo;
+}
+
+/**
+ * Compra mensal com fallback:
+ * 1) package (offering) quando disponível
+ * 2) store product direto por productId quando offering vier vazio
+ */
+export async function purchaseCoachProMonthly(pkg: PurchasesPackage | null): Promise<CustomerInfo> {
+  if (pkg) {
+    return purchasePackage(pkg);
+  }
+
+  const product = await getCoachProMonthlyStoreProduct();
+  if (!product) {
+    throw new Error('offering_and_product_not_found');
+  }
+  const { customerInfo } = await Purchases.purchaseStoreProduct(product);
   return customerInfo;
 }
 
