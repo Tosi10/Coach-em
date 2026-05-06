@@ -5,9 +5,19 @@
  */
 
 import { Platform } from 'react-native';
-import Purchases, { type CustomerInfo, type PurchasesPackage, type PurchasesStoreProduct } from 'react-native-purchases';
+import Purchases, {
+  type CustomerInfo,
+  type PurchasesOffering,
+  type PurchasesOfferings,
+  type PurchasesPackage,
+  type PurchasesStoreProduct,
+} from 'react-native-purchases';
 
-import { COACHEM_PRO_MONTHLY_PRODUCT_ID, REVENUECAT_ENTITLEMENT_PRO } from '@/src/constants/subscriptions';
+import {
+  COACHEM_PRO_MONTHLY_PRODUCT_ID,
+  REVENUECAT_ENTITLEMENT_PRO,
+  REVENUECAT_IOS_DEFAULT_OFFERING_ID,
+} from '@/src/constants/subscriptions';
 
 let configured = false;
 let lastConfigurationError: string | null = null;
@@ -24,12 +34,26 @@ export type RevenueCatDiagnostics = {
   lastError: string | null;
   canMakePayments: boolean | null;
   currentOfferingId: string | null;
+  /** IDs em `offerings.all` (útil quando `current` é null no device). */
+  allOfferingIds: string[];
   packagesCount: number | null;
   packageProductIds: string[];
   directProductsCount: number | null;
   directProductIds: string[];
   targetProductId: string;
 };
+
+/** Quando o SDK não preenche `offerings.current`, ainda pode haver `all.ios_default`. */
+function resolveOfferingForMonthlyPackage(offerings: PurchasesOfferings): PurchasesOffering | null {
+  if (offerings.current) return offerings.current;
+  const all = offerings.all as Record<string, PurchasesOffering> | undefined;
+  if (!all || typeof all !== 'object') return null;
+  const preferred = all[REVENUECAT_IOS_DEFAULT_OFFERING_ID];
+  if (preferred) return preferred;
+  const keys = Object.keys(all);
+  if (keys.length === 1) return all[keys[0]] ?? null;
+  return null;
+}
 
 function getIosApiKey(): string | undefined {
   // IMPORTANT: do not use optional chaining directly on `process.env.EXPO_PUBLIC_*`
@@ -160,7 +184,7 @@ export async function getCoachProMonthlyPackage(): Promise<PurchasesPackage | nu
   const ok = await ensureRevenueCatConfigured();
   if (!ok) return null;
   const offerings = await Purchases.getOfferings();
-  const current = offerings.current;
+  const current = resolveOfferingForMonthlyPackage(offerings);
   if (!current) return null;
   const byProduct = current.availablePackages.find(
     (p) => p.product.identifier === COACHEM_PRO_MONTHLY_PRODUCT_ID
@@ -191,6 +215,7 @@ export async function collectRevenueCatDiagnostics(): Promise<RevenueCatDiagnost
     lastError: lastConfigurationError,
     canMakePayments: null,
     currentOfferingId: null,
+    allOfferingIds: [],
     packagesCount: null,
     packageProductIds: [],
     directProductsCount: null,
@@ -213,8 +238,10 @@ export async function collectRevenueCatDiagnostics(): Promise<RevenueCatDiagnost
 
   try {
     const offerings = await Purchases.getOfferings();
-    const current = offerings.current;
-    diagnostics.currentOfferingId = current?.identifier ?? null;
+    const all = offerings.all as Record<string, PurchasesOffering> | undefined;
+    diagnostics.allOfferingIds = all && typeof all === 'object' ? Object.keys(all) : [];
+    const current = resolveOfferingForMonthlyPackage(offerings);
+    diagnostics.currentOfferingId = current?.identifier ?? offerings.current?.identifier ?? null;
     diagnostics.packagesCount = current?.availablePackages.length ?? 0;
     diagnostics.packageProductIds =
       current?.availablePackages.map((pkg) => pkg.product.identifier).filter(Boolean) ?? [];

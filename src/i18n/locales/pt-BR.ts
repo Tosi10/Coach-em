@@ -266,6 +266,8 @@ export default {
     subscribeWithPrice: 'Assinar Pro — {{price}} / mês',
     offeringMissing:
       'Oferta não encontrada. Confira o offering atual (marcado como “Current” na RevenueCat) e o produto coachem_pro_monthly.',
+    rcDiagPending:
+      'Sem dados de diagnóstico — atualize para o build mais recente ou saia e volte a este ecrã.',
     restore: 'Restaurar compras',
     footerLegal:
       'O pagamento é processado pela {{store}}. Renovação e cancelamento ficam na sua conta da loja. Ao assinar, concorda com os termos aplicáveis.',

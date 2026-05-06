@@ -265,6 +265,8 @@ export default {
     subscribeWithPrice: 'Subscribe to Pro — {{price}} / month',
     offeringMissing:
       'Offer not found. Check the current offering (marked “Current” in RevenueCat) and product coachem_pro_monthly.',
+    rcDiagPending:
+      'No diagnostic data — update to the latest build or leave and reopen this screen.',
     restore: 'Restore purchases',
     footerLegal:
       'Payment is processed by {{store}}. Renewal and cancellation are in your store account. By subscribing you agree to the applicable terms.',

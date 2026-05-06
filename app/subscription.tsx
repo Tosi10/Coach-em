@@ -107,10 +107,16 @@ export default function SubscriptionScreen() {
       setStorePro(isProEntitlementActive(info));
       setMonthlyPackage(pkg);
       if (rcOk && !pkg) {
-        const diag = await collectRevenueCatDiagnostics();
-        setRcDiagLine(
-          `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}`
-        );
+        try {
+          const diag = await collectRevenueCatDiagnostics();
+          setRcDiagLine(
+            `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | all=[${diag.allOfferingIds.join(',')}] | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}${diag.lastError ? ` | lastErr=${diag.lastError}` : ''}`
+          );
+        } catch (diagErr) {
+          setRcDiagLine(
+            `diag_collect_failed: ${diagErr instanceof Error ? diagErr.message : String(diagErr)} | rcErr=${getRevenueCatConfigurationError() ?? 'none'}`
+          );
+        }
       } else {
         setRcDiagLine(null);
       }
@@ -203,7 +209,7 @@ export default function SubscriptionScreen() {
       showCoachAlert(t('subscription.purchaseTitle'), msg, 'error');
       const diag = await collectRevenueCatDiagnostics();
       setRcDiagLine(
-        `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}`
+        `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | all=[${diag.allOfferingIds.join(',')}] | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}${diag.lastError ? ` | lastErr=${diag.lastError}` : ''}`
       );
     } finally {
       setPurchaseBusy(false);
@@ -298,7 +304,7 @@ export default function SubscriptionScreen() {
         className="flex-1"
         style={themeStyles.bg}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32, flexGrow: 1 }}
       >
         <View className="px-6" style={{ paddingTop: insets.top + 12 }}>
           <TouchableOpacity className="mb-5 flex-row items-center" onPress={() => router.back()} activeOpacity={0.7}>
@@ -455,11 +461,10 @@ export default function SubscriptionScreen() {
                       <Text className="text-xs mb-2 text-center" style={themeStyles.textTertiary}>
                         {t('subscription.offeringMissing')}
                       </Text>
-                      {rcDiagLine ? (
-                        <Text className="text-[11px] mb-3 text-center" style={themeStyles.textTertiary}>
-                          RC DIAG: {rcDiagLine}
-                        </Text>
-                      ) : null}
+                      <Text className="text-[11px] mb-3 text-center leading-4" style={themeStyles.textTertiary}>
+                        RC DIAG:{' '}
+                        {rcDiagLine ?? t('subscription.rcDiagPending')}
+                      </Text>
                     </>
                   )}
                 </>
