@@ -29,7 +29,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Constants from 'expo-constants';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -44,6 +44,13 @@ import type { PurchasesPackage } from 'react-native-purchases';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type CoachAlertType = 'success' | 'error' | 'info' | 'warning';
+
+function formatRevenueCatDiagLine(
+  diag: Awaited<ReturnType<typeof collectRevenueCatDiagnostics>>
+): string {
+  const ids = diag.allOfferingIds ?? [];
+  return `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | all=[${ids.join(',')}] | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}${diag.lastError ? ` | lastErr=${diag.lastError}` : ''}`;
+}
 
 export default function SubscriptionScreen() {
   const { t } = useTranslation();
@@ -106,26 +113,43 @@ export default function SubscriptionScreen() {
       setRcConfigError(getRevenueCatConfigurationError());
       setStorePro(isProEntitlementActive(info));
       setMonthlyPackage(pkg);
-      if (rcOk && !pkg) {
-        try {
-          const diag = await collectRevenueCatDiagnostics();
-          setRcDiagLine(
-            `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | all=[${diag.allOfferingIds.join(',')}] | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}${diag.lastError ? ` | lastErr=${diag.lastError}` : ''}`
-          );
-        } catch (diagErr) {
-          setRcDiagLine(
-            `diag_collect_failed: ${diagErr instanceof Error ? diagErr.message : String(diagErr)} | rcErr=${getRevenueCatConfigurationError() ?? 'none'}`
-          );
-        }
-      } else {
+      // Limpa linha RC só quando não precisamos dela; caso rcOk && !pkg é preenchido pelo useEffect abaixo
+      // (evita rcDiagLine=null quando reload falha a meio ou race com async).
+      if (!rcOk || pkg) {
         setRcDiagLine(null);
       }
     } catch (e) {
       console.warn('[subscription] reload', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      setRcDiagLine((prev) => prev ?? `reload_failed: ${msg}`);
     } finally {
       setLoadingScreen(false);
     }
   }, [coachId, isCoach]);
+
+  /** Diagnóstico RC desacoplado do reload: garante texto técnico sempre que RC ok mas sem package. */
+  useEffect(() => {
+    if (loadingScreen || !coachId || !isCoach || !configured || monthlyPackage !== null) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const diag = await collectRevenueCatDiagnostics();
+        if (cancelled) return;
+        setRcDiagLine(formatRevenueCatDiagLine(diag));
+      } catch (err) {
+        if (!cancelled) {
+          setRcDiagLine(
+            `diag_collect_failed: ${err instanceof Error ? err.message : String(err)} | rcErr=${getRevenueCatConfigurationError() ?? 'none'}`
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadingScreen, configured, monthlyPackage, coachId, isCoach]);
 
   useFocusEffect(
     useCallback(() => {
@@ -208,9 +232,7 @@ export default function SubscriptionScreen() {
       const msg = e instanceof Error ? e.message : t('subscription.purchaseError');
       showCoachAlert(t('subscription.purchaseTitle'), msg, 'error');
       const diag = await collectRevenueCatDiagnostics();
-      setRcDiagLine(
-        `canPay=${String(diag.canMakePayments)} | current=${diag.currentOfferingId ?? 'null'} | packages=${diag.packagesCount ?? 'null'} | all=[${diag.allOfferingIds.join(',')}] | directProducts=${diag.directProductsCount ?? 'null'} | target=${diag.targetProductId}${diag.lastError ? ` | lastErr=${diag.lastError}` : ''}`
-      );
+      setRcDiagLine(formatRevenueCatDiagLine(diag));
     } finally {
       setPurchaseBusy(false);
     }
