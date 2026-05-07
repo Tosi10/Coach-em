@@ -262,8 +262,14 @@ export default {
     exercises: 'Exercícios',
     expoGoBanner:
       'Você está no Expo Go — aqui dá para ver os planos. Para comprar ou restaurar de verdade, use um development build.',
+    planMonthlyTitle: 'Plano mensal',
+    planAnnualTitle: 'Plano anual',
+    planAnnualPromo: 'Pague 10 meses e use 12 (2 meses grátis).',
+    planPricePending: 'Preço em breve',
     subscribeMonthly: 'Assinar Pro — mensal',
     subscribeWithPrice: 'Assinar Pro — {{price}} / mês',
+    subscribeAnnual: 'Assinar Pro — anual',
+    subscribeAnnualWithPrice: 'Assinar Pro anual — {{price}} / ano',
     offeringMissing:
       'Oferta não encontrada. Confira o offering atual (marcado como “Current” na RevenueCat) e o produto coachem_pro_monthly.',
     rcDiagPending:

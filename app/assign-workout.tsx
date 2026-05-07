@@ -246,7 +246,7 @@ export default function AssignWorkoutScreen() {
     const [athleteName, setAthleteName] = useState<string | null>(null);
     const [athleteStatus, setAthleteStatus] = useState<string | null>(null);
     // Lista de atletas para seleção quando assign-workout é aberto sem athleteId
-    const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string }>>([]);
+    const [athletesList, setAthletesList] = useState<Array<{ id: string; name: string; lockedByPlan?: boolean }>>([]);
   
     useEffect(() => {
       if (!athleteId) {
@@ -267,9 +267,17 @@ export default function AssignWorkoutScreen() {
         setAthletesList([]);
         return;
       }
-      import('@/src/services/athletes.service').then(({ listAthletesByCoachId }) =>
-        listAthletesByCoachId(user.id).then((list) =>
-          setAthletesList(list.map((a) => ({ id: a.id, name: a.name })))
+      Promise.all([
+        import('@/src/services/athletes.service'),
+        import('@/src/services/planLimits.service'),
+      ]).then(([{ listAthletesByCoachId }, { getCoachAthleteAccess }]) =>
+        Promise.all([listAthletesByCoachId(user.id), getCoachAthleteAccess(user.id)]).then(
+          ([list, access]) => {
+            const blocked = new Set(access.blockedAthleteIds);
+            setAthletesList(
+              list.map((a) => ({ id: a.id, name: a.name, lockedByPlan: blocked.has(a.id) }))
+            );
+          }
         )
       );
     }, [athleteId, user?.id]);
@@ -371,6 +379,9 @@ export default function AssignWorkoutScreen() {
                 return;
             }
 
+            const { assertCanManageAthleteInCurrentPlan } = await import('@/src/services/planLimits.service');
+            await assertCanManageAthleteInCurrentPlan(coachId, athlete.id);
+
             let datesToAssign: string[] = [];
 
             if (isRecurring) {
@@ -460,6 +471,15 @@ export default function AssignWorkoutScreen() {
 
         } catch(error) {
             console.error('Erro ao salvar treino:', error);
+            const msg = error instanceof Error ? error.message : '';
+            if (msg.toLowerCase().includes('athlete locked by free plan')) {
+                showAlert(
+                    t('common.warning'),
+                    'Este atleta está acima do limite do plano gratuito e ficou em modo leitura. Renove o Pro para voltar a atribuir treinos.',
+                    'warning'
+                );
+                return;
+            }
             showAlert(
                 t('common.error'),
                 t('assignWorkout.saveError'),
@@ -500,10 +520,24 @@ export default function AssignWorkoutScreen() {
                                 key={a.id}
                                 className="rounded-xl p-4 mb-3 border"
                                 style={themeStyles.card}
-                                onPress={() => router.push({ pathname: '/assign-workout', params: { athleteId: a.id } })}
+                                onPress={() => {
+                                    if (a.lockedByPlan) {
+                                        showAlert(
+                                            t('common.warning'),
+                                            'Atleta em modo leitura no plano gratuito. Renove o Pro para atribuir novos treinos.',
+                                            'warning'
+                                        );
+                                        return;
+                                    }
+                                    router.push({ pathname: '/assign-workout', params: { athleteId: a.id } });
+                                }}
                             >
                                 <Text className="text-lg font-semibold" style={themeStyles.text}>{a.name}</Text>
-                                <Text className="text-sm mt-1" style={themeStyles.textSecondary}>{t('assignWorkout.tapToAssign')}</Text>
+                                <Text className="text-sm mt-1" style={themeStyles.textSecondary}>
+                                  {a.lockedByPlan
+                                    ? 'Modo leitura no plano gratuito'
+                                    : t('assignWorkout.tapToAssign')}
+                                </Text>
                             </TouchableOpacity>
                         ))
                     )}

@@ -149,10 +149,23 @@ export default function HomeScreen() {
     welcomeMessage?: string;
   } | null>(null);
 
-  // Atletas derivados dos treinos; nome vindo do Firestore (coachemAthletes) quando existir
+  const dashboardWorkouts = useMemo(() => {
+    if (userType !== UserType.COACH) return workouts;
+    if (athletesList.length === 0) return [];
+    const activeAthleteIds = new Set(athletesList.map((a) => a.id));
+    return workouts.filter((w: any) => {
+      const athleteId = w.athleteId || w.coach;
+      return athleteId && activeAthleteIds.has(athleteId);
+    });
+  }, [userType, workouts, athletesList]);
+
+  // Atletas derivados dos treinos; no dashboard do treinador, usa a lista atual (sem atletas removidos).
   const getAthletesFromWorkouts = useCallback(() => {
+    if (userType === UserType.COACH) {
+      return athletesList.map((a) => ({ id: a.id, name: a.name, photoURL: a.photoURL }));
+    }
     const ids = new Set<string>();
-    workouts.forEach((w: any) => {
+    dashboardWorkouts.forEach((w: any) => {
       const id = w.athleteId || w.coach;
       if (id) ids.add(id);
     });
@@ -164,7 +177,7 @@ export default function HomeScreen() {
         photoURL: fromList?.photoURL,
       };
     });
-  }, [workouts, athletesList]);
+  }, [userType, dashboardWorkouts, athletesList]);
 
   useEffect(() => {
     const loadUserTypeAndWorkouts = async () => {
@@ -781,7 +794,7 @@ export default function HomeScreen() {
   }, [completedWorkouts]);
 
   const coachWeeklyStats = useMemo(() => {
-    const allCompletedWorkouts = workouts.filter((w: any) => w.status === 'Concluído');
+    const allCompletedWorkouts = dashboardWorkouts.filter((w: any) => w.status === 'Concluído');
     if (allCompletedWorkouts.length === 0) return [];
     const weeklyMap = new Map<string, number>();
     allCompletedWorkouts.forEach((workout: any) => {
@@ -800,12 +813,12 @@ export default function HomeScreen() {
       })
       .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
     return weeklyData.slice(-8);
-  }, [workouts]);
+  }, [dashboardWorkouts]);
 
   const coachIntervalStats = useMemo(() => {
     const athletes = getAthletesFromWorkouts();
     const athleteNameMap = new Map<string, string>(athletes.map((a) => [a.id, a.name]));
-    const intervalAssigned = workouts.filter((w: any) => getWorkoutIntervalSeconds(w).hasInterval);
+    const intervalAssigned = dashboardWorkouts.filter((w: any) => getWorkoutIntervalSeconds(w).hasInterval);
     const intervalCompleted = intervalAssigned.filter((w: any) => w.status === 'Concluído');
     const totalMinutes = intervalCompleted.reduce((sum: number, workout: any) => {
       const interval = getWorkoutIntervalSeconds(workout);
@@ -865,7 +878,7 @@ export default function HomeScreen() {
       topAthletes,
       weeklyCompleted,
     };
-  }, [workouts, getAthletesFromWorkouts]);
+  }, [dashboardWorkouts, getAthletesFromWorkouts]);
 
   const coachWeeklyTrend = useMemo(() => {
     if (coachWeeklyStats.length < 2) return null;
@@ -886,7 +899,7 @@ export default function HomeScreen() {
   // Função para calcular taxa de aderência de um atleta
   const calculateAdherenceRate = (athleteId: string) => {
     // Buscar todos os treinos atribuídos a este atleta
-    const assignedWorkouts = workouts.filter((w: any) => 
+    const assignedWorkouts = dashboardWorkouts.filter((w: any) => 
       (w.athleteId || w.coach) === athleteId
     );
     
@@ -920,7 +933,7 @@ export default function HomeScreen() {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.rate - a.rate);
-  }, [workouts, athletesList]);
+  }, [dashboardWorkouts, athletesList]);
 
   // Função para calcular dificuldade média por treino (baseado no feedback)
   const getWorkoutDifficulty = (workoutName: string) => {
@@ -1011,7 +1024,7 @@ export default function HomeScreen() {
   );
 
   const athletesWhoTrainedTodayList = useMemo(() => {
-    const recentCompleted = workouts.filter((w: any) => {
+    const recentCompleted = dashboardWorkouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
       const completedDate = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
       const hoursAgo = (new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60);
@@ -1045,7 +1058,7 @@ export default function HomeScreen() {
     return activities.sort(
       (a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
     );
-  }, [workouts, athletesList]);
+  }, [dashboardWorkouts, athletesList]);
 
   const getTimeAgo = (completedDate: string) => {
     if (!completedDate) return t('home.agoMinutes');
@@ -1071,7 +1084,7 @@ export default function HomeScreen() {
     const athletes = getAthletesFromWorkouts();
     return athletes
       .map((athlete) => {
-        const athleteWorkouts = workouts.filter(
+        const athleteWorkouts = dashboardWorkouts.filter(
           (w: any) => (w.athleteId || w.coach) === athlete.id && w.status === 'Concluído'
         );
         const lastCompleted = athleteWorkouts.sort((a: any, b: any) => {
@@ -1090,14 +1103,14 @@ export default function HomeScreen() {
       })
       .filter(Boolean)
       .sort((a: any, b: any) => b.daysSinceLastWorkout - a.daysSinceLastWorkout);
-  }, [workouts, athletesList]);
+  }, [dashboardWorkouts, athletesList]);
 
   const mostActiveAthletesList = useMemo(() => {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     oneMonthAgo.setHours(0, 0, 0, 0);
 
-    const completedLastMonth = workouts.filter((w: any) => {
+    const completedLastMonth = dashboardWorkouts.filter((w: any) => {
       if (w.status !== 'Concluído') return false;
       const completedDate = w.completedDate ? new Date(w.completedDate) : parseDateOnlyLocal(w.date);
       return completedDate >= oneMonthAgo;
@@ -1118,15 +1131,15 @@ export default function HomeScreen() {
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [workouts, athletesList]);
+  }, [dashboardWorkouts, athletesList]);
 
   const weeklyStatsCoach = useMemo(
     () => ({
       athletesToday: athletesWhoTrainedTodayList.length,
       completedToday: todayCompletedForCoach.length,
-      pendingWorkouts: workouts.filter((w: any) => w.status === 'Pendente').length,
+      pendingWorkouts: dashboardWorkouts.filter((w: any) => w.status === 'Pendente').length,
     }),
-    [athletesWhoTrainedTodayList, todayCompletedForCoach, workouts]
+    [athletesWhoTrainedTodayList, todayCompletedForCoach, dashboardWorkouts]
   );
 
   const barLayoutCoachWeekly = useMemo(

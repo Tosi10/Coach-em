@@ -261,8 +261,14 @@ export default {
     exercises: 'Exercises',
     expoGoBanner:
       'You are in Expo Go — you can view plans. To actually purchase or restore, use a development build.',
+    planMonthlyTitle: 'Monthly plan',
+    planAnnualTitle: 'Annual plan',
+    planAnnualPromo: 'Pay for 10 months, get 12 (2 months free).',
+    planPricePending: 'Price pending',
     subscribeMonthly: 'Subscribe to Pro — monthly',
     subscribeWithPrice: 'Subscribe to Pro — {{price}} / month',
+    subscribeAnnual: 'Subscribe to Pro — annual',
+    subscribeAnnualWithPrice: 'Subscribe to Pro annual — {{price}} / year',
     offeringMissing:
       'Offer not found. Check the current offering (marked “Current” in RevenueCat) and product coachem_pro_monthly.',
     rcDiagPending:

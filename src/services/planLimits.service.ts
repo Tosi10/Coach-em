@@ -1,4 +1,5 @@
 import {
+  FREE_PLAN_LIMITS,
   getLimitsForTier,
   type PlanResource,
   type SubscriptionTier,
@@ -13,6 +14,13 @@ type Usage = {
   athletes: number;
   workoutTemplates: number;
   exercises: number;
+};
+
+export type CoachAthleteAccess = {
+  tier: SubscriptionTier;
+  freeLimit: number;
+  allowedAthleteIds: string[];
+  blockedAthleteIds: string[];
 };
 
 export class FreePlanLimitError extends Error {
@@ -90,4 +98,58 @@ export async function assertCanCreateResource(
   if (current >= limit) {
     throw new FreePlanLimitError(resource, limit, buildLimitMessage(resource, limit, tier));
   }
+}
+
+function sortAthletesByCreatedAtAsc<T extends { id: string; createdAt?: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    const ta = Date.parse(a.createdAt ?? '') || 0;
+    const tb = Date.parse(b.createdAt ?? '') || 0;
+    if (ta !== tb) return ta - tb;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
+ * Regra de fallback do Free:
+ * - nunca apaga dados;
+ * - mantém acesso total somente aos `FREE_PLAN_LIMITS.athletes` atletas mais antigos;
+ * - atletas excedentes ficam em modo leitura até renovar Pro.
+ */
+export async function getCoachAthleteAccess(coachId: string): Promise<CoachAthleteAccess> {
+  const [tier, athletes] = await Promise.all([
+    getCoachSubscriptionTier(coachId),
+    listAthletesByCoachId(coachId),
+  ]);
+
+  const ordered = sortAthletesByCreatedAtAsc(athletes);
+  if (tier === 'pro') {
+    const ids = ordered.map((a) => a.id);
+    return {
+      tier,
+      freeLimit: FREE_PLAN_LIMITS.athletes,
+      allowedAthleteIds: ids,
+      blockedAthleteIds: [],
+    };
+  }
+
+  const allowedAthleteIds = ordered.slice(0, FREE_PLAN_LIMITS.athletes).map((a) => a.id);
+  const blockedAthleteIds = ordered.slice(FREE_PLAN_LIMITS.athletes).map((a) => a.id);
+  return {
+    tier,
+    freeLimit: FREE_PLAN_LIMITS.athletes,
+    allowedAthleteIds,
+    blockedAthleteIds,
+  };
+}
+
+export async function assertCanManageAthleteInCurrentPlan(
+  coachId: string,
+  athleteId: string
+): Promise<void> {
+  const access = await getCoachAthleteAccess(coachId);
+  if (access.tier === 'pro') return;
+  if (access.allowedAthleteIds.includes(athleteId)) return;
+  throw new Error(
+    `Athlete locked by free plan: only first ${access.freeLimit} athletes are editable/assignable until Pro renewal.`
+  );
 }

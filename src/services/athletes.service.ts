@@ -17,7 +17,6 @@ import {
   where,
   addDoc,
   updateDoc,
-  deleteDoc,
   DocumentSnapshot,
   Timestamp,
 } from 'firebase/firestore';
@@ -37,6 +36,7 @@ export interface AthleteDoc {
   authUid?: string;
   /** URL pública (Storage) – espelha users/{uid}.photoURL quando o atleta tem conta. */
   photoURL?: string;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,9 +68,14 @@ function docToAthlete(snap: DocumentSnapshot): AthleteDoc {
     status: data.status || 'Ativo',
     authUid: typeof data.authUid === 'string' ? data.authUid : undefined,
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : undefined,
+    deletedAt: data.deletedAt ? toStr(data.deletedAt) : undefined,
     createdAt: toStr(data.createdAt),
     updatedAt: toStr(data.updatedAt),
   };
+}
+
+function isSoftDeletedAthlete(data: any): boolean {
+  return Boolean(data?.deletedAt);
 }
 
 /** Quando coachemAthletes não tem photoURL, tenta users (treinador precisa das regras que permitem leitura). */
@@ -97,7 +102,9 @@ export async function listAthletesByCoachId(coachId: string): Promise<AthleteDoc
     where('coachId', '==', coachId)
   );
   const snap = await getDocs(q);
-  const list = snap.docs.map(docToAthlete);
+  const list = snap.docs
+    .filter((d) => !isSoftDeletedAthlete(d.data()))
+    .map(docToAthlete);
   return Promise.all(list.map((a) => enrichAthletePhotoFromUsersDoc(a)));
 }
 
@@ -105,6 +112,7 @@ export async function getAthleteById(id: string): Promise<AthleteDoc | null> {
   const ref = doc(db, COLLECTION, id);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
+  if (isSoftDeletedAthlete(snap.data())) return null;
   return enrichAthletePhotoFromUsersDoc(docToAthlete(snap));
 }
 
@@ -374,5 +382,9 @@ export async function syncCoachPublicProfileToAthletes(
 }
 
 export async function deleteAthlete(id: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, id));
+  const now = new Date().toISOString();
+  await updateDoc(doc(db, COLLECTION, id), {
+    deletedAt: now,
+    updatedAt: now,
+  });
 }

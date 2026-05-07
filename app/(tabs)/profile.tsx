@@ -4,46 +4,45 @@
  * Treinador e atleta: dados do usuário, tema, trocar senha, logout, excluir conta.
  */
 
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { CustomAlert } from '@/components/CustomAlert';
-import { useLanguage } from '@/src/contexts/LanguageContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { getPrivacyUrlByLanguage, getTermsUrlByLanguage } from '@/src/constants/legalUrls';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { UserType } from '@/src/types';
 import { syncCoachPublicProfileToAthletes } from '@/src/services/athletes.service';
+import { db } from '@/src/services/firebase.config';
+import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Modal,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { db } from '@/src/services/firebase.config';
-import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const INPUT_BORDER_WIDTH = 1;
 const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 const SUPPORT_EMAIL = 'adm.ecg.19@gmail.com';
-const SUPPORT_WHATSAPP_E164 = '5541992522854';
 export default function ProfileScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { language, setLanguage } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -221,32 +220,24 @@ export default function ProfileScreen() {
     await Linking.openURL(url);
   };
 
-  const openSupportWhatsApp = async () => {
-    const url = `https://wa.me/${SUPPORT_WHATSAPP_E164}`;
+  const openPolicy = async () => {
+    const url = getPrivacyUrlByLanguage(i18n.language);
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
-      Alert.alert(t('profile.supportTitle'), t('profile.supportWhatsAppError'));
+      Alert.alert(t('profile.privacyTitle'), t('profile.privacyOpenError'));
       return;
     }
     await Linking.openURL(url);
   };
 
-  const openPolicy = async () => {
-    const canOpen = await Linking.canOpenURL(TREINA_PRIVACY_URL);
-    if (!canOpen) {
-      Alert.alert(t('profile.privacyTitle'), t('profile.privacyOpenError'));
-      return;
-    }
-    await Linking.openURL(TREINA_PRIVACY_URL);
-  };
-
   const openTerms = async () => {
-    const canOpen = await Linking.canOpenURL(TREINA_TERMS_URL);
+    const url = getTermsUrlByLanguage(i18n.language);
+    const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {
       Alert.alert(t('profile.termsTitle'), t('profile.termsOpenError'));
       return;
     }
-    await Linking.openURL(TREINA_TERMS_URL);
+    await Linking.openURL(url);
   };
 
   const isCoach = user?.userType === UserType.COACH;
@@ -591,25 +582,6 @@ export default function ProfileScreen() {
                 <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                className="flex-row items-center justify-between px-4 py-4"
-                style={{ backgroundColor: theme.colors.card }}
-                onPress={openSupportWhatsApp}
-                activeOpacity={0.7}
-              >
-                <View className="flex-row items-center flex-1 mr-2">
-                  <FontAwesome name="whatsapp" size={20} color="#25D366" style={{ marginRight: 12 }} />
-                  <View className="flex-1">
-                    <Text className="font-semibold" style={themeStyles.text}>
-                      {t('profile.supportWhatsApp')}
-                    </Text>
-                    <Text className="text-xs mt-0.5" style={themeStyles.textSecondary}>
-                      +55 41 99252-2854
-                    </Text>
-                  </View>
-                </View>
-                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
-              </TouchableOpacity>
             </View>
           </>
         )}
@@ -706,6 +678,9 @@ export default function ProfileScreen() {
         <View className="mt-8 rounded-xl py-3 px-4" style={{ backgroundColor: theme.colors.backgroundSecondary }}>
           <Text className="text-xs text-center" style={themeStyles.textTertiary}>
             {t('profile.forgotPasswordHint')}
+          </Text>
+          <Text className="text-[11px] text-center mt-1.5" style={themeStyles.textTertiary}>
+            Coach'em / Vision10
           </Text>
         </View>
       </View>

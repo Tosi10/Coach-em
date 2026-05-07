@@ -11,6 +11,7 @@
 
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { assignedSortTimestamp, chartDayMonthByLocale, formatAssignedCalendarDateByLocale, getLocalTodayYmd, parseDateOnlyLocal, toLocalCalendarYmd } from '@/src/utils/dateOnly';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
@@ -37,6 +38,7 @@ const mockEvolutionData = [
 
 export default function AthleteProfileScreen() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuthContext();
   const router = useRouter();
   const { athleteId } = useLocalSearchParams();
   const { theme } = useTheme();
@@ -70,6 +72,7 @@ export default function AthleteProfileScreen() {
   const [reportPickingDate, setReportPickingDate] = useState<'start' | 'end'>('start');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [editAthleteModalVisible, setEditAthleteModalVisible] = useState(false);
+  const [athleteLockedByPlan, setAthleteLockedByPlan] = useState(false);
   const [editAthleteName, setEditAthleteName] = useState('');
   const [editAthleteSport, setEditAthleteSport] = useState('');
   const [savingAthleteData, setSavingAthleteData] = useState(false);
@@ -166,6 +169,28 @@ export default function AthleteProfileScreen() {
     setEditAthleteName(athlete.name || '');
     setEditAthleteSport(athlete.sport && athlete.sport !== '-' ? athlete.sport : '');
   }, [athlete]);
+
+  useEffect(() => {
+    if (!user?.id || !athleteIdString) {
+      setAthleteLockedByPlan(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { getCoachAthleteAccess } = await import('@/src/services/planLimits.service');
+        const access = await getCoachAthleteAccess(user.id);
+        if (!cancelled) {
+          setAthleteLockedByPlan(access.blockedAthleteIds.includes(athleteIdString));
+        }
+      } catch {
+        if (!cancelled) setAthleteLockedByPlan(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, athleteIdString]);
 
   // Recarregar treinos e dados do atleta (ex.: foto de perfil) ao voltar a esta tela
   useFocusEffect(
@@ -339,6 +364,14 @@ export default function AthleteProfileScreen() {
       return;
     }
     if (!athleteIdString) return;
+    if (athleteLockedByPlan) {
+      showAlert(
+        t('common.warning'),
+        'Este atleta está em modo leitura no plano gratuito. Renove o Pro para editar dados.',
+        'warning'
+      );
+      return;
+    }
 
     try {
       setSavingAthleteData(true);
@@ -1181,10 +1214,18 @@ export default function AthleteProfileScreen() {
               : 'rgba(251, 146, 60, 0.18)',
             borderColor: theme.colors.primary + '85',
             borderWidth: 1.4,
-            opacity: isRemoved ? 0.45 : 1,
+            opacity: isRemoved || athleteLockedByPlan ? 0.45 : 1,
           }}
-          disabled={isRemoved}
+          disabled={isRemoved || athleteLockedByPlan}
           onPress={() => {
+            if (athleteLockedByPlan) {
+              showAlert(
+                t('common.warning'),
+                'Este atleta está em modo leitura no plano gratuito. Renove o Pro para atribuir treinos.',
+                'warning'
+              );
+              return;
+            }
             router.push({
               pathname: '/assign-workout',
               params: { athleteId: athleteIdString },
@@ -1335,12 +1376,22 @@ export default function AthleteProfileScreen() {
             style={{
               backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.16)' : 'rgba(251, 146, 60, 0.08)',
               borderColor: theme.colors.primary + '55',
+              opacity: athleteLockedByPlan ? 0.45 : 1,
             }}
             onPress={() => {
+              if (athleteLockedByPlan) {
+                showAlert(
+                  t('common.warning'),
+                  'Este atleta está em modo leitura no plano gratuito. Renove o Pro para editar dados.',
+                  'warning'
+                );
+                return;
+              }
               setEditAthleteName(athlete.name || '');
               setEditAthleteSport(athlete.sport && athlete.sport !== '-' ? athlete.sport : '');
               setEditAthleteModalVisible(true);
             }}
+            disabled={athleteLockedByPlan}
             activeOpacity={0.8}
           >
             <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>

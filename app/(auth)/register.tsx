@@ -6,7 +6,7 @@
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
-import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
+import { getPrivacyUrlByLanguage, getTermsUrlByLanguage } from '@/src/constants/legalUrls';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { UserType } from '@/src/types';
@@ -35,7 +35,7 @@ const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function RegisterScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -253,7 +253,7 @@ export default function RegisterScreen() {
               <Text className="flex-1 ml-3 text-sm leading-5" style={{ color: theme.colors.textSecondary }}>
                 {t('register.acceptPrefix')}{' '}
                 <Text
-                  onPress={() => Linking.openURL(TREINA_TERMS_URL)}
+                  onPress={() => Linking.openURL(getTermsUrlByLanguage(i18n.language))}
                   style={{ color: theme.colors.primary, fontWeight: '600' }}
                   accessibilityRole="link"
                 >
@@ -261,7 +261,7 @@ export default function RegisterScreen() {
                 </Text>
                 {t('register.acceptBetween')}
                 <Text
-                  onPress={() => Linking.openURL(TREINA_PRIVACY_URL)}
+                  onPress={() => Linking.openURL(getPrivacyUrlByLanguage(i18n.language))}
                   style={{ color: theme.colors.primary, fontWeight: '600' }}
                   accessibilityRole="link"
                 >

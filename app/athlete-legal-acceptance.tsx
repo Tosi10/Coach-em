@@ -25,8 +25,8 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
   ATHLETE_LEGAL_ACCEPTANCE_KEY,
-  TREINA_PRIVACY_URL,
-  TREINA_TERMS_URL,
+  getPrivacyUrlByLanguage,
+  getTermsUrlByLanguage,
 } from '@/src/constants/legalUrls';
 import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -36,7 +36,7 @@ const inputBorderColor = (isDark: boolean) =>
   isDark ? 'rgba(255, 255, 255, 0.88)' : 'rgba(0, 0, 0, 0.2)';
 
 export default function AthleteLegalAcceptanceScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -118,7 +118,7 @@ export default function AthleteLegalAcceptanceScreen() {
           <Text className="flex-1 ml-3 text-sm leading-5" style={{ color: theme.colors.textSecondary }}>
             {t('athleteLegal.acceptPrefix')}{' '}
             <Text
-              onPress={() => Linking.openURL(TREINA_TERMS_URL)}
+              onPress={() => Linking.openURL(getTermsUrlByLanguage(i18n.language))}
               style={{ color: theme.colors.primary, fontWeight: '600' }}
               accessibilityRole="link"
             >
@@ -126,7 +126,7 @@ export default function AthleteLegalAcceptanceScreen() {
             </Text>
             {t('athleteLegal.acceptBetween')}
             <Text
-              onPress={() => Linking.openURL(TREINA_PRIVACY_URL)}
+              onPress={() => Linking.openURL(getPrivacyUrlByLanguage(i18n.language))}
               style={{ color: theme.colors.primary, fontWeight: '600' }}
               accessibilityRole="link"
             >

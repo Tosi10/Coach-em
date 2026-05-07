@@ -7,15 +7,17 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { FREE_PLAN_LIMITS, PRO_PLAN_LIMITS } from '@/src/constants/freePlan';
-import { TREINA_PRIVACY_URL, TREINA_TERMS_URL } from '@/src/constants/legalUrls';
+import { getPrivacyUrlByLanguage, getTermsUrlByLanguage } from '@/src/constants/legalUrls';
 import {
   collectRevenueCatDiagnostics,
   ensureRevenueCatConfigured,
   fetchCustomerInfo,
+  getCoachProAnnualPackage,
   getRevenueCatConfigurationError,
   getCoachProMonthlyPackage,
   isProEntitlementActive,
   isUserCancelledPurchaseError,
+  purchaseCoachProAnnual,
   purchaseCoachProMonthly,
   restorePurchases,
 } from '@/src/services/revenueCat.service';
@@ -44,6 +46,7 @@ import type { PurchasesPackage } from 'react-native-purchases';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type CoachAlertType = 'success' | 'error' | 'info' | 'warning';
+type ProPlanOption = 'monthly' | 'annual';
 
 function formatRevenueCatDiagLine(
   diag: Awaited<ReturnType<typeof collectRevenueCatDiagnostics>>
@@ -53,7 +56,7 @@ function formatRevenueCatDiagLine(
 }
 
 export default function SubscriptionScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -68,6 +71,8 @@ export default function SubscriptionScreen() {
   const [configured, setConfigured] = useState(false);
   const [rcConfigError, setRcConfigError] = useState<string | null>(null);
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
+  const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<ProPlanOption>('annual');
   const [rcDiagLine, setRcDiagLine] = useState<string | null>(null);
   const [loadingScreen, setLoadingScreen] = useState(true);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
@@ -103,19 +108,26 @@ export default function SubscriptionScreen() {
         getCoachFreePlanUsage(coachId),
         ensureRevenueCatConfigured(),
       ]);
-      const [info, pkg] = await Promise.all([
+      const [info, monthlyPkg, annualPkg] = await Promise.all([
         rcOk ? fetchCustomerInfo() : Promise.resolve(null),
         rcOk ? getCoachProMonthlyPackage() : Promise.resolve(null),
+        rcOk ? getCoachProAnnualPackage() : Promise.resolve(null),
       ]);
       setTier(t);
       setUsage(u);
       setConfigured(rcOk);
       setRcConfigError(getRevenueCatConfigurationError());
       setStorePro(isProEntitlementActive(info));
-      setMonthlyPackage(pkg);
+      setMonthlyPackage(monthlyPkg);
+      setAnnualPackage(annualPkg);
+      if (annualPkg) {
+        setSelectedPlan('annual');
+      } else if (monthlyPkg) {
+        setSelectedPlan('monthly');
+      }
       // Limpa linha RC só quando não precisamos dela; caso rcOk && !pkg é preenchido pelo useEffect abaixo
       // (evita rcDiagLine=null quando reload falha a meio ou race com async).
-      if (!rcOk || pkg) {
+      if (!rcOk || monthlyPkg || annualPkg) {
         setRcDiagLine(null);
       }
     } catch (e) {
@@ -129,7 +141,14 @@ export default function SubscriptionScreen() {
 
   /** Diagnóstico RC desacoplado do reload: garante texto técnico sempre que RC ok mas sem package. */
   useEffect(() => {
-    if (loadingScreen || !coachId || !isCoach || !configured || monthlyPackage !== null) {
+    if (
+      loadingScreen ||
+      !coachId ||
+      !isCoach ||
+      !configured ||
+      monthlyPackage !== null ||
+      annualPackage !== null
+    ) {
       return;
     }
     let cancelled = false;
@@ -149,7 +168,7 @@ export default function SubscriptionScreen() {
     return () => {
       cancelled = true;
     };
-  }, [loadingScreen, configured, monthlyPackage, coachId, isCoach]);
+  }, [loadingScreen, configured, monthlyPackage, annualPackage, coachId, isCoach]);
 
   useFocusEffect(
     useCallback(() => {
@@ -214,13 +233,20 @@ export default function SubscriptionScreen() {
     setConfigured(true);
     setRcConfigError(null);
 
-    let pkg = monthlyPackage;
+    const targetPlan = selectedPlan === 'annual' ? 'annual' : 'monthly';
+    let pkg = targetPlan === 'annual' ? annualPackage : monthlyPackage;
     if (!pkg) {
-      pkg = await getCoachProMonthlyPackage();
+      pkg =
+        targetPlan === 'annual'
+          ? await getCoachProAnnualPackage()
+          : await getCoachProMonthlyPackage();
     }
     setPurchaseBusy(true);
     try {
-      const info = await purchaseCoachProMonthly(pkg);
+      const info =
+        targetPlan === 'annual'
+          ? await purchaseCoachProAnnual(pkg)
+          : await purchaseCoachProMonthly(pkg);
       setStorePro(isProEntitlementActive(info));
       showCoachAlert(
         t('subscription.purchaseDoneTitle'),
@@ -456,11 +482,64 @@ export default function SubscriptionScreen() {
 
               {tier !== 'pro' && (
                 <>
+                  <View className="rounded-2xl border overflow-hidden mb-3" style={{ borderColor: theme.colors.border }}>
+                    <TouchableOpacity
+                      className="px-4 py-3 border-b"
+                      style={{
+                        borderBottomColor: theme.colors.border,
+                        backgroundColor:
+                          selectedPlan === 'monthly' ? theme.colors.primary + '1f' : theme.colors.card,
+                      }}
+                      onPress={() => setSelectedPlan('monthly')}
+                      activeOpacity={0.85}
+                    >
+                      <View className="flex-row justify-between items-center">
+                        <Text className="font-semibold" style={themeStyles.text}>
+                          {t('subscription.planMonthlyTitle')}
+                        </Text>
+                        <Text className="font-bold" style={{ color: theme.colors.primary }}>
+                          {monthlyPackage?.product.priceString ?? t('subscription.planPricePending')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="px-4 py-3"
+                      style={{
+                        backgroundColor:
+                          selectedPlan === 'annual' ? theme.colors.primary + '1f' : theme.colors.card,
+                      }}
+                      onPress={() => setSelectedPlan('annual')}
+                      activeOpacity={0.85}
+                    >
+                      <View className="flex-row justify-between items-center">
+                        <View>
+                          <Text className="font-semibold" style={themeStyles.text}>
+                            {t('subscription.planAnnualTitle')}
+                          </Text>
+                          <Text className="text-xs mt-0.5" style={themeStyles.textSecondary}>
+                            {t('subscription.planAnnualPromo')}
+                          </Text>
+                        </View>
+                        <Text className="font-bold" style={{ color: theme.colors.primary }}>
+                          {annualPackage?.product.priceString ?? t('subscription.planPricePending')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                   <TouchableOpacity
                     className="rounded-xl py-4 px-4 mb-3 items-center"
                     style={{
                       backgroundColor: theme.colors.primary,
-                      opacity: purchaseBusy ? 0.65 : !monthlyPackage ? 0.88 : 1,
+                      opacity:
+                        purchaseBusy
+                          ? 0.65
+                          : selectedPlan === 'annual'
+                            ? annualPackage
+                              ? 1
+                              : 0.88
+                            : monthlyPackage
+                              ? 1
+                              : 0.88,
                     }}
                     disabled={purchaseBusy}
                     onPress={onPurchase}
@@ -470,15 +549,21 @@ export default function SubscriptionScreen() {
                       <ActivityIndicator color="#0a0a0a" />
                     ) : (
                       <Text className="font-bold text-base text-black">
-                        {monthlyPackage?.product.priceString
-                          ? t('subscription.subscribeWithPrice', {
-                              price: monthlyPackage.product.priceString,
-                            })
-                          : t('subscription.subscribeMonthly')}
+                        {selectedPlan === 'annual'
+                          ? annualPackage?.product.priceString
+                            ? t('subscription.subscribeAnnualWithPrice', {
+                                price: annualPackage.product.priceString,
+                              })
+                            : t('subscription.subscribeAnnual')
+                          : monthlyPackage?.product.priceString
+                            ? t('subscription.subscribeWithPrice', {
+                                price: monthlyPackage.product.priceString,
+                              })
+                            : t('subscription.subscribeMonthly')}
                       </Text>
                     )}
                   </TouchableOpacity>
-                  {!monthlyPackage && configured && (
+                  {!monthlyPackage && !annualPackage && configured && (
                     <>
                       <Text className="text-xs mb-2 text-center" style={themeStyles.textTertiary}>
                         {t('subscription.offeringMissing')}
@@ -514,12 +599,12 @@ export default function SubscriptionScreen() {
                 })}
               </Text>
               <View className="flex-row flex-wrap gap-x-4 gap-y-2 mb-4">
-                <TouchableOpacity onPress={() => void openLegal(TREINA_TERMS_URL)}>
+                <TouchableOpacity onPress={() => void openLegal(getTermsUrlByLanguage(i18n.language))}>
                   <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
                     {t('subscription.termsLink')}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => void openLegal(TREINA_PRIVACY_URL)}>
+                <TouchableOpacity onPress={() => void openLegal(getPrivacyUrlByLanguage(i18n.language))}>
                   <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
                     {t('subscription.privacyLink')}
                   </Text>

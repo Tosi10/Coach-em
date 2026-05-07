@@ -14,6 +14,7 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import {
+  COACHEM_PRO_ANNUAL_PRODUCT_ID,
   COACHEM_PRO_MONTHLY_PRODUCT_ID,
   REVENUECAT_ENTITLEMENT_PRO,
   REVENUECAT_IOS_DEFAULT_OFFERING_ID,
@@ -53,6 +54,16 @@ function resolveOfferingForMonthlyPackage(offerings: PurchasesOfferings): Purcha
   const keys = Object.keys(all);
   if (keys.length === 1) return all[keys[0]] ?? null;
   return null;
+}
+
+function resolvePackageByProductId(
+  offerings: PurchasesOfferings,
+  productId: string
+): PurchasesPackage | null {
+  const current = resolveOfferingForMonthlyPackage(offerings);
+  if (!current) return null;
+  const byProduct = current.availablePackages.find((p) => p.product.identifier === productId);
+  return byProduct ?? null;
 }
 
 function getIosApiKey(): string | undefined {
@@ -184,12 +195,20 @@ export async function getCoachProMonthlyPackage(): Promise<PurchasesPackage | nu
   const ok = await ensureRevenueCatConfigured();
   if (!ok) return null;
   const offerings = await Purchases.getOfferings();
+  const fromProduct = resolvePackageByProductId(offerings, COACHEM_PRO_MONTHLY_PRODUCT_ID);
+  if (fromProduct) return fromProduct;
   const current = resolveOfferingForMonthlyPackage(offerings);
-  if (!current) return null;
-  const byProduct = current.availablePackages.find(
-    (p) => p.product.identifier === COACHEM_PRO_MONTHLY_PRODUCT_ID
-  );
-  return byProduct ?? current.monthly ?? current.availablePackages[0] ?? null;
+  return current?.monthly ?? current?.availablePackages[0] ?? null;
+}
+
+export async function getCoachProAnnualPackage(): Promise<PurchasesPackage | null> {
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) return null;
+  const offerings = await Purchases.getOfferings();
+  const fromProduct = resolvePackageByProductId(offerings, COACHEM_PRO_ANNUAL_PRODUCT_ID);
+  if (fromProduct) return fromProduct;
+  const current = resolveOfferingForMonthlyPackage(offerings);
+  return current?.annual ?? null;
 }
 
 /**
@@ -205,6 +224,19 @@ export async function getCoachProMonthlyStoreProduct(): Promise<PurchasesStorePr
   } catch (e) {
     lastConfigurationError = e instanceof Error ? e.message : 'products_fetch_failed';
     console.warn('[RevenueCat] getProducts falhou:', e);
+    return null;
+  }
+}
+
+export async function getCoachProAnnualStoreProduct(): Promise<PurchasesStoreProduct | null> {
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) return null;
+  try {
+    const products = await Purchases.getProducts([COACHEM_PRO_ANNUAL_PRODUCT_ID]);
+    return products[0] ?? null;
+  } catch (e) {
+    lastConfigurationError = e instanceof Error ? e.message : 'products_fetch_failed';
+    console.warn('[RevenueCat] getProducts (annual) falhou:', e);
     return null;
   }
 }
@@ -276,6 +308,19 @@ export async function purchaseCoachProMonthly(pkg: PurchasesPackage | null): Pro
   }
 
   const product = await getCoachProMonthlyStoreProduct();
+  if (!product) {
+    throw new Error('offering_and_product_not_found');
+  }
+  const { customerInfo } = await Purchases.purchaseStoreProduct(product);
+  return customerInfo;
+}
+
+export async function purchaseCoachProAnnual(pkg: PurchasesPackage | null): Promise<CustomerInfo> {
+  if (pkg) {
+    return purchasePackage(pkg);
+  }
+
+  const product = await getCoachProAnnualStoreProduct();
   if (!product) {
     throw new Error('offering_and_product_not_found');
   }
