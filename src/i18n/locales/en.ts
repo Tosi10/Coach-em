@@ -417,6 +417,7 @@ export default {
     deleteTitle: 'Delete workout',
     deleteConfirm: 'Are you sure you want to delete workout "{{name}}"? This action cannot be undone.',
     createdAt: 'Created on: {{date}}',
+    edit: 'Edit',
     editButton: '✏️ Edit',
     deleteButton: '🗑️ Delete',
   },

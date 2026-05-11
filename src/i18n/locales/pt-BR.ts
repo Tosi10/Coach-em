@@ -420,6 +420,7 @@ export default {
     deleteConfirm:
       'Tem certeza que deseja deletar o treino "{{name}}"? Esta ação não pode ser desfeita.',
     createdAt: 'Criado em: {{date}}',
+    edit: 'Editar',
     editButton: '✏️ Editar',
     deleteButton: '🗑️ Deletar',
   },
