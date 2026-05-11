@@ -82,11 +82,23 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - **Tradução EN** ficará para Sprint 5 quando revisarmos política de privacidade e copy oficial PT/EN das telas.
 - Nenhum código TS/JS foi tocado. Nenhum build novo foi gerado. App em produção e em revisão Play não é afetado.
 
-### Dia 3 — Configurar Android no `app.json` (~2h)
-- [ ] Adicionar permissões Health Connect (`health.READ_HEART_RATE`, etc.).
-- [ ] Confirmar `targetSdkVersion >= 34`.
-- [ ] Adicionar manifesto/redirect para Health Connect quando indisponível.
-- [ ] Commit: `chore(health): android health connect manifest`.
+### Dia 3 — Configurar Android no `app.json` (~2h) ✅ **Concluído em 2026-05-11**
+- [x] Adicionar permissões Health Connect:
+  - `android.permission.health.READ_HEART_RATE`
+  - `android.permission.health.READ_ACTIVE_CALORIES_BURNED`
+  - `android.permission.health.READ_DISTANCE`
+  - `android.permission.health.READ_STEPS`
+  - `android.permission.health.READ_EXERCISE`
+- [x] Confirmar `targetSdkVersion >= 34` (já está em 36 via Expo SDK 54).
+- [x] Adicionar manifesto/queries via plugin `react-native-health-connect` (config plugin cuida automaticamente).
+- [x] Commit: `chore(health): configure android health connect permissions [Day 3]`.
+
+**Notas:**
+- Permissões adicionadas em `android.permissions` (forma padrão do Expo).
+- O plugin `react-native-health-connect` cuida dos intent filters e do `<queries>` necessário no manifest gerado.
+- Apps **sem Health Connect instalado** (Android 13-): a partir do Dia 9 (pedido real de permissões), o serviço de saúde vai detectar e oferecer redirect à Play Store para instalar — mas isso é lógica em runtime, não config.
+- Nenhum código TS/JS foi tocado. Nenhum build novo foi gerado. AAB em revisão na Play não é afetado (já foi enviado antes desta mudança).
+- **Cuidado profissional:** próximo build Android só faz sentido **depois** da Play aprovar o AAB atual, para não criar conflito de revisão.
 
 ### Dia 4 — Build EAS Dev Client (iOS + Android) (~2h)
 - [ ] Atualizar `eas.json` se necessário (`developmentClient: true`).
