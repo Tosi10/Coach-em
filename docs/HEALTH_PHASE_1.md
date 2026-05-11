@@ -66,12 +66,21 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - O Expo adicionou automaticamente os dois pacotes como **config plugins** em `app.json` (linha `plugins`).
 - 15 vulnerabilidades reportadas pelo `npm audit` (em deps transitivas das libs). Revisão fica para sprint posterior.
 
-### Dia 2 — Configurar iOS no `app.json` (~2h)
-- [ ] Adicionar `NSHealthShareUsageDescription` (PT + EN).
-- [ ] Adicionar `NSHealthUpdateUsageDescription` (defensivo).
-- [ ] Adicionar entitlement `com.apple.developer.healthkit`.
-- [ ] Documentar textos de permissão (rascunho final em PR).
-- [ ] Commit: `chore(health): ios info.plist + entitlements`.
+### Dia 2 — Configurar iOS no `app.json` (~2h) ✅ **Concluído em 2026-05-11**
+- [x] Adicionar `NSHealthShareUsageDescription` (PT-BR).
+- [x] Adicionar `NSHealthUpdateUsageDescription` (defensivo, PT-BR).
+- [x] Adicionar entitlement `com.apple.developer.healthkit`.
+- [x] Documentar textos de permissão (no próprio `app.json` via plugin).
+- [x] Commit: `chore(health): configure ios healthkit permissions and entitlement [Day 2]`.
+
+**Notas:**
+- Tudo feito via **config plugin** do `react-native-health` (forma recomendada Expo):
+  - `isClinicalDataEnabled: false` (não pedimos acesso a registos médicos/clínicos)
+  - `healthSharePermission` → vira `NSHealthShareUsageDescription` no build iOS
+  - `healthUpdatePermission` → vira `NSHealthUpdateUsageDescription`
+  - Entitlement `com.apple.developer.healthkit` é adicionado automaticamente pelo plugin
+- **Tradução EN** ficará para Sprint 5 quando revisarmos política de privacidade e copy oficial PT/EN das telas.
+- Nenhum código TS/JS foi tocado. Nenhum build novo foi gerado. App em produção e em revisão Play não é afetado.
 
 ### Dia 3 — Configurar Android no `app.json` (~2h)
 - [ ] Adicionar permissões Health Connect (`health.READ_HEART_RATE`, etc.).
