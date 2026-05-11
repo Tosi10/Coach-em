@@ -26,7 +26,7 @@
       }
     },
     "android": {
-      "package": "com.coachem.app",
+      "package": "com.vision10.coachem",
       "versionCode": 1,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",

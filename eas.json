@@ -27,7 +27,7 @@
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "ios": {
         "distribution": "store",
