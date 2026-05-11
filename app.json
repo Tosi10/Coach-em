@@ -82,7 +82,9 @@
       "expo-video",
       "expo-audio",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-health",
+      "react-native-health-connect"
     ],
     "experiments": {
       "typedRoutes": true
