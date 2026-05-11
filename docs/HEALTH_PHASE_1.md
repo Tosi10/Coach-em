@@ -54,12 +54,17 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Sprint 1 — Setup (Dia 1 → Dia 5)
 
-### Dia 1 — Branch + libs (~2h)
-- [ ] Criar branch `feat/health-integration` a partir de `main`.
-- [ ] `npm install react-native-health` (iOS).
-- [ ] `npm install react-native-health-connect` (Android).
-- [ ] Conferir versões compatíveis com Expo SDK atual.
-- [ ] Commit inicial (sem alterações funcionais).
+### Dia 1 — Branch + libs (~2h) ✅ **Concluído em 2026-05-11**
+- [x] Criar branch `feat/health-integration` a partir de `main`.
+- [x] `npm install react-native-health` (iOS) — `1.19.0`.
+- [x] `npm install react-native-health-connect` (Android) — `3.5.0`.
+- [x] Conferir versões compatíveis com Expo SDK atual (SDK 54 / RN 0.81).
+- [x] Commit inicial (sem alterações funcionais) — `chore(health): install react-native-health and react-native-health-connect [Day 1]`.
+
+**Notas:**
+- `npx expo install` foi usado em vez de `npm install` para garantir compatibilidade com Expo.
+- O Expo adicionou automaticamente os dois pacotes como **config plugins** em `app.json` (linha `plugins`).
+- 15 vulnerabilidades reportadas pelo `npm audit` (em deps transitivas das libs). Revisão fica para sprint posterior.
 
 ### Dia 2 — Configurar iOS no `app.json` (~2h)
 - [ ] Adicionar `NSHealthShareUsageDescription` (PT + EN).
