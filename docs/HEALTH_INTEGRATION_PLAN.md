@@ -139,14 +139,17 @@ Coleção: `coachemAssignedWorkouts/{workoutId}/health/{userId}`
 
 ### 5.2. Configuração do atleta
 
-Em `coachemUsers/{uid}`:
+> **Ajuste 2026-05-13:** o projeto usa coleção `users` (não `coachemUsers`).
+> Os campos abaixo vão em `users/{uid}` (real no projeto).
+
+Em `users/{uid}`:
 
 ```ts
 healthIntegration: {
   enabled: boolean,             // atleta autorizou
   platform: 'healthkit' | 'healthconnect' | null,
-  permissionsGrantedAt: Timestamp | null,
-  permissionsRevokedAt: Timestamp | null,
+  permissionsGrantedAt: string | null,   // ISO date string
+  permissionsRevokedAt: string | null,
   fcMaxOverride: number | null, // se atleta informar FCmáx manualmente
   ageOverride: number | null,
 }
@@ -154,7 +157,7 @@ healthIntegration: {
 
 ### 5.3. Configuração do treinador
 
-Em `coachemUsers/{uid}` (treinador):
+Em `users/{uid}` (treinador):
 
 ```ts
 proPlusHealth: {
@@ -168,7 +171,7 @@ proPlusHealth: {
 
 ### 5.4. Regras de segurança (Firestore) — princípio
 
-- Atleta **só pode escrever** no próprio `coachemUsers/{uid}.healthIntegration`.
+- Atleta **só pode escrever** no próprio `users/{uid}.healthIntegration`.
 - Atleta pode escrever no documento `health/{userId}` do **seu** treino (`coachemAssignedWorkouts/{workoutId}` em que o `athleteId == auth.uid`).
 - Treinador pode **ler** os documentos de health dos atletas que pertencem a ele (mesma regra atual de visibilidade).
 - Nada de leitura cruzada entre treinadores diferentes.

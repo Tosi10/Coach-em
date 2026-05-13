@@ -131,11 +131,24 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Sprint 2 — Dados e consentimento (Dia 6 → Dia 10)
 
-### Dia 6 — Schema Firestore + tipos (~2h)
-- [ ] Criar tipos TS para `HealthSnapshot` no Firestore.
-- [ ] Criar helpers para escrever em `coachemAssignedWorkouts/{id}/health/{userId}`.
-- [ ] Atualizar `coachemUsers/{uid}.healthIntegration`.
-- [ ] Commit: `feat(health): firestore types + writers`.
+### Dia 6 — Schema Firestore + tipos (~2h) ✅ **Concluído em 2026-05-13**
+- [x] Criar tipos TS para `HealthSnapshot` no Firestore (`HealthSnapshotDoc`, `HealthIntegrationDoc`, `ProPlusHealthDoc`).
+- [x] Criar helpers para escrever em `coachemAssignedWorkouts/{id}/health/{athleteUid}`:
+  - `saveHealthSnapshot`, `getHealthSnapshot`, `listAthleteHealthSnapshots`.
+- [x] Atualizar `users/{uid}.healthIntegration`:
+  - `getHealthIntegration`, `markHealthIntegrationGranted`,
+    `markHealthIntegrationRevoked`, `updateHealthIntegrationOverrides`.
+- [x] Conversores `toFirestoreSnapshot` / `fromFirestoreSnapshot` (descarta `hrSeries` na persistência).
+- [x] `npx tsc --noEmit` sem erros.
+- [x] Commit: `feat(health): firestore types + writers [Day 6]`.
+
+**Notas:**
+- **Descoberta:** o projeto usa coleção `users` (não `coachemUsers` como sugerido no plano original).
+  Ajustamos as funções para `users/{uid}`. O resto da estrutura segue o plano.
+- Apenas **agregados** vão para o Firestore. `hrSeries` (série crua de FC) fica em memória — econômico e respeita privacidade.
+- Snapshot é gravado com `setDoc({ merge: false })`: cada conclusão substitui o registo anterior do mesmo (treino, atleta).
+- `listAthleteHealthSnapshots` faz N+1 reads — aceitável para o painel inicial; pode virar índice composto em Sprint 4 se ficar pesado.
+- Regras de segurança Firestore para essas operações vêm no Dia 7 (próximo).
 
 ### Dia 7 — Regras de segurança Firestore (~2h)
 - [ ] Atualizar regras para permitir:
