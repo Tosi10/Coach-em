@@ -107,19 +107,23 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - [ ] Instalar e validar abertura do app em ambos.
 - [ ] Confirmar que **nenhum** fluxo antigo quebrou.
 
-### Dia 5 — Camada de serviço unificada (esqueleto) (~2h)
-- [ ] Criar `src/services/health.service.ts` com interface comum:
-  ```ts
-  interface HealthService {
-    isAvailable(): Promise<boolean>;
-    requestPermissions(): Promise<boolean>;
-    revokePermissions(): Promise<void>;
-    readWindow(start: Date, end: Date): Promise<HealthSnapshot>;
-  }
-  ```
-- [ ] Stubs para iOS e Android (ainda sem implementação real).
-- [ ] Tipos `HealthSnapshot`, `HRSample`, `WorkoutSession` em `src/types/health.ts`.
-- [ ] Commit: `feat(health): service skeleton + types`.
+### Dia 5 — Camada de serviço unificada (esqueleto) (~2h) ✅ **Concluído em 2026-05-13**
+- [x] Criar `src/services/health.service.ts` com interface comum (`HealthService`).
+- [x] Stubs para iOS (`HealthKitServiceStub`), Android (`HealthConnectServiceStub`) e fallback (`NoopHealthService`).
+- [x] Tipos em `src/types/health.ts`:
+  - `HealthPlatform`, `HRSample`, `HRZones`, `HRAggregates`
+  - `WorkoutSessionType`, `WorkoutSession`
+  - `HealthSnapshot`, `HealthPermissionResult`
+- [x] Função singleton `getHealthService()` que escolhe stub por `Platform.OS`.
+- [x] Helper `__resetHealthServiceForTests()` para testes.
+- [x] `npx tsc --noEmit` sem erros.
+- [x] Commit: `feat(health): service skeleton + types [Day 5]`.
+
+**Notas:**
+- Stubs **nunca lançam** exceção: `readWindow` devolve `HealthSnapshot` vazio com motivo em `notes`, e `requestPermissions` devolve `{ granted: false, reason }`.
+- Nenhuma lib nativa é importada neste arquivo. O app continua rodando em Expo Go sem rebuild.
+- A implementação real entra nos Dias 14 e 15, depois do Dev Client estar disponível.
+- O contrato (`HealthService`) está pronto para que telas (Dia 8+) já consigam consumir, mesmo recebendo dados vazios.
 
 **Milestone S1:** dev client buildado em ambas plataformas, libs instaladas, esqueleto de serviço pronto. **Sem mudança visível para usuário.**
 
