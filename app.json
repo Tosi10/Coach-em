@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.vision10.coachem",
       "buildNumber": "1.0.25",
       "icon": "./assets/images/Coach-emIcone02.png",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "splash": {
         "backgroundColor": "#0a0a0a"
@@ -30,6 +31,7 @@
       "versionCode": 1,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json",
       "splash": {
         "backgroundColor": "#0a0a0a"
       },
@@ -98,7 +100,9 @@
           "healthUpdatePermission": "O Coach'em pode registar treinos concluídos no app Saúde para manter o seu histórico unificado. A gravação é opcional."
         }
       ],
-      "react-native-health-connect"
+      "react-native-health-connect",
+     "./node_modules/@react-native-firebase/app/app.plugin.js",
+     "./node_modules/@react-native-firebase/app-check/app.plugin.js"
     ],
     "experiments": {
       "typedRoutes": true

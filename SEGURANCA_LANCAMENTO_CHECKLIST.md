@@ -1,5 +1,7 @@
 # Coach'em - Checklist de Seguranca e Lancamento
 
+> **Plano detalhado (App Check Android + iOS, passo a passo):** [`docs/GUIA-SEGURANCA-COACHEM.md`](docs/GUIA-SEGURANCA-COACHEM.md)
+
 Este documento consolida a proxima etapa para hardening do app antes do lancamento publico.
 
 Objetivo: aumentar seguranca, compliance e confiabilidade sem quebrar o fluxo principal.

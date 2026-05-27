@@ -15,6 +15,7 @@ import { Auth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { Functions, getFunctions } from 'firebase/functions';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
+import { initAppCheck } from './appCheckInit';
 
 /**
  * Configuração do Firebase
@@ -43,6 +44,11 @@ if (getApps().length === 0) {
 } else {
   app = getApps()[0];
 }
+
+// App Check não pode derrubar o boot do app.
+void initAppCheck().catch((error) => {
+  console.warn('[AppCheck] init failed:', error);
+});
 
 /**
  * Serviços do Firebase
