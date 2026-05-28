@@ -390,6 +390,16 @@ function RootLayoutNavContent() {
             },
           }}
         />
+        <Stack.Screen
+          name="athlete-health-consent"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right' as const,
+            contentStyle: {
+              backgroundColor: '#0a0a0a',
+            },
+          }}
+        />
         <Stack.Screen 
           name="modal" 
           options={{ 

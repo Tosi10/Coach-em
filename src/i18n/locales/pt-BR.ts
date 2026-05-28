@@ -93,6 +93,10 @@ export default {
     planSection: "Plano Coach'em",
     planRowTitle: 'Plano e assinatura',
     planRowSubtitle: "Ver limites Grátis vs Pro, assinar Coach'em Pro ou restaurar compras.",
+    healthSection: 'Saúde e relógio',
+    healthRowTitle: 'Apple Watch / saúde',
+    healthRowSubtitle:
+      'Opcional: partilhar frequência cardíaca, calorias e treinos com o seu treinador durante as sessões.',
     coachMessageSection: 'Mensagem para atletas',
     publicNamePlaceholder: 'Nome exibido para seus atletas',
     welcomePlaceholder: 'Ex: Foco total essa semana. Qualquer dúvida, me chame.',
@@ -350,6 +354,33 @@ export default {
     errGeneric: 'Não foi possível cadastrar o atleta. Tente novamente.',
     planLimitTitle: 'Limite do plano',
     viewPlans: 'Ver planos',
+  },
+  healthConsent: {
+    title: 'Saúde e dispositivo',
+    subtitle:
+      'Ligue o Apple Watch ou o Health Connect para o seu treinador acompanhar métricas agregadas quando concluir um treino. Pode desligar a qualquer momento.',
+    dataTitle: 'O que pode ser partilhado (resumo)',
+    bulletHeartRate: 'Frequência cardíaca média, máxima e zonas durante o treino',
+    bulletCalories: 'Calorias ativas na sessão',
+    bulletDistance: 'Distância percorrida (quando aplicável)',
+    bulletSteps: 'Passos na janela do treino',
+    bulletWorkouts: 'Sessões de exercício registadas no relógio ou no telefone',
+    optionalNote:
+      'A partilha é opcional. Sem ligação, o Coach\'em funciona como hoje — treinos, feedback e evolução de cargas.',
+    revokeNote:
+      'Também pode revogar o acesso nas definições de Saúde do iPhone ou na app Health Connect no Android.',
+    statusConnected: 'Ligado (consentimento registado)',
+    statusDisconnected: 'Não ligado',
+    platformIos: 'Fonte: Apple Saúde / Apple Watch',
+    platformAndroid: 'Fonte: Health Connect',
+    platformOther: 'Disponível em iPhone e Android',
+    connectButton: 'Ligar dispositivo de saúde',
+    disconnectButton: 'Desligar dispositivo',
+    scaffoldTitle: 'Em breve nesta versão',
+    scaffoldConnectBody:
+      'O pedido de permissão ao sistema (Apple Saúde ou Health Connect) será ativado na próxima atualização do projeto de saúde. Por agora, esta tela só explica o que será partilhado.',
+    scaffoldDisconnectBody:
+      'A desligação completa será ativada na próxima atualização. Pode revogar já nas definições do sistema operativo.',
   },
   athleteLegal: {
     title: "Bem-vindo ao Coach'em",
