@@ -1022,6 +1022,10 @@ export default function HomeScreen() {
     () => computeBarChartLayout(coachIntervalStats.weeklyCompleted.length || 1, chartMaxW),
     [coachIntervalStats.weeklyCompleted.length, chartMaxW]
   );
+  const coachIntervalSpacing = useMemo(
+    () => Math.max(6, Math.min(18, barLayoutCoachInterval.spacing)),
+    [barLayoutCoachInterval.spacing]
+  );
 
   const athletesWhoTrainedTodayList = useMemo(() => {
     const recentCompleted = dashboardWorkouts.filter((w: any) => {
@@ -1864,7 +1868,9 @@ export default function HomeScreen() {
                   width={barLayoutCoachInterval.width}
                   height={120}
                   barWidth={barLayoutCoachInterval.barWidth}
-                  spacing={barLayoutCoachInterval.spacing}
+                  spacing={coachIntervalSpacing}
+                  initialSpacing={6}
+                  endSpacing={6}
                   hideRules
                   xAxisThickness={1}
                   xAxisColor={theme.colors.borderSecondary}
@@ -2102,6 +2108,12 @@ export default function HomeScreen() {
                 .slice(0, 3)
                 .map((activity: any) => {
                 const feedbackIconSrc = getFeedbackIconSource(activity.feedback, activity.feedbackEmoji);
+                const workoutNameRaw =
+                  typeof activity.workoutName === 'string' ? activity.workoutName.trim() : '';
+                const workoutNameForCard =
+                  workoutNameRaw.length > 46
+                    ? `${workoutNameRaw.slice(0, 43)}...`
+                    : workoutNameRaw;
                 return (
                 <TouchableOpacity
                   key={activity.id}
@@ -2143,10 +2155,15 @@ export default function HomeScreen() {
                   
                   <View className="flex-1 mr-3">
                     <View className="mb-1">
-                      <Text className="font-semibold flex-1" style={themeStyles.text}>
+                      <Text
+                        className="font-semibold flex-1"
+                        style={themeStyles.text}
+                        numberOfLines={3}
+                        ellipsizeMode="tail"
+                      >
                         {t('home.activityFinishedWorkout', {
                           athlete: activity.athleteName,
-                          workout: activity.workoutName,
+                          workout: workoutNameForCard || activity.workoutName,
                         })}
                       </Text>
                     </View>

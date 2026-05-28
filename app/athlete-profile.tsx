@@ -441,6 +441,11 @@ export default function AthleteProfileScreen() {
 
   const normalizedAthleteStatus = String(athlete?.status || '').toLowerCase();
   const isBlocked = normalizedAthleteStatus === 'bloqueado';
+  const workoutEditLabelRaw = t('workoutTemplateDetails.edit');
+  const workoutEditLabel =
+    workoutEditLabelRaw === 'workoutTemplateDetails.edit'
+      ? t('workoutTemplateDetails.editButton').replace(/^✏️\s*/, '') || 'Editar'
+      : workoutEditLabelRaw;
   const isRemoved = normalizedAthleteStatus === 'conta removida';
 
   return (
@@ -1079,7 +1084,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="pencil" size={12} color="#10b981" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
-                                          {t('workoutTemplateDetails.edit')}
+                                          {workoutEditLabel}
                                         </Text>
                                       </TouchableOpacity>
                                       {/* Botão de deletar */}
@@ -1158,7 +1163,7 @@ export default function AthleteProfileScreen() {
                                       >
                                         <FontAwesome name="pencil" size={12} color="#10b981" />
                                         <Text className="text-xs font-semibold ml-1" style={{ color: '#10b981' }}>
-                                          {t('workoutTemplateDetails.edit')}
+                                          {workoutEditLabel}
                                         </Text>
                                       </TouchableOpacity>
                                       {/* Botão de deletar */}
