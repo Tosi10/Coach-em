@@ -4,170 +4,95 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Privacy Policy - Coach'em</title>
-    <style>
-      :root {
-        --bg: #0a0a0a;
-        --card: #171717;
-        --text: #f5f5f5;
-        --muted: #a3a3a3;
-        --primary: #fb923c;
-        --border: #262626;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        line-height: 1.6;
-      }
-      .container {
-        width: 100%;
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 32px 20px 56px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 24px;
-      }
-      h1 { margin: 0 0 8px; font-size: 30px; }
-      h2 {
-        margin: 28px 0 8px;
-        font-size: 20px;
-        color: var(--primary);
-      }
-      h3 {
-        margin: 18px 0 8px;
-        font-size: 16px;
-      }
-      p, li { color: var(--muted); }
-      strong { color: var(--text); }
-      ul { padding-left: 20px; }
-      .meta { color: var(--muted); margin-bottom: 20px; }
-      .footer {
-        margin-top: 26px;
-        font-size: 13px;
-        color: var(--muted);
-        border-top: 1px solid var(--border);
-        padding-top: 14px;
-      }
-      a { color: var(--primary); text-decoration: none; }
-      a:hover { text-decoration: underline; }
-    </style>
+    <link rel="stylesheet" href="/legal/coachem-legal.css" />
   </head>
   <body>
     <main class="container">
+      <p class="nav-top"><a href="/terms/coachem-en">Terms of Use</a> · <a href="/privacy/coachem-en/health-consent.html">Health &amp; wearables consent</a></p>
       <section class="card">
-        <h1>Privacy Policy - Coach'em</h1>
-        <p class="meta">Last updated: 2026-05-29</p>
+        <span class="badge">LGPD / GDPR-aware</span>
+        <h1>Privacy Policy — Coach'em</h1>
+        <p class="meta">Version: 2.0 · Effective: 2026-05-29 · Last updated: 2026-05-29</p>
 
+        <h2>1. Introduction</h2>
         <p>
-          This Privacy Policy explains how <strong>Coach'em</strong> ("App", "we", "our")
-          collects, uses, and protects user information ("you").
-        </p>
-        <p>By using Coach'em, you agree to the practices described in this Policy.</p>
-
-        <h2>1. Information we collect</h2>
-        <h3>1.1 Account information</h3>
-        <ul>
-          <li>Email and password (via <strong>Firebase Authentication</strong>) for account creation and sign-in.</li>
-          <li>User type (coach or athlete).</li>
-        </ul>
-
-        <h3>1.2 App usage data</h3>
-        <ul>
-          <li>Created, assigned, and completed workouts.</li>
-          <li>Progress information such as workout frequency, dates, feedback, and sports metrics you provide.</li>
-        </ul>
-
-        <h3>1.3 Technical information</h3>
-        <ul>
-          <li>Basic device information (model, operating system, language) for app functionality and security.</li>
-        </ul>
-
-        <h3>1.4 Health and wearable data (optional)</h3>
-        <p>
-          If you are an <strong>athlete</strong> and choose to connect Apple Watch, Health Connect, or another
-          compatible device, Coach'em may read <strong>aggregated metrics only with your explicit in-app consent</strong>
-          for the workout time window (from <strong>Start workout</strong> to <strong>Mark as completed</strong>), such as:
-        </p>
-        <ul>
-          <li>Heart rate (average, max, min, and time in zones).</li>
-          <li>Estimated active calories.</li>
-          <li>Distance and steps (when available from the device).</li>
-          <li>Exercise sessions recorded by the watch or phone in the same interval.</li>
-        </ul>
-        <p>
-          We do <strong>not</strong> access clinical records or medical diagnoses.
-          Data is read through Apple's HealthKit or Google's Health Connect APIs.
-          You can revoke access anytime in Coach'em settings and/or in iPhone Health or Android Health Connect.
-        </p>
-        <p>
-          Aggregated summaries may be stored in Firebase and shown to your <strong>linked coach</strong>
-          for sports coaching of completed workouts only.
-          We do not sell this data or use it for advertising.
+          This Privacy Policy describes how <strong>Coach'em</strong> (“App”, “Platform”, “Service”, “we”) collects,
+          uses, stores, shares, and protects personal data of coaches, athletes, and other users (“you”, “data subject”),
+          in compliance with Brazil’s <strong>LGPD</strong> and applicable law.
         </p>
 
-        <h2>2. How we use your information</h2>
-        <p>We use collected data to:</p>
+        <h2>2. Definitions</h2>
         <ul>
-          <li>Enable secure sign-in and authentication.</li>
-          <li>Display workouts, dashboards, and performance metrics inside the app.</li>
-          <li>When authorized, show workout health summaries to the athlete and their coach.</li>
-          <li>Improve user experience and build new features.</li>
-          <li>Keep accounts secure and prevent misuse.</li>
+          <li><strong>Personal data:</strong> information relating to an identified or identifiable natural person.</li>
+          <li><strong>Sensitive data:</strong> health-related data, including sports/wellness metrics from wearables when authorized.</li>
+          <li><strong>Controller / Operator / DPO:</strong> as defined under LGPD.</li>
+          <li><strong>Coach / Athlete:</strong> user roles in the training management workflow.</li>
+          <li><strong>Sports health data:</strong> aggregated workout-window metrics (e.g. heart rate), not clinical records.</li>
         </ul>
 
-        <h2>3. Information sharing</h2>
-        <p>We do not sell or rent your personal data.</p>
-        <p>We may share data only:</p>
+        <h2>3. Controller and DPO</h2>
         <ul>
-          <li>With service providers necessary for app operation (for example, <strong>Firebase</strong>).</li>
-          <li>When required by law or by competent authorities.</li>
-        </ul>
-        <p>
-          In some cases, coaches may view training and progress data of athletes linked to them,
-          as part of normal Coach'em usage.
-        </p>
-
-        <h2>4. Storage and security</h2>
-        <ul>
-          <li>Data is stored in cloud services such as <strong>Firebase/Google Cloud</strong>, using market-standard security practices.</li>
-          <li>We recommend using a strong password and not sharing your account with third parties.</li>
+          <li><strong>Legal name:</strong> V6 CORE LTDA · CNPJ 65.416.259/0001-63</li>
+          <li><strong>Product:</strong> Coach'em (Vision10)</li>
+          <li><strong>Address:</strong> Alameda Princesa Izabel, 891</li>
+          <li><strong>Email:</strong> adm.ecg.19@gmail.com</li>
+          <li><strong>WhatsApp:</strong> +55 41 99252-2854</li>
+          <li><strong>DPO:</strong> Rodrigo Antonio Lombardo Tosi</li>
         </ul>
 
-        <h2>5. Your rights</h2>
-        <p>Depending on local law, you may have rights such as:</p>
+        <h2>4. Data we collect</h2>
+        <h3>4.1. Account data</h3>
+        <p>Email, password (Firebase Auth), profile type, optional photo, subscription status.</p>
+        <h3>4.2. Training data</h3>
+        <p>Workouts, assignments, completion, feedback, load history, coach–athlete linkage.</p>
+        <h3>4.3. Health &amp; wearables (optional — athletes)</h3>
+        <p>Only with <strong>explicit in-app consent</strong>, between <strong>Start workout</strong> and <strong>Mark completed</strong>: heart rate aggregates, calories, distance, steps, exercise sessions from Apple Health / Health Connect.</p>
+        <div class="note"><p>We do <strong>not</strong> access diagnoses, ECGs, or hospital records. Aggregates may be stored in Firebase and shown to the linked coach. See <a href="/privacy/coachem-en/health-consent.html">Health &amp; wearables consent</a>.</p></div>
+        <h3>4.4–4.6. Usage, technical, and push data</h3>
+        <p>App interactions, security logs, device/OS info, optional push tokens.</p>
+
+        <h2>5. Purposes</h2>
+        <p>Service delivery, optional sports health display, security, product improvement (anonymized where possible), communications, legal compliance.</p>
+
+        <h2>6. Legal bases (LGPD)</h2>
+        <p>Consent (Art. 7 I / Art. 11 I for sensitive data), contract performance, legal obligation, legitimate interest (balanced). Wearables rely on <strong>specific, highlighted consent</strong>, revocable anytime.</p>
+
+        <h2>7. Sharing</h2>
+        <p>Linked coach (training scope); operators (Firebase/Google Cloud, Apple/Google health APIs on device, RevenueCat, Expo push); authorities when required. <strong>No sale</strong> of personal data. International transfers use LGPD Art. 33 safeguards.</p>
+
+        <h2>8. Security</h2>
+        <p>TLS, Firestore rules, authentication, aggregated health only on server, monitoring and backups. See section 13 for incidents.</p>
+
+        <h2>9. Retention</h2>
         <ul>
-          <li>Accessing information we have about you.</li>
-          <li>Requesting correction of inaccurate data.</li>
-          <li>Requesting account/data deletion, subject to legal retention obligations.</li>
+          <li>Active account: while needed for the Service.</li>
+          <li>Account data: up to 5 years after closure where legally required.</li>
+          <li>Sports health: while consent is active; stop new collection on revoke; deletion on request where applicable.</li>
+          <li>Access logs: at least 6 months.</li>
         </ul>
-        <p>To exercise these rights, contact: <strong>adm.ecg.19@gmail.com</strong>.</p>
 
-        <h2>6. Children and teenagers</h2>
-        <p>
-          Coach'em is not specifically directed at children. If minors use the app, we recommend
-          supervision by guardians and responsible professionals.
-        </p>
+        <h2>10. Your rights (LGPD Art. 18)</h2>
+        <p>Access, correction, deletion, portability, sharing information, consent withdrawal, objection. Contact: <strong>adm.ecg.19@gmail.com</strong> — response within <strong>15 days</strong> where applicable.</p>
 
-        <h2>7. Policy changes</h2>
-        <p>
-          We may update this Privacy Policy from time to time. When we do, we update the date at the top.
-        </p>
+        <h2>11–12. Cookies and notifications</h2>
+        <p>Essential cookies on legal web pages; push/email for service-related messages, opt-out for marketing where offered.</p>
 
-        <h2>8. Contact</h2>
-        <p>If you have questions about this Privacy Policy, contact:</p>
+        <h2>13. Security incidents</h2>
+        <p>Containment, ANPD notification when required, user notice without undue delay, internal records.</p>
+
+        <h2>14–17. Changes, minors, third-party links, law</h2>
+        <p>Minors require guardian consent. Brazilian law applies; EEA users may have additional GDPR rights (Arts. 15–22, 9, 44–49).</p>
+
+        <h2>18. Related documents</h2>
         <ul>
-          <li>Email: <strong>adm.ecg.19@gmail.com</strong></li>
-          <li>App owner: <strong>Vision10</strong></li>
+          <li><a href="/terms/coachem-en">Terms of Use</a></li>
+          <li><a href="/privacy/coachem-en/health-consent.html">Health &amp; wearables consent</a></li>
         </ul>
 
-        <p class="footer">© Vision10 - Coach'em. All rights reserved.</p>
+        <h2>19–20. Contact and effective date</h2>
+        <p>adm.ecg.19@gmail.com · DPO: Rodrigo Antonio Lombardo Tosi</p>
+
+        <p class="footer">© 2026 V6 CORE LTDA — Coach'em. Version 2.0</p>
       </section>
     </main>
   </body>

@@ -367,6 +367,7 @@ export default {
       'Sharing is optional. Without connecting, Coach\'em works as today — workouts, feedback, and load progress.',
     revokeNote:
       'You can also revoke access in iPhone Health settings or the Health Connect app on Android.',
+    fullConsentLink: 'Read full Health & wearables consent term',
     statusConnected: 'Connected (consent on file)',
     statusDisconnected: 'Not connected',
     platformIos: 'Source: Apple Health / Apple Watch',

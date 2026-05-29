@@ -369,6 +369,7 @@ export default {
       'A partilha é opcional. Sem ligação, o Coach\'em funciona como hoje — treinos, feedback e evolução de cargas.',
     revokeNote:
       'Também pode revogar o acesso nas definições de Saúde do iPhone ou na app Health Connect no Android.',
+    fullConsentLink: 'Ler o Termo de Consentimento completo (saúde e wearables)',
     statusConnected: 'Ligado (consentimento registado)',
     statusDisconnected: 'Não ligado',
     platformIos: 'Fonte: Apple Saúde / Apple Watch',

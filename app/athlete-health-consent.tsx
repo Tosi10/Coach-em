@@ -21,10 +21,12 @@ import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
+import { getHealthConsentUrlByLanguage } from '@/src/constants/legalUrls';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -34,7 +36,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AthleteHealthConsentScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -331,9 +333,19 @@ export default function AthleteHealthConsentScreen() {
         <Text className="text-sm leading-5 mb-6" style={themeStyles.textSecondary}>
           {t('healthConsent.optionalNote')}
         </Text>
-        <Text className="text-xs leading-5 mb-6" style={themeStyles.textTertiary}>
+        <Text className="text-xs leading-5 mb-3" style={themeStyles.textTertiary}>
           {t('healthConsent.revokeNote')}
         </Text>
+
+        <TouchableOpacity
+          onPress={() => void Linking.openURL(getHealthConsentUrlByLanguage(i18n.language))}
+          activeOpacity={0.7}
+          className="mb-6"
+        >
+          <Text className="text-sm underline" style={{ color: theme.colors.primary }}>
+            {t('healthConsent.fullConsentLink')}
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => void handleConnectPress()}

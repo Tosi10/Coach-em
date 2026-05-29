@@ -1,11 +1,21 @@
 import { getAthleteById } from './athletes.service';
 import { listAssignedWorkoutsByAthleteId } from './assignedWorkouts.service';
 import { listExerciseWeightHistoryByAthlete } from './exerciseWeightHistory.service';
+import { getHealthSnapshot } from './healthFirestore.service';
 import { getFeedbackLabel } from '@/src/utils/feedbackIcons';
+import type { HealthSnapshot } from '@/src/types/health';
 
 export type AthleteReportPeriod = {
   startDate: string;
   endDate: string;
+};
+
+export type AthleteReportWorkoutHealth = {
+  avgHr: number | null;
+  maxHr: number | null;
+  minHr: number | null;
+  calories: number | null;
+  distanceKm: number | null;
 };
 
 export type AthleteReportWorkoutItem = {
@@ -15,6 +25,24 @@ export type AthleteReportWorkoutItem = {
   status: string;
   completedDate?: string;
   feedbackLabel?: string;
+  health?: AthleteReportWorkoutHealth;
+};
+
+export type AthleteReportHealthSummary = {
+  completedWorkouts: number;
+  workoutsWithHealth: number;
+  avgHrMean: number | null;
+  maxHrPeak: number | null;
+  minHrLow: number | null;
+  totalCalories: number;
+  totalDistanceKm: number;
+  hrTrend: Array<{ label: string; avgHr: number }>;
+};
+
+export type AthleteReportWeightPoint = {
+  label: string;
+  value: number;
+  exerciseName: string;
 };
 
 export type AthleteReportData = {
@@ -39,7 +67,9 @@ export type AthleteReportData = {
     feedbackCounts: Array<{ label: string; count: number }>;
   };
   weeklyTrend: Array<{ label: string; completed: number }>;
-  weightTrend: Array<{ label: string; value: number }>;
+  weightTrend: AthleteReportWeightPoint[];
+  weightByExercise: Array<{ exerciseName: string; points: Array<{ label: string; value: number }> }>;
+  healthSummary: AthleteReportHealthSummary | null;
   workouts: AthleteReportWorkoutItem[];
 };
 
@@ -93,6 +123,86 @@ function buildFeedbackCounts(workouts: any[]): Array<{ label: string; count: num
   return labels.map((label) => ({ label, count: map.get(label) || 0 }));
 }
 
+function mapWorkoutHealth(snapshot: HealthSnapshot): AthleteReportWorkoutHealth {
+  const hr = snapshot.heartRate;
+  const distanceM = snapshot.distanceMeters;
+  return {
+    avgHr: hr?.avg ?? null,
+    maxHr: hr?.max ?? null,
+    minHr: hr?.min ?? null,
+    calories: snapshot.caloriesActive ?? null,
+    distanceKm:
+      distanceM != null && distanceM > 0 ? Math.round((distanceM / 1000) * 100) / 100 : null,
+  };
+}
+
+function buildHealthSummary(
+  completedCount: number,
+  items: AthleteReportWorkoutItem[],
+): AthleteReportHealthSummary | null {
+  const withHealth = items.filter((w) => w.health && (w.health.avgHr != null || w.health.calories != null));
+  if (withHealth.length === 0) return null;
+
+  const avgs = withHealth.map((w) => w.health!.avgHr).filter((v): v is number => v != null && v > 0);
+  const maxs = withHealth.map((w) => w.health!.maxHr).filter((v): v is number => v != null && v > 0);
+  const mins = withHealth.map((w) => w.health!.minHr).filter((v): v is number => v != null && v > 0);
+
+  const hrTrend = withHealth
+    .filter((w) => w.health?.avgHr != null && w.health!.avgHr! > 0)
+    .map((w) => ({
+      label: new Date(w.completedDate || w.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+      }),
+      avgHr: w.health!.avgHr!,
+    }))
+    .slice(-12);
+
+  return {
+    completedWorkouts: completedCount,
+    workoutsWithHealth: withHealth.length,
+    avgHrMean: avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) : null,
+    maxHrPeak: maxs.length ? Math.max(...maxs) : null,
+    minHrLow: mins.length ? Math.min(...mins) : null,
+    totalCalories: Math.round(
+      withHealth.reduce((sum, w) => sum + (w.health?.calories ?? 0), 0),
+    ),
+    totalDistanceKm:
+      Math.round(
+        withHealth.reduce((sum, w) => sum + (w.health?.distanceKm ?? 0), 0) * 100,
+      ) / 100,
+    hrTrend,
+  };
+}
+
+function buildWeightByExercise(
+  records: Array<{ exerciseName: string; date: string; weight: number }>,
+): Array<{ exerciseName: string; points: Array<{ label: string; value: number }> }> {
+  const byExercise = new Map<string, Array<{ date: string; weight: number }>>();
+  for (const r of records) {
+    const name = r.exerciseName?.trim() || 'Exercício';
+    const list = byExercise.get(name) || [];
+    list.push({ date: r.date, weight: r.weight });
+    byExercise.set(name, list);
+  }
+
+  const sorted = Array.from(byExercise.entries())
+    .map(([exerciseName, rows]) => ({
+      exerciseName,
+      rows: rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    }))
+    .sort((a, b) => b.rows.length - a.rows.length)
+    .slice(0, 4);
+
+  return sorted.map(({ exerciseName, rows }) => ({
+    exerciseName,
+    points: rows.slice(-10).map((r) => ({
+      label: new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      value: r.weight,
+    })),
+  }));
+}
+
 export async function buildAthleteReportData(
   athleteId: string,
   period: AthleteReportPeriod
@@ -108,18 +218,47 @@ export async function buildAthleteReportData(
     return inPeriod(baseDate, period);
   });
 
-  const weightTrend = allWeight
-    .filter((r) => inPeriod(r.date, period))
-    .slice(-24)
-    .map((r) => ({
-      label: new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      value: Number(r.weight) || 0,
-    }));
+  const weightInPeriod = allWeight.filter((r) => inPeriod(r.date, period));
+  const weightTrend = weightInPeriod.slice(-24).map((r) => ({
+    label: new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    value: Number(r.weight) || 0,
+    exerciseName: r.exerciseName || 'Exercício',
+  }));
+  const weightByExercise = buildWeightByExercise(
+    weightInPeriod.map((r) => ({
+      exerciseName: r.exerciseName,
+      date: r.date,
+      weight: Number(r.weight) || 0,
+    })),
+  );
 
   const completedWorkouts = workouts.filter((w) => w.status === 'Concluído').length;
   const pendingWorkouts = workouts.filter((w) => w.status !== 'Concluído').length;
   const totalWorkouts = workouts.length;
   const completionRate = totalWorkouts === 0 ? 0 : Math.round((completedWorkouts / totalWorkouts) * 100);
+
+  const workoutItems: AthleteReportWorkoutItem[] = await Promise.all(
+    workouts.map(async (w) => {
+      let health: AthleteReportWorkoutHealth | undefined;
+      if (w.status === 'Concluído') {
+        const snap = await getHealthSnapshot(w.id, athleteId);
+        if (snap && (snap.heartRate?.avg != null || snap.caloriesActive != null)) {
+          health = mapWorkoutHealth(snap);
+        }
+      }
+      return {
+        id: w.id,
+        name: w.name,
+        date: w.date,
+        status: w.status,
+        completedDate: w.completedDate,
+        feedbackLabel: getFeedbackLabel(w.feedback, w.feedbackEmoji) || undefined,
+        health,
+      };
+    }),
+  );
+
+  const completedItems = workoutItems.filter((w) => w.status === 'Concluído');
 
   return {
     generatedAt: new Date().toISOString(),
@@ -144,13 +283,8 @@ export async function buildAthleteReportData(
     },
     weeklyTrend: buildWeeklyTrend(workouts),
     weightTrend,
-    workouts: workouts.map((w) => ({
-      id: w.id,
-      name: w.name,
-      date: w.date,
-      status: w.status,
-      completedDate: w.completedDate,
-      feedbackLabel: getFeedbackLabel(w.feedback, w.feedbackEmoji) || undefined,
-    })),
+    weightByExercise,
+    healthSummary: buildHealthSummary(completedItems.length, completedItems),
+    workouts: workoutItems,
   };
 }

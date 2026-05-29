@@ -290,8 +290,8 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Sprint 5 — Privacidade e QA (Dia 21 → Dia 25) 🟡 **Docs prontos · QA/build por você**
 
-### Dia 21 — Política de privacidade (~2h) ✅ **2026-05-29 (repo)**
-- [x] Secção **1.4 Dados de saúde** em `public/privacy/coachem/index.html` e `coachem-en`.
+### Dia 21 — Política de privacidade (~2h) ✅ **2026-05-29 (repo v2.0)**
+- [x] Política, Termos e **Termo de Consentimento — Saúde** (PT/EN) no estilo LGPD completo (base V6 Core, adaptado Coach'em).
 - [ ] **Deploy hosting** (`firebase deploy --only hosting`) ← **ação sua**
 - [ ] Confirmar URLs públicas atualizadas.
 
