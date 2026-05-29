@@ -232,11 +232,12 @@ export async function updateHealthIntegrationOverrides(
 /**
  * Grava o resumo de saúde de um treino para um atleta.
  *
- * O id do documento é o `athleteUid` para garantir 1 snapshot por (treino, atleta).
+ * O id do documento é o `athleteId` do treino atribuído (coachemAthletes / uid),
+ * alinhado com `firestore.rules` — não o authUid quando forem diferentes.
  */
 export async function saveHealthSnapshot(
   workoutId: string,
-  athleteUid: string,
+  healthDocAthleteId: string,
   snapshot: HealthSnapshot,
 ): Promise<boolean> {
   try {
@@ -245,7 +246,7 @@ export async function saveHealthSnapshot(
       ASSIGNED_WORKOUTS_COLLECTION,
       workoutId,
       HEALTH_SUBCOLLECTION,
-      athleteUid,
+      healthDocAthleteId,
     );
     await setDoc(ref, toFirestoreSnapshot(snapshot), { merge: false });
     return true;
@@ -254,10 +255,10 @@ export async function saveHealthSnapshot(
   }
 }
 
-/** Lê o snapshot de saúde de um treino para um atleta específico. */
+/** Lê o snapshot de saúde de um treino (`health/{athleteId}` do treino). */
 export async function getHealthSnapshot(
   workoutId: string,
-  athleteUid: string,
+  healthDocAthleteId: string,
 ): Promise<HealthSnapshot | null> {
   try {
     const ref = doc(
@@ -265,7 +266,7 @@ export async function getHealthSnapshot(
       ASSIGNED_WORKOUTS_COLLECTION,
       workoutId,
       HEALTH_SUBCOLLECTION,
-      athleteUid,
+      healthDocAthleteId,
     );
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -283,14 +284,15 @@ export async function getHealthSnapshot(
  */
 export async function listAthleteHealthSnapshots(
   coachId: string,
-  athleteUid: string,
+  /** Id do atleta no treino (`coachemAthletes` doc id / perfil). */
+  athleteId: string,
 ): Promise<HealthSnapshot[]> {
   try {
     // 1. Busca treinos do atleta sob este coach.
     const workoutsQ = query(
       collection(db, ASSIGNED_WORKOUTS_COLLECTION),
       where('coachId', '==', coachId),
-      where('athleteId', '==', athleteUid),
+      where('athleteId', '==', athleteId),
     );
     const workoutsSnap = await getDocs(workoutsQ);
 
@@ -302,7 +304,7 @@ export async function listAthleteHealthSnapshots(
         ASSIGNED_WORKOUTS_COLLECTION,
         workoutDoc.id,
         HEALTH_SUBCOLLECTION,
-        athleteUid,
+        athleteId,
       );
       const healthSnap = await getDoc(healthRef);
       if (healthSnap.exists()) {

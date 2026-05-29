@@ -3,7 +3,6 @@
  */
 
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { resolveAthleteUserUid } from '@/src/services/healthSync.service';
 import { getHealthSnapshot } from '@/src/services/healthFirestore.service';
 import type { HealthSnapshot, HRZones } from '@/src/types/health';
 import { getThemeStyles } from '@/src/utils/themeStyles';
@@ -83,13 +82,12 @@ export function WorkoutHealthSummaryCard({
     const load = async () => {
       setState('loading');
       try {
-        const athleteUid = await resolveAthleteUserUid(athleteId);
-        if (!athleteUid) {
+        if (!athleteId?.trim()) {
           if (!cancelled) setState('empty');
           return;
         }
 
-        const data = await getHealthSnapshot(workoutId, athleteUid);
+        const data = await getHealthSnapshot(workoutId, athleteId.trim());
         if (cancelled) return;
 
         if (!data) {

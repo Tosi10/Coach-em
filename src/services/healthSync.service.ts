@@ -44,6 +44,9 @@ export async function resolveAthleteUserUid(athleteId: string): Promise<string |
 /**
  * Lê a janela do treino no HealthKit / Health Connect e grava em Firestore.
  * Nunca lança — falhas ficam só em `notes` ou log silencioso.
+ *
+ * O id do doc em `health/{id}` deve ser o mesmo `athleteId` do treino atribuído
+ * (regras Firestore). O consentimento continua em `users/{authUid}`.
  */
 export async function syncHealthAfterWorkoutComplete(
   workoutId: string,
@@ -53,10 +56,14 @@ export async function syncHealthAfterWorkoutComplete(
   athleteUserUidHint?: string | null,
 ): Promise<void> {
   try {
-    const athleteUid = athleteUserUidHint?.trim() || (await resolveAthleteUserUid(athleteId));
-    if (!athleteUid) return;
+    const healthDocId = athleteId.trim();
+    if (!healthDocId) return;
 
-    const integration = await getHealthIntegration(athleteUid);
+    const authUid =
+      athleteUserUidHint?.trim() || (await resolveAthleteUserUid(healthDocId));
+    if (!authUid) return;
+
+    const integration = await getHealthIntegration(authUid);
     if (!integration?.enabled) return;
 
     const health = getHealthService();
@@ -77,7 +84,7 @@ export async function syncHealthAfterWorkoutComplete(
       // Grava mesmo assim para o treinador ver que tentámos (notas explicativas).
     }
 
-    await saveHealthSnapshot(workoutId, athleteUid, snapshot);
+    await saveHealthSnapshot(workoutId, healthDocId, snapshot);
   } catch (error) {
     console.warn('[HealthSync] sync skipped:', error);
   }

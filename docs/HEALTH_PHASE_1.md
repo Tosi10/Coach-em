@@ -14,10 +14,10 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 | | |
 |---|---|
-| **Progresso** | **19 de 30 dias** de código concluídos · **1 pendente:** Dia 4 (build iOS) |
-| **Sprint atual** | **S4** concluído (código) · **amanhã:** build + teste Apple Watch · depois Sprint 5 (legal/QA) |
-| **O atleta já pode** | Fluxo completo + **treinador vê métricas** no detalhe do treino e gráfico FC no perfil do atleta |
-| **Ainda não** | Teste real no iPhone/relógio · política de privacidade / declarações loja (Sprint 5) |
+| **Progresso** | **~22 de 30 dias** (código + docs S5) · **pendente:** Dia 4 (build iOS) + QA relógio |
+| **Sprint atual** | **S5** docs prontos no repo · **amanhã:** build + teste Apple Watch + QA |
+| **O atleta já pode** | Fluxo completo + **treinador vê métricas** no detalhe do treino e gráfico FC no perfil |
+| **Ainda não** | Deploy hosting privacidade · preencher lojas · teste real dispositivo |
 | **Paralelo (outro fio)** | Firebase App Check na mesma branch — enforcement ainda OFF na consola |
 
 **Resumo em uma frase:** MVP Pro+ Health em código está **quase completo**; amanhã só precisas de **build iOS + teste relógio**; depois Sprint 5 (legal/QA).
@@ -30,8 +30,8 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | **S2 — Dados & consentimento** | 🟢 **Concluída** (código) | Deploy das `firestore.rules` na consola ainda recomendado |
 | **S3 — Captura de treino** | 🟢 **Concluída** (código) | Validar amanhã em build iOS + relógio |
 | **S4 — UI treinador** | 🟢 **Concluída** (código) | Card no treino + gráfico FC no perfil |
-| **S5 — Privacidade & QA** | ⬜ Não iniciada | |
-| **S6 — Buffer & release** | ⬜ Não iniciada | |
+| **S5 — Privacidade & QA** | 🟡 **Docs no repo** | Deploy hosting + QA dispositivo + lojas (você) |
+| **S6 — Buffer & release** | ⬜ Não iniciada | Após QA estável |
 
 ---
 
@@ -71,7 +71,7 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | **S2 — Dados & consentimento** | Firestore, regras, tela + permissões | Dia 6 → Dia 10 | 🟢 **Concluído** |
 | **S3 — Captura de treino** | Iniciar / Concluir + coleta agregados | Dia 11 → Dia 15 | 🟢 **Concluído** |
 | **S4 — UI treinador & polimento** | Cards de saúde + histórico + edge cases | Dia 16 → Dia 20 | 🟢 **Concluído** (código) |
-| **S5 — Privacidade & QA** | Política, declarações, QA real device | Dia 21 → Dia 25 | ⬜ |
+| **S5 — Privacidade & QA** | Política, declarações, QA real device | Dia 21 → Dia 25 | 🟡 **Docs ✅** · QA/build pendente |
 | **S6 — Buffer & release** | Margem para imprevistos + release interno | Dia 26 → Dia 30 | ⬜ |
 
 ---
@@ -389,3 +389,4 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | 2026-05-29 | Dias 9–10: permissões nativas + revoke; marcos S2 concluídos |
 | 2026-05-29 | Dias 11–15: janela treino + leitura HealthKit/Connect + sync Firestore; marco S3 código ✅ |
 | 2026-05-29 | Dias 16–20: UI treinador; privacidade HTML + guias lojas/QA/troubleshooting |
+| 2026-05-29 | fix: `health/{athleteId}` alinhado ao treino atribuído (regras Firestore) |

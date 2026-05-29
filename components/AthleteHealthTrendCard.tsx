@@ -4,7 +4,6 @@
 
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAthleteHealthSnapshots } from '@/src/services/healthFirestore.service';
-import { resolveAthleteUserUid } from '@/src/services/healthSync.service';
 import { chartDayMonthByLocale } from '@/src/utils/dateOnly';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -32,13 +31,12 @@ export function AthleteHealthTrendCard({
     const load = async () => {
       setLoading(true);
       try {
-        const athleteUid = await resolveAthleteUserUid(athleteId);
-        if (!athleteUid) {
+        if (!athleteId?.trim()) {
           if (!cancelled) setBarData([]);
           return;
         }
 
-        const snapshots = await listAthleteHealthSnapshots(coachId, athleteUid);
+        const snapshots = await listAthleteHealthSnapshots(coachId, athleteId.trim());
         const withHr = snapshots
           .filter((s) => s.heartRate?.avg != null && s.heartRate!.avg! > 0)
           .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime())
