@@ -49,6 +49,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/coachemAthletes/$(athleteId)).data.coachId == request.auth.uid;
     }
 
+    /** Dados do documento pai de um treino atribuído (para subcoleção `health`). */
+    function assignedWorkoutParentData(docId) {
+      return get(/databases/$(database)/documents/coachemAssignedWorkouts/$(docId)).data;
+    }
+
+    /** Id do atleta no treino atribuído (coerente com `health/{athleteUid}`). */
+    function assignedWorkoutAthleteId(docId) {
+      return assignedWorkoutParentData(docId).athleteId;
+    }
+
     /** Treinos atribuídos: ids centrais não podem mudar em update. */
     function assignedWorkoutCoreIdsUnchanged() {
       return request.resource.data.athleteId == resource.data.athleteId
@@ -232,6 +242,24 @@ service cloud.firestore {
 
       allow delete: if isCoachEmCoach()
         && resource.data.coachId == request.auth.uid;
+
+      // Resumo de saúde por treino (Pro+ Health / Health Connect / HealthKit).
+      // Doc id = uid do atleta (espelha `athleteId` do treino). Só o atleta grava; coach lê.
+      match /health/{athleteUid} {
+        allow read: if isSignedIn()
+          && athleteUid == assignedWorkoutAthleteId(docId)
+          && (
+            request.auth.uid == athleteUid ||
+            assignedWorkoutParentData(docId).coachId == request.auth.uid ||
+            coachOwnsAthlete(assignedWorkoutAthleteId(docId))
+          );
+
+        allow create, update: if isSignedIn()
+          && athleteUid == assignedWorkoutAthleteId(docId)
+          && request.auth.uid == athleteUid;
+
+        allow delete: if false;
+      }
     }
 
     // Evolução de carga/peso

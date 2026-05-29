@@ -150,19 +150,30 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - `listAthleteHealthSnapshots` faz N+1 reads — aceitável para o painel inicial; pode virar índice composto em Sprint 4 se ficar pesado.
 - Regras de segurança Firestore para essas operações vêm no Dia 7 (próximo).
 
-### Dia 7 — Regras de segurança Firestore (~2h)
-- [ ] Atualizar regras para permitir:
-  - atleta escrever `health/{uid}` apenas no próprio treino,
-  - treinador ler health dos atletas vinculados,
-  - atleta atualizar próprio `users.healthIntegration`.
-- [ ] Validar com Firestore Rules Playground.
-- [ ] Commit: `chore(rules): health subcollection`.
+### Dia 7 — Regras de segurança Firestore (~2h) ✅ **Concluído em 2026-05-15**
+- [x] Atualizar `firestore.rules` (fonte do deploy — `firebase.json`):
+  - **Subcoleção** `coachemAssignedWorkouts/{docId}/health/{athleteUid}`:
+    - **Leitura:** atleta (`uid == athleteUid`), `coachId` do treino, ou `coachOwnsAthlete(athleteId)` (igual ao doc pai).
+    - **Escrita:** só o atleta, e só se `athleteUid` coincide com `athleteId` do treino (evita path `health/outroUid` num treino que não é dele).
+    - **Delete:** negado (histórico; app usa `setDoc` para substituir).
+  - Helpers `assignedWorkoutParentData` / `assignedWorkoutAthleteId` para validar contra o doc pai.
+- [x] **`users.healthIntegration`:** já coberto pelas regras atuais de `users/{userId}` (o próprio utilizador pode `update` desde que não mexa em billing / `userType` / `email` / `createdAt`) — nenhuma alteração necessária.
+- [ ] Validar no **Rules Playground** da consola após fazer **deploy** das regras (recomendado antes de testar com app real).
+- [x] Commit: `chore(rules): health subcollection [Day 7]`.
 
-### Dia 8 — Design do consentimento do atleta (~2h)
-- [ ] Definir copy PT/EN final da tela de consentimento.
-- [ ] Esboçar componente `AthleteHealthConsentScreen` (sem implementar lógica nativa).
-- [ ] Adicionar entrada no Perfil do atleta.
-- [ ] Commit: `feat(health): consent screen scaffold`.
+**Deploy:** as alterações só entram em produção após `firebase deploy --only firestore:rules` (ou fluxo que usares). Até lá o app em produção mantém as regras antigas.
+
+### Dia 8 — Design do consentimento do atleta (~2h) ✅ **Concluído em 2026-05-21**
+- [x] Definir copy PT/EN final da tela de consentimento (`healthConsent` + `profile.health*` em i18n).
+- [x] Tela `app/athlete-health-consent.tsx` (estado Firestore via `getHealthIntegration`; botões ligar/desligar com aviso scaffold até Dia 9).
+- [x] Entrada no Perfil do atleta (`app/(tabs)/profile.tsx` → só `ATHLETE`).
+- [x] Rota registada em `app/_layout.tsx`.
+- [ ] Commit: `feat(health): consent screen scaffold [Day 8]`.
+
+**Notas:**
+- Testável no **Expo Go** (sem build nativo).
+- Treinador não vê a entrada de saúde no perfil (só atleta).
+- App Check / hardening: ver `SEGURANCA_LANCAMENTO_CHECKLIST.md` — fase posterior (referência EletroNovo/v6core).
 
 ### Dia 9 — Implementar pedido de permissões (iOS + Android) (~2h)
 - [ ] Conectar `requestPermissions` real ao botão.

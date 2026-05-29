@@ -93,6 +93,10 @@ export default {
     planSection: "Coach'em plan",
     planRowTitle: 'Plan & subscription',
     planRowSubtitle: 'See Free vs Pro limits, subscribe to Coach’em Pro, or restore purchases.',
+    healthSection: 'Health & watch',
+    healthRowTitle: 'Apple Watch / health',
+    healthRowSubtitle:
+      'Optional: share heart rate, calories, and workouts with your coach during sessions.',
     coachMessageSection: 'Message for athletes',
     publicNamePlaceholder: 'Name shown to your athletes',
     welcomePlaceholder: 'e.g. Full focus this week. Any questions, message me.',
@@ -348,6 +352,33 @@ export default {
     errGeneric: 'Could not register the athlete. Please try again.',
     planLimitTitle: 'Plan limit',
     viewPlans: 'View plans',
+  },
+  healthConsent: {
+    title: 'Health & device',
+    subtitle:
+      'Connect Apple Watch or Health Connect so your coach can see aggregated metrics when you finish a workout. You can turn this off anytime.',
+    dataTitle: 'What may be shared (summary)',
+    bulletHeartRate: 'Average, max heart rate and zones during the workout',
+    bulletCalories: 'Active calories in the session',
+    bulletDistance: 'Distance covered (when applicable)',
+    bulletSteps: 'Steps in the workout time window',
+    bulletWorkouts: 'Exercise sessions recorded on watch or phone',
+    optionalNote:
+      'Sharing is optional. Without connecting, Coach\'em works as today — workouts, feedback, and load progress.',
+    revokeNote:
+      'You can also revoke access in iPhone Health settings or the Health Connect app on Android.',
+    statusConnected: 'Connected (consent on file)',
+    statusDisconnected: 'Not connected',
+    platformIos: 'Source: Apple Health / Apple Watch',
+    platformAndroid: 'Source: Health Connect',
+    platformOther: 'Available on iPhone and Android',
+    connectButton: 'Connect health device',
+    disconnectButton: 'Disconnect device',
+    scaffoldTitle: 'Coming in the next update',
+    scaffoldConnectBody:
+      'System permission prompts (Apple Health or Health Connect) will be enabled in the next health project step. For now, this screen only explains what will be shared.',
+    scaffoldDisconnectBody:
+      'Full disconnect will be enabled in the next update. You can already revoke access in your device settings.',
   },
   athleteLegal: {
     title: "Welcome to Coach'em",

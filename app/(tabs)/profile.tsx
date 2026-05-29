@@ -17,7 +17,7 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -430,6 +430,43 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {!isCoach && (
+          <View className="mb-6">
+            <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
+              {t('profile.healthSection')}
+            </Text>
+            <View
+              className="rounded-2xl border overflow-hidden"
+              style={{ borderColor: theme.colors.border, borderWidth: 1 }}
+            >
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4"
+                style={{ backgroundColor: theme.colors.card }}
+                onPress={() => router.push('/athlete-health-consent' as Href)}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <FontAwesome
+                    name="heartbeat"
+                    size={18}
+                    color={theme.colors.primary}
+                    style={{ marginRight: 12 }}
+                  />
+                  <View className="flex-1">
+                    <Text className="font-semibold" style={themeStyles.text}>
+                      {t('profile.healthRowTitle')}
+                    </Text>
+                    <Text className="text-xs mt-0.5" style={themeStyles.textSecondary} numberOfLines={2}>
+                      {t('profile.healthRowSubtitle')}
+                    </Text>
+                  </View>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {isCoach && (
           <View className="mb-6">
