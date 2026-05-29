@@ -124,10 +124,10 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - Nenhum código TS/JS foi tocado. Nenhum build novo foi gerado. AAB em revisão na Play não é afetado (já foi enviado antes desta mudança).
 - **Cuidado profissional:** próximo build Android só faz sentido **depois** da Play aprovar o AAB atual, para não criar conflito de revisão.
 
-### Dia 4 — Build EAS Dev Client (iOS + Android) (~2h)
-- [ ] Atualizar `eas.json` se necessário (`developmentClient: true`).
-- [ ] `eas build --profile development --platform ios`.
-- [ ] `eas build --profile development --platform android`.
+### Dia 4 — Build EAS Dev Client (iOS + Android) (~2h) 🟡 **Config OK · build pendente (você)**
+- [x] `eas.json` com `developmentClient: true` no profile `development`.
+- [ ] `eas build --profile development --platform ios` ← **antes do teste Apple Watch**
+- [ ] `eas build --profile development --platform android` (opcional)
 - [ ] Instalar e validar abertura do app em ambos.
 - [ ] Confirmar que **nenhum** fluxo antigo quebrou.
 
@@ -288,43 +288,30 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ---
 
-## Sprint 5 — Privacidade e QA (Dia 21 → Dia 25)
+## Sprint 5 — Privacidade e QA (Dia 21 → Dia 25) 🟡 **Docs prontos · QA/build por você**
 
-### Dia 21 — Política de privacidade (~2h)
-- [ ] Adicionar seção **Dados de Saúde**.
-- [ ] Atualizar PT e EN no hosting (`futeba-96395.web.app/privacy/coachem`).
-- [ ] Confirmar deploy.
-- [ ] Commit: `docs(privacy): health section`.
+### Dia 21 — Política de privacidade (~2h) ✅ **2026-05-29 (repo)**
+- [x] Secção **1.4 Dados de saúde** em `public/privacy/coachem/index.html` e `coachem-en`.
+- [ ] **Deploy hosting** (`firebase deploy --only hosting`) ← **ação sua**
+- [ ] Confirmar URLs públicas atualizadas.
 
-### Dia 22 — Declarações nas lojas (~2h)
-- [ ] Atualizar **Segurança dos dados** (Play Console):
-  - adicionar tipo Saúde,
-  - finalidade Funcionalidade da app,
-  - opcional/obrigatório alinhado.
-- [ ] Atualizar **App Privacy** (App Store Connect):
-  - tipo Health & Fitness,
-  - finalidade App functionality.
-- [ ] Sem upload de build ainda.
+### Dia 22 — Declarações nas lojas (~2h) ✅ **2026-05-29 (guia)**
+- [x] Checklist completo: [`HEALTH_STORE_DECLARATIONS.md`](./HEALTH_STORE_DECLARATIONS.md).
+- [ ] Preencher **Segurança dos dados** (Play) — **ação sua**
+- [ ] Preencher **App Privacy** (Apple) — **ação sua**
 
-### Dia 23 — QA iOS em dispositivo real (~2h)
-- [ ] Apple Watch sincronizado com iPhone de teste.
-- [ ] Cenário: iniciar + executar treino + concluir.
-- [ ] Validar todos os agregados batendo com o app Saúde.
-- [ ] Bugs em `bugs-health.md` (interno).
-- [ ] Commit: `chore(qa): ios health pass 1`.
+### Dia 23 — QA iOS em dispositivo real (~2h) ⬜ **Amanhã**
+- [x] Checklist: [`HEALTH_QA_CHECKLIST.md`](./HEALTH_QA_CHECKLIST.md).
+- [x] Registo de bugs: [`bugs-health.md`](./bugs-health.md).
+- [ ] Executar cenário com Apple Watch.
 
-### Dia 24 — QA Android em dispositivo real (~2h)
-- [ ] Wear OS / Mi Band / Samsung sincronizando com Health Connect.
-- [ ] Mesmo cenário do iOS.
-- [ ] Bugs no mesmo arquivo.
-- [ ] Commit: `chore(qa): android health pass 1`.
+### Dia 24 — QA Android (~2h)
+- [ ] Opcional após iOS estável.
 
 ### Dia 25 — Correções pós-QA (~2h)
-- [ ] Aplicar fixes prioritários encontrados.
-- [ ] Reteste rápido em ambas plataformas.
-- [ ] Commit: `fix(health): qa fixes batch 1`.
+- [ ] Conforme bugs encontrados.
 
-**Milestone S5:** legal e QA OK. Pronto para release interno.
+**Milestone S5:** 🟡 Aguarda deploy privacidade + QA real + lojas.
 
 ---
 
@@ -333,10 +320,10 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 ### Dia 26 — Buffer técnico (~2h)
 - [ ] Dia livre para qualquer atraso ou polish.
 
-### Dia 27 — Documentação final (~2h)
-- [ ] Atualizar `README.md` (seção Health).
-- [ ] Atualizar `docs/HEALTH_INTEGRATION_PLAN.md` (status da Fase 1).
-- [ ] Adicionar troubleshooting Health Connect comum.
+### Dia 27 — Documentação final (~2h) ✅ **2026-05-29 (parcial)**
+- [x] `README.md` — secção Pro+ Health.
+- [x] `HEALTH_INTEGRATION_PLAN.md` — estado atualizado.
+- [x] [`HEALTH_TROUBLESHOOTING.md`](./HEALTH_TROUBLESHOOTING.md).
 
 ### Dia 28 — Build de produção iOS + Android (~2h)
 - [ ] `eas build --profile production --platform ios`.
@@ -401,3 +388,4 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | 2026-05-09 | Criação do plano detalhado da Fase 1 |
 | 2026-05-29 | Dias 9–10: permissões nativas + revoke; marcos S2 concluídos |
 | 2026-05-29 | Dias 11–15: janela treino + leitura HealthKit/Connect + sync Firestore; marco S3 código ✅ |
+| 2026-05-29 | Dias 16–20: UI treinador; privacidade HTML + guias lojas/QA/troubleshooting |

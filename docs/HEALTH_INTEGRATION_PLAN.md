@@ -2,9 +2,11 @@
 
 Documento técnico-vivo de planejamento da **integração de saúde** do Coach'em.
 
-> **Estado:** planejamento. **Nada de código ainda.** Cada fase deve ser revisada e aprovada antes de iniciar.
+> **Estado:** **Fase 1 (Health Read MVP)** — implementação de código concluída na branch `feat/security-app-check`. Pendente: build iOS/Android, QA com relógio, deploy hosting/privacidade, declarações nas lojas.
 
-> **Última atualização:** 2026-05-09
+> **Última atualização:** 2026-05-29
+
+> **Execução diária:** [`HEALTH_PHASE_1.md`](./HEALTH_PHASE_1.md) · **QA:** [`HEALTH_QA_CHECKLIST.md`](./HEALTH_QA_CHECKLIST.md) · **Lojas:** [`HEALTH_STORE_DECLARATIONS.md`](./HEALTH_STORE_DECLARATIONS.md) · **Suporte:** [`HEALTH_TROUBLESHOOTING.md`](./HEALTH_TROUBLESHOOTING.md)
 
 ---
 

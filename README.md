@@ -68,6 +68,25 @@ Sugestão de ordem para **lançamento** e evolução:
 | **Sessão** | Firebase Auth com persistência em **AsyncStorage** (`src/services/firebase.config.ts`). |
 | **UI** | Tema claro/escuro, abas com ícones PNG (Home, Treinos/Atletas, Perfil), assets críticos pré-carregados no boot (`app/_layout.tsx`). |
 | **Treinos** | Atribuição, detalhes, biblioteca de exercícios, calendário do treinador, etc. |
+| **Pro+ Health (Fase 1)** | Atleta liga Apple Saúde / Health Connect; **Iniciar** / **Concluir** treino define a janela; métricas agregadas no Firestore; treinador vê card no treino e gráfico FC no perfil do atleta. Ver [`docs/HEALTH_PHASE_1.md`](docs/HEALTH_PHASE_1.md). |
+
+---
+
+## Pro+ Health (wearables) — estado atual
+
+Implementação na branch **`feat/security-app-check`** (merge pendente para `main`).
+
+| O quê | Onde |
+|-------|------|
+| Plano diário | [`docs/HEALTH_PHASE_1.md`](docs/HEALTH_PHASE_1.md) |
+| Arquitetura | [`docs/HEALTH_INTEGRATION_PLAN.md`](docs/HEALTH_INTEGRATION_PLAN.md) |
+| QA no dispositivo | [`docs/HEALTH_QA_CHECKLIST.md`](docs/HEALTH_QA_CHECKLIST.md) |
+| Play / App Store | [`docs/HEALTH_STORE_DECLARATIONS.md`](docs/HEALTH_STORE_DECLARATIONS.md) |
+| Problemas comuns | [`docs/HEALTH_TROUBLESHOOTING.md`](docs/HEALTH_TROUBLESHOOTING.md) |
+
+**Importante:** não funciona no **Expo Go** — usar `eas build --profile development`.
+
+**Privacidade (HTML):** `public/privacy/coachem*` — deploy com `firebase deploy --only hosting`.
 
 ---
 
