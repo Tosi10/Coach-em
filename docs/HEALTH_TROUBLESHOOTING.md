@@ -25,7 +25,7 @@ eas build --profile development --platform ios
 | Relógio sincronizou com **Saúde** / Health Connect **antes** de concluir? | Abrir app Saúde e confirmar FC do período |
 | Build tem código de saúde? | Não usar versão antiga da loja |
 | Regras Firestore deployadas? | `firebase deploy --only firestore:rules` |
-| Documento `health/{uid}` no Firebase? | Consola → treino atribuído → subcoleção `health` |
+| Documento `health/{athleteId}` no Firebase? | Id = mesmo `athleteId` do treino (não confundir com email) |
 
 ---
 
