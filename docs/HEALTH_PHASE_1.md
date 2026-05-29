@@ -6,7 +6,32 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 > **Início previsto:** segunda-feira após aprovação deste plano
 > **Ritmo:** **~2 horas/dia**, dias úteis
 > **Duração estimada:** **6 semanas (30 sessões úteis)** — incluído buffer
-> **Branch:** `feat/health-integration` (criada no Dia 1)
+> **Branch de trabalho atual:** `feat/security-app-check` (saúde + App Check integrados; merge dos Dias 7–8 em 2026-05-29)
+
+---
+
+## Onde estamos agora (2026-05-29)
+
+| | |
+|---|---|
+| **Progresso** | **9 de 30 dias** de código concluídos · **1 dia pendente** no Sprint 1 (Dia 4 — Dev Client) |
+| **Sprint atual** | **Sprint 3** — Captura no fluxo do treino (próximo: **Dia 11**) |
+| **O atleta já pode** | Ver termos, **ligar/desligar** saúde (permissões nativas no build com módulos); consentimento gravado no Firestore |
+| **Ainda não** | Ler dados do relógio no treino · treinador ver métricas · build Dev Client para testar relógio |
+| **Paralelo (outro fio)** | Firebase App Check na mesma branch — enforcement ainda OFF na consola |
+
+**Resumo em uma frase:** infraestrutura e consentimento prontos; falta **Dev Client (Dia 4)** para testar no telefone e **Dias 11–15** para passar a coletar dados ao concluir treino.
+
+### Status das milestones
+
+| Milestone | Estado | Notas |
+|-----------|--------|--------|
+| **S1 — Setup** | 🟡 **Quase** (4/5) | Falta só **Dia 4** (build Dev Client iOS + Android) |
+| **S2 — Dados & consentimento** | 🟢 **Concluída** (código) | Deploy das `firestore.rules` na consola ainda recomendado antes de teste real |
+| **S3 — Captura de treino** | ⬜ Não iniciada | Próximo bloco de trabalho |
+| **S4 — UI treinador** | ⬜ Não iniciada | |
+| **S5 — Privacidade & QA** | ⬜ Não iniciada | |
+| **S6 — Buffer & release** | ⬜ Não iniciada | |
 
 ---
 
@@ -22,10 +47,10 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Métricas de progresso (KPIs internos)
 
-- Quantos dias previstos vs. concluídos.
-- Quantos commits por sprint.
-- Aprovação manual em cada milestone (S1, S2, S3, S4, S5).
-- Lints/TS sem regressão.
+- **Dias concluídos:** 9 / 30 (Dias 1–3, 5–10) · **Pendente no S1:** Dia 4
+- **Commits health (referência):** Dias 1–3, 5–6 em `feat/health-integration`; Dias 7–10 + merge em `feat/security-app-check`
+- **Milestones:** S2 código ✅ · S1 🟡 · S3–S6 ⬜
+- **Lints/TS:** `npx tsc --noEmit` OK após Dias 9–10
 
 ---
 
@@ -41,14 +66,14 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Visão geral em sprints
 
-| Sprint | Foco | Dias |
-|--------|------|------|
-| **S1 — Setup** | Libs, permissões, build dev client | Dia 1 → Dia 5 |
-| **S2 — Dados & consentimento** | Firestore, regras, tela de consentimento | Dia 6 → Dia 10 |
-| **S3 — Captura de treino** | Iniciar / Concluir + coleta agregados | Dia 11 → Dia 15 |
-| **S4 — UI treinador & polimento** | Cards de saúde + histórico + edge cases | Dia 16 → Dia 20 |
-| **S5 — Privacidade & QA** | Política, declarações, QA real device | Dia 21 → Dia 25 |
-| **S6 — Buffer & release** | Margem para imprevistos + release interno | Dia 26 → Dia 30 |
+| Sprint | Foco | Dias | Status |
+|--------|------|------|--------|
+| **S1 — Setup** | Libs, permissões, build dev client | Dia 1 → Dia 5 | 🟡 **4/5** — falta Dia 4 |
+| **S2 — Dados & consentimento** | Firestore, regras, tela + permissões | Dia 6 → Dia 10 | 🟢 **Concluído** |
+| **S3 — Captura de treino** | Iniciar / Concluir + coleta agregados | Dia 11 → Dia 15 | ⬜ **Próximo** |
+| **S4 — UI treinador & polimento** | Cards de saúde + histórico + edge cases | Dia 16 → Dia 20 | ⬜ |
+| **S5 — Privacidade & QA** | Política, declarações, QA real device | Dia 21 → Dia 25 | ⬜ |
+| **S6 — Buffer & release** | Margem para imprevistos + release interno | Dia 26 → Dia 30 | ⬜ |
 
 ---
 
@@ -125,11 +150,11 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 - A implementação real entra nos Dias 14 e 15, depois do Dev Client estar disponível.
 - O contrato (`HealthService`) está pronto para que telas (Dia 8+) já consigam consumir, mesmo recebendo dados vazios.
 
-**Milestone S1:** dev client buildado em ambas plataformas, libs instaladas, esqueleto de serviço pronto. **Sem mudança visível para usuário.**
+**Milestone S1:** 🟡 **Parcial** — libs + `app.json` + serviço unificado ✅; **Dev Client (Dia 4) ainda não buildado**. Sem coleta de dados; app em produção inalterado até novo build.
 
 ---
 
-## Sprint 2 — Dados e consentimento (Dia 6 → Dia 10)
+## Sprint 2 — Dados e consentimento (Dia 6 → Dia 10) 🟢 **Concluído (código)**
 
 ### Dia 6 — Schema Firestore + tipos (~2h) ✅ **Concluído em 2026-05-13**
 - [x] Criar tipos TS para `HealthSnapshot` no Firestore (`HealthSnapshotDoc`, `HealthIntegrationDoc`, `ProPlusHealthDoc`).
@@ -165,36 +190,39 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ### Dia 8 — Design do consentimento do atleta (~2h) ✅ **Concluído em 2026-05-21**
 - [x] Definir copy PT/EN final da tela de consentimento (`healthConsent` + `profile.health*` em i18n).
-- [x] Tela `app/athlete-health-consent.tsx` (estado Firestore via `getHealthIntegration`; botões ligar/desligar com aviso scaffold até Dia 9).
+- [x] Tela `app/athlete-health-consent.tsx` (estado Firestore via `getHealthIntegration`).
 - [x] Entrada no Perfil do atleta (`app/(tabs)/profile.tsx` → só `ATHLETE`).
 - [x] Rota registada em `app/_layout.tsx`.
-- [ ] Commit: `feat(health): consent screen scaffold [Day 8]`.
+- [x] Commit: `feat(health): consent screen scaffold [Day 8]` (via merge `chore/preserve-health-carryover`).
 
 **Notas:**
 - Testável no **Expo Go** (sem build nativo).
 - Treinador não vê a entrada de saúde no perfil (só atleta).
 - App Check / hardening: ver `SEGURANCA_LANCAMENTO_CHECKLIST.md` — fase posterior (referência EletroNovo/v6core).
 
-### Dia 9 — Implementar pedido de permissões (iOS + Android) (~2h)
-- [ ] Conectar `requestPermissions` real ao botão.
-- [ ] Tratar:
-  - permissão concedida,
-  - permissão recusada,
-  - Health Connect não instalado (Android).
-- [ ] Atualizar `users.healthIntegration` no Firestore após concessão.
-- [ ] Commit: `feat(health): permissions flow`.
+### Dia 9 — Implementar pedido de permissões (iOS + Android) (~2h) ✅ **Concluído em 2026-05-29**
+- [x] `health/healthNativePermissions.{ios,android}.ts` com import dinâmico das libs nativas (seguro no Expo Go).
+- [x] `health.service.ts` delega `requestPermissions` / `isAvailable` às implementações nativas.
+- [x] Tela `athlete-health-consent.tsx`: botão **Ligar** chama permissões reais + `markHealthIntegrationGranted`.
+- [x] Tratar: Expo Go, permissão recusada, Health Connect não instalado / atualização (Android → Play Store).
+- [x] i18n PT/EN para erros e sucesso.
+- [x] Commit: `feat(health): permissions flow [Day 9]`.
 
-### Dia 10 — Revogação + status (~2h)
-- [ ] Botão **Desconectar dispositivo de saúde**.
-- [ ] Atualizar `users.healthIntegration.permissionsRevokedAt`.
-- [ ] Texto explicando que revogação no sistema operacional também conta.
-- [ ] Commit: `feat(health): revoke + status UI`.
+**Notas:**
+- `readWindow` continua stub (Dias 14–15). Ligar ≠ coletar dados de treino ainda.
+- Teste com relógio exige **Dev Client** ou build de loja com módulos nativos.
 
-**Milestone S2:** atleta consegue **conectar e desconectar** dispositivo. App ainda **não coleta** dados.
+### Dia 10 — Revogação + status (~2h) ✅ **Concluído em 2026-05-29**
+- [x] Botão **Desligar** → `revokePermissions` (Android: `revokeAllPermissions`) + `markHealthIntegrationRevoked`.
+- [x] Mensagem iOS: instrução para revogar também na app Saúde.
+- [x] Estados de loading na UI (`connecting` / `disconnecting`).
+- [x] Commit: `feat(health): revoke + status UI [Day 10]` (mesmo commit que Dia 9).
+
+**Milestone S2:** 🟢 **Concluída (código)** — atleta consegue **conectar e desconectar** (em build nativo / Dev Client). App ainda **não coleta** métricas de treino (`readWindow` = stub até Dias 14–15).
 
 ---
 
-## Sprint 3 — Captura no fluxo do treino (Dia 11 → Dia 15)
+## Sprint 3 — Captura no fluxo do treino (Dia 11 → Dia 15) ⬜ **Próximo sprint**
 
 ### Dia 11 — `startedAt` / `completedAt` no treino (~2h)
 - [ ] Adicionar campos `startedAt` e `completedAt` em `coachemAssignedWorkouts`.
@@ -341,7 +369,7 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Critérios de aceite da Fase 1
 
-- [ ] Atleta consegue conectar/desconectar saúde com 1 clique.
+- [x] Atleta consegue conectar/desconectar saúde com 1 clique *(código; validar em Dev Client / build loja)*.
 - [ ] Conclusão de treino salva resumo de saúde em Firestore.
 - [ ] Treinador vê card de saúde no detalhe do treino.
 - [ ] Treinador vê histórico básico de FC e calorias.
@@ -381,3 +409,4 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | Data | Resumo |
 |------|--------|
 | 2026-05-09 | Criação do plano detalhado da Fase 1 |
+| 2026-05-29 | Dias 9–10: permissões nativas + revoke; marcos S2 concluídos; próximo Dia 11 |

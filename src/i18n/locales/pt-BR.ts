@@ -376,11 +376,33 @@ export default {
     platformOther: 'Disponível em iPhone e Android',
     connectButton: 'Ligar dispositivo de saúde',
     disconnectButton: 'Desligar dispositivo',
-    scaffoldTitle: 'Em breve nesta versão',
-    scaffoldConnectBody:
-      'O pedido de permissão ao sistema (Apple Saúde ou Health Connect) será ativado na próxima atualização do projeto de saúde. Por agora, esta tela só explica o que será partilhado.',
-    scaffoldDisconnectBody:
-      'A desligação completa será ativada na próxima atualização. Pode revogar já nas definições do sistema operativo.',
+    connecting: 'A pedir permissões…',
+    disconnecting: 'A desligar…',
+    successConnectedTitle: 'Ligado com sucesso',
+    successConnectedBody:
+      'Permissões registadas. Quando concluir um treino com início e fim, o Coach\'em poderá ler métricas agregadas dessa janela (após a próxima atualização com leitura ativa).',
+    successDisconnectedTitle: 'Desligado',
+    successDisconnectedBody:
+      'O consentimento no Coach\'em foi removido. Para bloquear totalmente, revogue também nas definições de Saúde do iPhone ou na app Health Connect.',
+    errorExpoGoTitle: 'Requer app de desenvolvimento',
+    errorExpoGoBody:
+      'No Expo Go não é possível ligar Apple Saúde ou Health Connect. Use um build de desenvolvimento (Dev Client) ou a versão instalada da loja quando estiver disponível.',
+    errorUnavailableTitle: 'Indisponível neste dispositivo',
+    errorUnavailableBody:
+      'Não foi possível aceder aos serviços de saúde neste aparelho. Confirme que está num iPhone ou Android compatível.',
+    errorPermissionDeniedTitle: 'Permissão não concedida',
+    errorPermissionDeniedBody:
+      'Sem acesso aos dados de saúde, o treinador não verá métricas do relógio. Pode tentar de novo ou autorizar manualmente nas definições do sistema.',
+    errorHcNotInstalledTitle: 'Health Connect necessário',
+    errorHcNotInstalledBody:
+      'Instale a app Health Connect da Google Play para ligar relógios e outros dispositivos no Android.',
+    errorHcUpdateTitle: 'Atualização necessária',
+    errorHcUpdateBody:
+      'Atualize o Health Connect na Play Store e tente ligar novamente.',
+    openPlayStore: 'Abrir Play Store',
+    openHealthSettings: 'Abrir definições de saúde',
+    iosRevokeHint:
+      'No iPhone, para revogar totalmente, abra a app Saúde → Partilhar → Coach\'em.',
   },
   athleteLegal: {
     title: "Bem-vindo ao Coach'em",

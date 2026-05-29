@@ -374,11 +374,33 @@ export default {
     platformOther: 'Available on iPhone and Android',
     connectButton: 'Connect health device',
     disconnectButton: 'Disconnect device',
-    scaffoldTitle: 'Coming in the next update',
-    scaffoldConnectBody:
-      'System permission prompts (Apple Health or Health Connect) will be enabled in the next health project step. For now, this screen only explains what will be shared.',
-    scaffoldDisconnectBody:
-      'Full disconnect will be enabled in the next update. You can already revoke access in your device settings.',
+    connecting: 'Requesting permissions…',
+    disconnecting: 'Disconnecting…',
+    successConnectedTitle: 'Connected successfully',
+    successConnectedBody:
+      'Permissions saved. When you finish a workout with start and end times, Coach\'em can read aggregated metrics for that window (once read sync is enabled in the next update).',
+    successDisconnectedTitle: 'Disconnected',
+    successDisconnectedBody:
+      'Consent was removed in Coach\'em. To fully block access, also revoke permissions in iPhone Health settings or the Health Connect app.',
+    errorExpoGoTitle: 'Development build required',
+    errorExpoGoBody:
+      'Apple Health and Health Connect are not available in Expo Go. Use a development build (Dev Client) or the store build when health sync is released.',
+    errorUnavailableTitle: 'Unavailable on this device',
+    errorUnavailableBody:
+      'Could not access health services on this device. Make sure you are on a supported iPhone or Android phone.',
+    errorPermissionDeniedTitle: 'Permission not granted',
+    errorPermissionDeniedBody:
+      'Without health access, your coach will not see watch metrics. Try again or grant access manually in system settings.',
+    errorHcNotInstalledTitle: 'Health Connect required',
+    errorHcNotInstalledBody:
+      'Install Google Health Connect from the Play Store to connect watches and other devices on Android.',
+    errorHcUpdateTitle: 'Update required',
+    errorHcUpdateBody:
+      'Update Health Connect on the Play Store, then try connecting again.',
+    openPlayStore: 'Open Play Store',
+    openHealthSettings: 'Open health settings',
+    iosRevokeHint:
+      'On iPhone, to fully revoke access, open the Health app → Sharing → Coach\'em.',
   },
   athleteLegal: {
     title: "Welcome to Coach'em",

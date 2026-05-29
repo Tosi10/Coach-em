@@ -1,12 +1,22 @@
 /**
- * Consentimento de saúde (atleta) — scaffold Fase 1 / Dia 8.
- * Explica o que será partilhado; ligação nativa (HealthKit / Health Connect) no Dia 9.
+ * Consentimento de saúde (atleta) — Dias 8–10.
+ * Pedido de permissões nativas (Dia 9) e desligar (Dia 10).
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { getHealthIntegration } from '@/src/services/healthFirestore.service';
+import {
+  canUseNativeHealth,
+  getHealthService,
+  openHealthConnectSettingsScreen,
+  openHealthConnectStore,
+} from '@/src/services/health.service';
+import {
+  getHealthIntegration,
+  markHealthIntegrationGranted,
+  markHealthIntegrationRevoked,
+} from '@/src/services/healthFirestore.service';
 import { UserType } from '@/src/types';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -33,19 +43,31 @@ export default function AthleteHealthConsentScreen() {
 
   const [integrationLoading, setIntegrationLoading] = useState(true);
   const [healthEnabled, setHealthEnabled] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [alertShowCancel, setAlertShowCancel] = useState(false);
+  const [alertConfirmText, setAlertConfirmText] = useState<string | undefined>();
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | undefined>();
 
   const showAlert = (
     title: string,
     message: string,
     type: 'success' | 'error' | 'info' | 'warning' = 'info',
+    options?: {
+      confirmText?: string;
+      showCancel?: boolean;
+      onConfirm?: () => void;
+    },
   ) => {
     setAlertTitle(title);
     setAlertMessage(message);
     setAlertType(type);
+    setAlertShowCancel(Boolean(options?.showCancel));
+    setAlertConfirmText(options?.confirmText);
+    setAlertOnConfirm(() => options?.onConfirm);
     setAlertVisible(true);
   };
 
@@ -94,13 +116,143 @@ export default function AthleteHealthConsentScreen() {
     t('healthConsent.bulletWorkouts'),
   ];
 
-  const handleConnectPress = () => {
-    showAlert(t('healthConsent.scaffoldTitle'), t('healthConsent.scaffoldConnectBody'), 'info');
+  const resolvePermissionError = (reason?: string) => {
+    switch (reason) {
+      case 'expo_go':
+        showAlert(
+          t('healthConsent.errorExpoGoTitle'),
+          t('healthConsent.errorExpoGoBody'),
+          'warning',
+        );
+        return;
+      case 'health_connect_not_installed':
+        showAlert(
+          t('healthConsent.errorHcNotInstalledTitle'),
+          t('healthConsent.errorHcNotInstalledBody'),
+          'info',
+          {
+            showCancel: true,
+            confirmText: t('healthConsent.openPlayStore'),
+            onConfirm: () => {
+              void openHealthConnectStore();
+            },
+          },
+        );
+        return;
+      case 'health_connect_update_required':
+        showAlert(
+          t('healthConsent.errorHcUpdateTitle'),
+          t('healthConsent.errorHcUpdateBody'),
+          'info',
+          {
+            showCancel: true,
+            confirmText: t('healthConsent.openPlayStore'),
+            onConfirm: () => {
+              void openHealthConnectStore();
+            },
+          },
+        );
+        return;
+      case 'permission_denied':
+        showAlert(
+          t('healthConsent.errorPermissionDeniedTitle'),
+          t('healthConsent.errorPermissionDeniedBody'),
+          'warning',
+          canUseNativeHealth()
+            ? {
+                showCancel: true,
+                confirmText: t('healthConsent.openHealthSettings'),
+                onConfirm: () => {
+                  void openHealthConnectSettingsScreen();
+                },
+              }
+            : undefined,
+        );
+        return;
+      default:
+        showAlert(
+          t('healthConsent.errorUnavailableTitle'),
+          t('healthConsent.errorUnavailableBody'),
+          'error',
+        );
+    }
   };
 
-  const handleDisconnectPress = () => {
-    showAlert(t('healthConsent.scaffoldTitle'), t('healthConsent.scaffoldDisconnectBody'), 'info');
+  const handleConnectPress = async () => {
+    if (!user?.id || actionLoading) return;
+
+    const health = getHealthService();
+    setActionLoading(true);
+    try {
+      const available = await health.isAvailable();
+      if (!available && !canUseNativeHealth()) {
+        resolvePermissionError('expo_go');
+        return;
+      }
+      if (!available) {
+        resolvePermissionError(
+          Platform.OS === 'android' ? 'health_connect_not_installed' : 'healthkit_unavailable',
+        );
+        return;
+      }
+
+      const result = await health.requestPermissions();
+      if (!result.granted) {
+        resolvePermissionError(result.reason);
+        return;
+      }
+
+      await markHealthIntegrationGranted(user.id, health.platform);
+      setHealthEnabled(true);
+      showAlert(
+        t('healthConsent.successConnectedTitle'),
+        t('healthConsent.successConnectedBody'),
+        'success',
+      );
+    } catch {
+      showAlert(
+        t('healthConsent.errorUnavailableTitle'),
+        t('healthConsent.errorUnavailableBody'),
+        'error',
+      );
+    } finally {
+      setActionLoading(false);
+    }
   };
+
+  const handleDisconnectPress = async () => {
+    if (!user?.id || actionLoading || !healthEnabled) return;
+
+    const health = getHealthService();
+    setActionLoading(true);
+    try {
+      await health.revokePermissions();
+      await markHealthIntegrationRevoked(user.id);
+      setHealthEnabled(false);
+
+      const body =
+        Platform.OS === 'ios'
+          ? `${t('healthConsent.successDisconnectedBody')}\n\n${t('healthConsent.iosRevokeHint')}`
+          : t('healthConsent.successDisconnectedBody');
+
+      showAlert(t('healthConsent.successDisconnectedTitle'), body, 'success');
+    } catch {
+      showAlert(
+        t('healthConsent.errorUnavailableTitle'),
+        t('healthConsent.errorUnavailableBody'),
+        'error',
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const connectLabel = actionLoading
+    ? t('healthConsent.connecting')
+    : t('healthConsent.connectButton');
+  const disconnectLabel = actionLoading
+    ? t('healthConsent.disconnecting')
+    : t('healthConsent.disconnectButton');
 
   return (
     <View className="flex-1" style={themeStyles.bg}>
@@ -184,28 +336,35 @@ export default function AthleteHealthConsentScreen() {
         </Text>
 
         <TouchableOpacity
-          onPress={handleConnectPress}
+          onPress={() => void handleConnectPress()}
           activeOpacity={0.85}
-          className="rounded-xl py-4 items-center mb-3"
-          style={{ backgroundColor: theme.colors.primary }}
+          disabled={actionLoading}
+          className="rounded-xl py-4 items-center mb-3 flex-row justify-center"
+          style={{ backgroundColor: theme.colors.primary, opacity: actionLoading ? 0.7 : 1 }}
         >
+          {actionLoading ? (
+            <ActivityIndicator color="#ffffff" style={{ marginRight: 8 }} />
+          ) : null}
           <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
-            {t('healthConsent.connectButton')}
+            {connectLabel}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handleDisconnectPress}
+          onPress={() => void handleDisconnectPress()}
           activeOpacity={0.85}
-          className="rounded-xl py-3.5 items-center border"
+          disabled={!healthEnabled || actionLoading}
+          className="rounded-xl py-3.5 items-center border flex-row justify-center"
           style={{
             borderColor: theme.colors.border,
-            opacity: healthEnabled ? 1 : 0.55,
+            opacity: !healthEnabled || actionLoading ? 0.55 : 1,
           }}
-          disabled={!healthEnabled}
         >
+          {actionLoading && healthEnabled ? (
+            <ActivityIndicator color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+          ) : null}
           <Text className="font-semibold" style={{ color: theme.colors.textSecondary }}>
-            {t('healthConsent.disconnectButton')}
+            {disconnectLabel}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -215,8 +374,13 @@ export default function AthleteHealthConsentScreen() {
         title={alertTitle}
         message={alertMessage}
         type={alertType}
-        confirmText={t('common.ok')}
-        onConfirm={() => setAlertVisible(false)}
+        confirmText={alertConfirmText}
+        showCancel={alertShowCancel}
+        onConfirm={() => {
+          setAlertVisible(false);
+          alertOnConfirm?.();
+        }}
+        onCancel={() => setAlertVisible(false)}
       />
     </View>
   );
