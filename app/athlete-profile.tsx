@@ -9,6 +9,7 @@
  * - Botão para atribuir treino
  */
 
+import { AthleteHealthTrendCard } from '@/components/AthleteHealthTrendCard';
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuthContext } from '@/src/contexts/AuthContext';
@@ -577,6 +578,10 @@ export default function AthleteProfileScreen() {
         {/* Conteúdo das Tabs */}
         {activeTab === 'charts' && (
           <View className="mb-6">
+            {user?.id && athleteIdString ? (
+              <AthleteHealthTrendCard coachId={user.id} athleteId={athleteIdString} />
+            ) : null}
+
             <Text className="text-xl font-bold mb-4" style={themeStyles.text}>
               {t('home.weightProgress')}
             </Text>

@@ -7,6 +7,7 @@
 
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 import { CustomAlert } from '@/components/CustomAlert';
+import { WorkoutHealthSummaryCard } from '@/components/WorkoutHealthSummaryCard';
 import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
@@ -20,7 +21,7 @@ import {
   scheduleIntervalProtocolPhaseChain,
   setupNotificationChannel,
 } from '@/src/services/notifications.service';
-import { WorkoutBlockData, type WorkoutExercise } from '@/src/types';
+import { UserType, WorkoutBlockData, type WorkoutExercise } from '@/src/types';
 import { formatAssignedCalendarDateByLocale } from '@/src/utils/dateOnly';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
@@ -329,8 +330,9 @@ export default function WorkoutDetailsScreen() {
   const completionAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animação de pulse contínua no botão
+  const isAthlete = user?.userType === UserType.ATHLETE;
   const workoutInProgress =
-    assignedWorkout?.status === 'Pendente' && Boolean(assignedWorkout?.startedAt);
+    isAthlete && assignedWorkout?.status === 'Pendente' && Boolean(assignedWorkout?.startedAt);
 
   useEffect(() => {
     if (assignedWorkout?.status === 'Pendente' && (workoutInProgress || !assignedWorkout?.startedAt)) {
@@ -1473,6 +1475,10 @@ export default function WorkoutDetailsScreen() {
               ) : null}
             </View>
           )}
+
+          {assignedWorkout.status === 'Concluído' && workoutId && assignedWorkout.athleteId && (
+            <WorkoutHealthSummaryCard workoutId={workoutId} athleteId={assignedWorkout.athleteId} />
+          )}
         </View>
 
                 {/* Lista de blocos e exercícios */}
@@ -1665,8 +1671,8 @@ export default function WorkoutDetailsScreen() {
           </View>
         )}
 
-        {/* Iniciar / concluir treino (janela para métricas do relógio) */}
-        {assignedWorkout.status === 'Pendente' && (
+        {/* Iniciar / concluir treino (janela para métricas do relógio) — só atleta */}
+        {isAthlete && assignedWorkout.status === 'Pendente' && (
           <View style={{ marginBottom: Math.max(insets.bottom, 24) + 30 }}>
             {workoutInProgress && (
               <View

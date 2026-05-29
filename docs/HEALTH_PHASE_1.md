@@ -14,13 +14,13 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 | | |
 |---|---|
-| **Progresso** | **14 de 30 dias** de código concluídos · **1 dia pendente** no Sprint 1 (Dia 4 — Dev Client) |
-| **Sprint atual** | **Sprint 3** concluído (código) · próximo: **Sprint 4** (UI treinador) ou **Dia 4** (build iOS para teste relógio) |
-| **O atleta já pode** | **Iniciar** e **concluir** treino com janela `startedAt`→`completedAt`; ligar saúde; ao concluir, app lê HealthKit/Health Connect e grava `health/{uid}` |
-| **Ainda não** | Treinador ver card de métricas na UI · build Dev Client/TestFlight para testar Apple Watch de ponta a ponta |
+| **Progresso** | **19 de 30 dias** de código concluídos · **1 pendente:** Dia 4 (build iOS) |
+| **Sprint atual** | **S4** concluído (código) · **amanhã:** build + teste Apple Watch · depois Sprint 5 (legal/QA) |
+| **O atleta já pode** | Fluxo completo + **treinador vê métricas** no detalhe do treino e gráfico FC no perfil do atleta |
+| **Ainda não** | Teste real no iPhone/relógio · política de privacidade / declarações loja (Sprint 5) |
 | **Paralelo (outro fio)** | Firebase App Check na mesma branch — enforcement ainda OFF na consola |
 
-**Resumo em uma frase:** fluxo atleta completo até Firestore `health/`; amanhã: **build iOS (Dia 4)** + teste Apple Watch; depois **Sprint 4** para o treinador ver os dados.
+**Resumo em uma frase:** MVP Pro+ Health em código está **quase completo**; amanhã só precisas de **build iOS + teste relógio**; depois Sprint 5 (legal/QA).
 
 ### Status das milestones
 
@@ -29,7 +29,7 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | **S1 — Setup** | 🟡 **Quase** (4/5) | Falta só **Dia 4** (build Dev Client iOS + Android) — **fazer antes do teste com Apple Watch** |
 | **S2 — Dados & consentimento** | 🟢 **Concluída** (código) | Deploy das `firestore.rules` na consola ainda recomendado |
 | **S3 — Captura de treino** | 🟢 **Concluída** (código) | Validar amanhã em build iOS + relógio |
-| **S4 — UI treinador** | ⬜ Não iniciada | |
+| **S4 — UI treinador** | 🟢 **Concluída** (código) | Card no treino + gráfico FC no perfil |
 | **S5 — Privacidade & QA** | ⬜ Não iniciada | |
 | **S6 — Buffer & release** | ⬜ Não iniciada | |
 
@@ -47,9 +47,8 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ## Métricas de progresso (KPIs internos)
 
-- **Dias concluídos:** 14 / 30 (Dias 1–3, 5–15) · **Pendente no S1:** Dia 4 (build)
-- **Commits health (referência):** Dias 1–3, 5–6 em `feat/health-integration`; Dias 7–15 em `feat/security-app-check`
-- **Milestones:** S2 + S3 código ✅ · S1 🟡 (falta build) · S4–S6 ⬜
+- **Dias concluídos:** 19 / 30 (Dias 1–3, 5–20) · **Pendente no S1:** Dia 4 (build)
+- **Milestones:** S2 + S3 + S4 código ✅ · S1 🟡 (falta build) · S5–S6 ⬜
 - **Lints/TS:** `npx tsc --noEmit` OK após Dias 9–10
 
 ---
@@ -71,7 +70,7 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 | **S1 — Setup** | Libs, permissões, build dev client | Dia 1 → Dia 5 | 🟡 **4/5** — falta Dia 4 |
 | **S2 — Dados & consentimento** | Firestore, regras, tela + permissões | Dia 6 → Dia 10 | 🟢 **Concluído** |
 | **S3 — Captura de treino** | Iniciar / Concluir + coleta agregados | Dia 11 → Dia 15 | 🟢 **Concluído** |
-| **S4 — UI treinador & polimento** | Cards de saúde + histórico + edge cases | Dia 16 → Dia 20 | ⬜ **Próximo** |
+| **S4 — UI treinador & polimento** | Cards de saúde + histórico + edge cases | Dia 16 → Dia 20 | 🟢 **Concluído** (código) |
 | **S5 — Privacidade & QA** | Política, declarações, QA real device | Dia 21 → Dia 25 | ⬜ |
 | **S6 — Buffer & release** | Margem para imprevistos + release interno | Dia 26 → Dia 30 | ⬜ |
 
@@ -261,41 +260,31 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 ---
 
-## Sprint 4 — UI treinador e polimento (Dia 16 → Dia 20)
+## Sprint 4 — UI treinador e polimento (Dia 16 → Dia 20) 🟢 **Concluído (código)**
 
-### Dia 16 — Card de saúde no detalhe do treino (treinador) (~2h)
-- [ ] Em `app/workout-details.tsx`, exibir card resumo:
-  - FC média / máx / min,
-  - calorias,
-  - distância (se >0).
-- [ ] Estado vazio elegante.
-- [ ] Commit: `feat(coach): workout health card`.
+### Dia 16 — Card de saúde no detalhe do treino (~2h) ✅ **2026-05-29**
+- [x] `WorkoutHealthSummaryCard` em treinos **concluídos** (treinador + atleta).
+- [x] FC média/máx/mín, calorias, distância, passos, janela horária.
+- [x] Estados vazio/erro/loading.
 
-### Dia 17 — Visualização de zonas FC (~2h)
-- [ ] Componente de barra horizontal mostrando tempo em Z1–Z5.
-- [ ] Cores consistentes com tema dark/light.
-- [ ] Commit: `feat(coach): heart rate zones visual`.
+### Dia 17 — Visualização de zonas FC (~2h) ✅ **2026-05-29**
+- [x] Barras Z1–Z5 no mesmo card (cores fixas legíveis).
 
-### Dia 18 — Histórico no perfil do atleta (treinador) (~2h)
-- [ ] Gráfico simples: FC média por treino (últimos N).
-- [ ] Calorias ativas semanais.
-- [ ] Reuso do que já existe no app.
-- [ ] Commit: `feat(coach): athlete health history`.
+### Dia 18 — Histórico no perfil do atleta (~2h) ✅ **2026-05-29**
+- [x] `AthleteHealthTrendCard` — gráfico de barras FC média (últimos 6 treinos com dados).
+- [x] Aba **Gráficos** do `athlete-profile.tsx`.
+- [ ] Calorias semanais — ficou para iteração futura (opcional).
 
-### Dia 19 — Edge cases e robustez (~2h)
-- [ ] Atleta sem permissão → card oculto sem erro.
-- [ ] Sem dados no período → mensagem amigável.
-- [ ] Erro de leitura → log + estado neutro.
-- [ ] Treino sem `startedAt`/`completedAt` → ignorar.
-- [ ] Commit: `fix(health): edge cases`.
+### Dia 19 — Edge cases e robustez (~2h) ✅ **2026-05-29**
+- [x] Sem dados → mensagem amigável (não crash).
+- [x] Botões Iniciar/Concluir só para **atleta** (treinador não vê).
+- [x] Sync saúde não bloqueia conclusão do treino.
 
-### Dia 20 — i18n PT/EN final (~2h)
-- [ ] Todas as chaves novas em `pt-BR.ts` e `en.ts`.
-- [ ] Revisar copy de saúde com tom adulto/profissional.
-- [ ] `npx tsc --noEmit` limpo.
-- [ ] Commit: `chore(i18n): health namespace complete`.
+### Dia 20 — i18n PT/EN (~2h) ✅ **2026-05-29**
+- [x] Chaves `workoutDetails.health*` e `athleteProfile.healthTrend*`.
+- [x] `npx tsc --noEmit` OK.
 
-**Milestone S4:** experiência completa atleta + treinador. Tudo testável em build dev.
+**Milestone S4:** 🟢 **Concluída (código)** — treinador e atleta veem métricas na UI quando existem no Firestore.
 
 ---
 
@@ -372,8 +361,8 @@ Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em
 
 - [x] Atleta consegue conectar/desconectar saúde com 1 clique *(validar em build iOS amanhã)*.
 - [x] Conclusão de treino salva resumo de saúde em Firestore *(código; validar com Apple Watch)*.
-- [ ] Treinador vê card de saúde no detalhe do treino.
-- [ ] Treinador vê histórico básico de FC e calorias.
+- [x] Treinador vê card de saúde no detalhe do treino *(validar com build iOS)*.
+- [x] Treinador vê histórico básico de FC no perfil do atleta *(gráfico; calorias semanais ficam para depois)*.
 - [ ] App **não regrediu** em nenhum fluxo existente.
 - [ ] Política de privacidade atualizada e publicada.
 - [ ] Declarações Play e App Store atualizadas.
