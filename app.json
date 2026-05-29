@@ -2,7 +2,7 @@
   "expo": {
     "name": "Coach'em",
     "slug": "coachemapp",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/Coach-emIcone02.png",
     "scheme": "coachemapp",
@@ -101,8 +101,25 @@
         }
       ],
       "react-native-health-connect",
-     "./node_modules/@react-native-firebase/app/app.plugin.js",
-     "./node_modules/@react-native-firebase/app-check/app.plugin.js"
+      "./node_modules/@react-native-firebase/app/app.plugin.js",
+      "./node_modules/@react-native-firebase/app-check/app.plugin.js",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPods": [
+              {
+                "name": "GoogleUtilities",
+                "modular_headers": true
+              },
+              {
+                "name": "FirebaseCoreInternal",
+                "modular_headers": true
+              }
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
