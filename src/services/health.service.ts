@@ -5,7 +5,7 @@
  * Permissões reais (Dia 9+): delegadas a `health/healthNativePermissions.*`
  * via import dinâmico de libs nativas — seguro no Expo Go.
  *
- * Leitura de dados (`readWindow`): stub até Dias 14–15 (após Dev Client validado).
+ * Leitura de dados (`readWindow`): HealthKit / Health Connect (Dias 14–15).
  */
 
 import { Platform } from 'react-native';
@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import type { HealthPermissionResult, HealthPlatform, HealthSnapshot } from '@/src/types/health';
 
 import * as NativeHealth from './health/healthNativePermissions';
+import { readNativeHealthWindow } from './health/healthReadWindow';
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -80,12 +81,7 @@ class HealthKitService implements HealthService {
   }
 
   async readWindow(start: Date, end: Date): Promise<HealthSnapshot> {
-    return emptySnapshot(
-      start,
-      end,
-      'healthkit',
-      'Leitura de métricas será ativada após validação do Dev Client (Dias 14–15).',
-    );
+    return readNativeHealthWindow(start, end);
   }
 }
 
@@ -105,12 +101,7 @@ class HealthConnectService implements HealthService {
   }
 
   async readWindow(start: Date, end: Date): Promise<HealthSnapshot> {
-    return emptySnapshot(
-      start,
-      end,
-      'healthconnect',
-      'Leitura de métricas será ativada após validação do Dev Client (Dias 14–15).',
-    );
+    return readNativeHealthWindow(start, end);
   }
 }
 

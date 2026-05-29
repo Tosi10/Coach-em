@@ -10,6 +10,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
+import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { db } from '@/src/services/firebase.config';
@@ -33,6 +34,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   Animated,
   AppState,
   Image,
@@ -220,7 +222,9 @@ export default function WorkoutDetailsScreen() {
         ? workoutIdRaw[0]
         : undefined;
   const { theme } = useTheme();
+  const { user } = useAuthContext();
   const themeStyles = getThemeStyles(theme.colors);
+  const [startLoading, setStartLoading] = useState(false);
   
   // Buscar o treino correspondente
   const [assignedWorkout, setAssignedWorkout] = useState<any>(null);
@@ -325,8 +329,11 @@ export default function WorkoutDetailsScreen() {
   const completionAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animação de pulse contínua no botão
+  const workoutInProgress =
+    assignedWorkout?.status === 'Pendente' && Boolean(assignedWorkout?.startedAt);
+
   useEffect(() => {
-    if (assignedWorkout?.status === 'Pendente') {
+    if (assignedWorkout?.status === 'Pendente' && (workoutInProgress || !assignedWorkout?.startedAt)) {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -344,7 +351,7 @@ export default function WorkoutDetailsScreen() {
       pulse.start();
       return () => pulse.stop();
     }
-  }, [assignedWorkout?.status, pulseAnim]);
+  }, [assignedWorkout?.status, assignedWorkout?.startedAt, workoutInProgress, pulseAnim]);
   
   // Feedback com ícones próprios (substituindo emojis do sistema)
   const feedbackLevels = [
@@ -1168,6 +1175,23 @@ export default function WorkoutDetailsScreen() {
     )
   }
 
+  const handleStartWorkout = async () => {
+    if (!workoutId || startLoading) return;
+    setStartLoading(true);
+    try {
+      const { markAssignedWorkoutStarted } = await import('@/src/services/assignedWorkouts.service');
+      const startedAt = await markAssignedWorkoutStarted(workoutId);
+      setAssignedWorkout((prev: typeof assignedWorkout) =>
+        prev ? { ...prev, startedAt } : prev,
+      );
+    } catch (error) {
+      console.error('Error starting workout:', error);
+      showAlert(t('common.error'), t('workoutDetails.startWorkoutError'), 'error');
+    } finally {
+      setStartLoading(false);
+    }
+  };
+
   const handleMarkAsCompleted = () => {
     // Garante que nenhum modal de exercício permaneça por baixo do feedback.
     closeExerciseModal();
@@ -1214,21 +1238,43 @@ export default function WorkoutDetailsScreen() {
         );
       }
       
+      const completedAtIso = new Date().toISOString();
+      const startedAtIso =
+        typeof assignedWorkout?.startedAt === 'string' && assignedWorkout.startedAt
+          ? assignedWorkout.startedAt
+          : completedAtIso;
+
       // 2. Atualizar no Firestore
       const { updateAssignedWorkout } = await import('@/src/services/assignedWorkouts.service');
       await updateAssignedWorkout(workoutId, {
         status: 'Concluído',
-        completedDate: new Date().toISOString(),
+        completedDate: completedAtIso,
+        startedAt: startedAtIso,
+        completedAt: completedAtIso,
         feedback: selectedFeedback,
         feedbackEmoji: feedbackLevels[selectedFeedback - 1].emoji,
         feedbackText: feedbackText.trim() || undefined,
       });
 
+      // 2b. Saúde (opt-in) — não bloqueia conclusão do treino
+      if (assignedWorkout?.athleteId) {
+        const { syncHealthAfterWorkoutComplete } = await import('@/src/services/healthSync.service');
+        void syncHealthAfterWorkoutComplete(
+          workoutId,
+          assignedWorkout.athleteId,
+          new Date(startedAtIso),
+          new Date(completedAtIso),
+          user?.id ?? null,
+        );
+      }
+
       // 3. Atualizar o estado local
       setAssignedWorkout({
         ...assignedWorkout,
         status: 'Concluído',
-        completedDate: new Date().toISOString(),
+        completedDate: completedAtIso,
+        startedAt: startedAtIso,
+        completedAt: completedAtIso,
         feedback: selectedFeedback,
         feedbackEmoji: feedbackLevels[selectedFeedback - 1].emoji,
         feedbackText: feedbackText.trim() || undefined,
@@ -1619,31 +1665,73 @@ export default function WorkoutDetailsScreen() {
           </View>
         )}
 
-        {/* Concluir treino no fim do conteúdo (após último bloco/exercício), não fixo na base */}
+        {/* Iniciar / concluir treino (janela para métricas do relógio) */}
         {assignedWorkout.status === 'Pendente' && (
-          <Animated.View
-            style={{
-              transform: [{ scale: pulseAnim }],
-              marginBottom: Math.max(insets.bottom, 24) + 30,
-            }}
-          >
-            <TouchableOpacity
-              className="rounded-lg py-4 px-6"
-              style={{
-                backgroundColor: theme.colors.primary,
-                shadowColor: theme.colors.primary,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 6,
-              }}
-              onPress={handleMarkAsCompleted}
-            >
-              <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
-                {t('workoutDetails.markAsCompleted')}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
+          <View style={{ marginBottom: Math.max(insets.bottom, 24) + 30 }}>
+            {workoutInProgress && (
+              <View
+                className="rounded-xl p-4 mb-4 border"
+                style={[themeStyles.card, { borderColor: theme.colors.primary, borderWidth: 1 }]}
+              >
+                <Text className="font-semibold mb-1" style={themeStyles.text}>
+                  {t('workoutDetails.workoutInProgressTitle')}
+                </Text>
+                <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
+                  {t('workoutDetails.workoutInProgressSince', {
+                    time: new Date(assignedWorkout.startedAt).toLocaleTimeString(
+                      i18n.language === 'en' ? 'en-US' : 'pt-BR',
+                      { hour: '2-digit', minute: '2-digit' },
+                    ),
+                  })}
+                </Text>
+              </View>
+            )}
+
+            {!workoutInProgress ? (
+              <TouchableOpacity
+                className="rounded-lg py-4 px-6 mb-3 border"
+                style={{
+                  borderColor: theme.colors.primary,
+                  borderWidth: 2,
+                  opacity: startLoading ? 0.7 : 1,
+                }}
+                onPress={() => void handleStartWorkout()}
+                disabled={startLoading}
+              >
+                {startLoading ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <Text
+                    className="font-semibold text-center text-lg"
+                    style={{ color: theme.colors.primary }}
+                  >
+                    {t('workoutDetails.startWorkout')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+
+            <Animated.View style={{ transform: [{ scale: workoutInProgress ? pulseAnim : 1 }] }}>
+              <TouchableOpacity
+                className="rounded-lg py-4 px-6"
+                style={{
+                  backgroundColor: theme.colors.primary,
+                  shadowColor: theme.colors.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 6,
+                  opacity: workoutInProgress ? 1 : 0.55,
+                }}
+                onPress={handleMarkAsCompleted}
+                disabled={!workoutInProgress}
+              >
+                <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
+                  {t('workoutDetails.markAsCompleted')}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
         )}
 
         {/* Mensagem se já estiver concluído */}

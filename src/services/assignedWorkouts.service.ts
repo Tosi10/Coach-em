@@ -74,6 +74,10 @@ export interface AssignedWorkoutDoc {
   isRecurring?: boolean;
   recurrenceGroupId?: string | null;
   completedDate?: string;
+  /** Início da sessão (atleta tocou Iniciar treino). ISO 8601. */
+  startedAt?: string;
+  /** Fim da sessão (atleta concluiu). ISO 8601 — alinhado a `completedDate`. */
+  completedAt?: string;
   feedback?: number;
   feedbackEmoji?: string;
   feedbackText?: string;
@@ -89,6 +93,16 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
         ? data.completedDate.toDate().toISOString()
         : (data.completedDate as string))
     : undefined;
+  const startedAt = data.startedAt
+    ? (data.startedAt instanceof Timestamp
+        ? data.startedAt.toDate().toISOString()
+        : (data.startedAt as string))
+    : undefined;
+  const completedAtField = data.completedAt
+    ? (data.completedAt instanceof Timestamp
+        ? data.completedAt.toDate().toISOString()
+        : (data.completedAt as string))
+    : completedDate;
   return {
     id: docSnap.id,
     workoutTemplateId: data.workoutTemplateId,
@@ -110,6 +124,8 @@ function docToAssigned(docSnap: DocumentSnapshot): AssignedWorkoutDoc {
     isRecurring: data.isRecurring,
     recurrenceGroupId: data.recurrenceGroupId ?? null,
     completedDate,
+    startedAt,
+    completedAt: completedAtField,
     feedback: (() => {
       const v = parseFeedbackLevelFromFirestore(data.feedback);
       return v === null ? undefined : v;
@@ -189,6 +205,8 @@ export async function updateAssignedWorkout(
   data: {
     status?: string;
     completedDate?: string;
+    startedAt?: string;
+    completedAt?: string;
     feedback?: number;
     feedbackEmoji?: string;
     feedbackText?: string;
@@ -201,6 +219,8 @@ export async function updateAssignedWorkout(
   const updates: Record<string, unknown> = {};
   if (data.status !== undefined) updates.status = data.status;
   if (data.completedDate !== undefined) updates.completedDate = data.completedDate;
+  if (data.startedAt !== undefined) updates.startedAt = data.startedAt;
+  if (data.completedAt !== undefined) updates.completedAt = data.completedAt;
   if (data.feedback !== undefined) updates.feedback = data.feedback;
   if (data.feedbackEmoji !== undefined) updates.feedbackEmoji = data.feedbackEmoji;
   if (data.feedbackText !== undefined) updates.feedbackText = data.feedbackText;
@@ -209,6 +229,29 @@ export async function updateAssignedWorkout(
   if (data.blocks !== undefined) updates.blocks = removeUndefined(data.blocks);
   if (Object.keys(updates).length === 0) return;
   await updateDoc(ref, updates);
+}
+
+/**
+ * Marca o início da sessão (`startedAt`). Idempotente se já existir.
+ * @returns ISO do início gravado.
+ */
+export async function markAssignedWorkoutStarted(id: string): Promise<string> {
+  const ref = doc(db, COLLECTION, id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    throw new Error('assigned_workout_not_found');
+  }
+
+  const existing = snap.data()?.startedAt;
+  if (existing) {
+    return existing instanceof Timestamp
+      ? existing.toDate().toISOString()
+      : String(existing);
+  }
+
+  const startedAt = new Date().toISOString();
+  await updateDoc(ref, { startedAt });
+  return startedAt;
 }
 
 /**
