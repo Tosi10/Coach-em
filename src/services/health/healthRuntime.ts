@@ -22,7 +22,11 @@ export function canUseNativeHealth(): boolean {
   }
 
   if (Platform.OS === 'ios') {
-    return Boolean(NativeModules.AppleHealthKit);
+    // react-native-health expõe NativeModules.AppleHealthKit (ver index.js do pacote).
+    return Boolean(
+      NativeModules.AppleHealthKit ??
+        (NativeModules as { RCTAppleHealthKit?: unknown }).RCTAppleHealthKit,
+    );
   }
 
   return Boolean(

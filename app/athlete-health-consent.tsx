@@ -8,6 +8,7 @@ import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
   canUseNativeHealth,
+  getHealthConnectAvailability,
   getHealthService,
   openHealthConnectSettingsScreen,
   openHealthConnectStore,
@@ -118,8 +119,28 @@ export default function AthleteHealthConsentScreen() {
     t('healthConsent.bulletWorkouts'),
   ];
 
+  const normalizeHealthErrorReason = (reason?: string): string => {
+    if (!reason) return 'unknown';
+    const lower = reason.toLowerCase();
+    if (lower.includes('expo') && lower.includes('go')) return 'expo_go';
+    if (
+      lower.includes('denied') ||
+      lower.includes('deny') ||
+      lower.includes('permission') ||
+      lower.includes('authorize') ||
+      lower.includes('not authorized')
+    ) {
+      return 'permission_denied';
+    }
+    if (lower.includes('healthkit') || lower.includes('health kit') || lower.includes('unavailable')) {
+      return 'healthkit_unavailable';
+    }
+    return reason;
+  };
+
   const resolvePermissionError = (reason?: string) => {
-    switch (reason) {
+    const key = normalizeHealthErrorReason(reason);
+    switch (key) {
       case 'expo_go':
         showAlert(
           t('healthConsent.errorExpoGoTitle'),
@@ -171,6 +192,22 @@ export default function AthleteHealthConsentScreen() {
             : undefined,
         );
         return;
+      case 'healthkit_unavailable':
+        showAlert(
+          t('healthConsent.errorHealthKitTitle'),
+          t('healthConsent.errorHealthKitBody'),
+          'error',
+          Platform.OS === 'ios'
+            ? {
+                showCancel: true,
+                confirmText: t('healthConsent.openHealthSettings'),
+                onConfirm: () => {
+                  void openHealthConnectSettingsScreen();
+                },
+              }
+            : undefined,
+        );
+        return;
       default:
         showAlert(
           t('healthConsent.errorUnavailableTitle'),
@@ -186,16 +223,27 @@ export default function AthleteHealthConsentScreen() {
     const health = getHealthService();
     setActionLoading(true);
     try {
-      const available = await health.isAvailable();
-      if (!available && !canUseNativeHealth()) {
+      if (!canUseNativeHealth()) {
         resolvePermissionError('expo_go');
         return;
       }
-      if (!available) {
-        resolvePermissionError(
-          Platform.OS === 'android' ? 'health_connect_not_installed' : 'healthkit_unavailable',
-        );
-        return;
+
+      // Android: exige Health Connect instalado antes do pedido de permissões.
+      if (Platform.OS === 'android') {
+        const available = await health.isAvailable();
+        if (!available) {
+          const hcStatus = await getHealthConnectAvailability();
+          if (hcStatus === 'not_installed') {
+            resolvePermissionError('health_connect_not_installed');
+            return;
+          }
+          if (hcStatus === 'update_required') {
+            resolvePermissionError('health_connect_update_required');
+            return;
+          }
+          resolvePermissionError('health_connect_not_installed');
+          return;
+        }
       }
 
       const result = await health.requestPermissions();
@@ -211,11 +259,12 @@ export default function AthleteHealthConsentScreen() {
         t('healthConsent.successConnectedBody'),
         'success',
       );
-    } catch {
-      showAlert(
-        t('healthConsent.errorUnavailableTitle'),
-        t('healthConsent.errorUnavailableBody'),
-        'error',
+    } catch (err) {
+      if (__DEV__) {
+        console.warn('[HealthConsent] connect failed:', err);
+      }
+      resolvePermissionError(
+        err instanceof Error ? err.message : 'healthkit_unavailable',
       );
     } finally {
       setActionLoading(false);

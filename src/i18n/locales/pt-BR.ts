@@ -394,6 +394,9 @@ export default {
     errorPermissionDeniedTitle: 'Permissão não concedida',
     errorPermissionDeniedBody:
       'Sem acesso aos dados de saúde, o treinador não verá métricas do relógio. Pode tentar de novo ou autorizar manualmente nas definições do sistema.',
+    errorHealthKitTitle: 'Não foi possível ligar ao Apple Saúde',
+    errorHealthKitBody:
+      'O Coach\'em não conseguiu abrir as permissões do Saúde. Confirme que está num iPhone físico (não simulador), reinstale o build mais recente e, se precisar, abra Saúde → Partilhar → Coach\'em e ative as leituras.',
     errorHcNotInstalledTitle: 'Health Connect necessário',
     errorHcNotInstalledBody:
       'Instale a app Health Connect da Google Play para ligar relógios e outros dispositivos no Android.',

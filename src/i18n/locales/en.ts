@@ -392,6 +392,9 @@ export default {
     errorPermissionDeniedTitle: 'Permission not granted',
     errorPermissionDeniedBody:
       'Without health access, your coach will not see watch metrics. Try again or grant access manually in system settings.',
+    errorHealthKitTitle: 'Could not connect to Apple Health',
+    errorHealthKitBody:
+      'Coach\'em could not open Health permissions. Use a physical iPhone (not simulator), reinstall the latest build, or open Health → Sharing → Coach\'em and enable read access.',
     errorHcNotInstalledTitle: 'Health Connect required',
     errorHcNotInstalledBody:
       'Install Google Health Connect from the Play Store to connect watches and other devices on Android.',

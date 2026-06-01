@@ -33,15 +33,11 @@ export async function isNativeHealthAvailable(): Promise<boolean> {
   }
   try {
     const AppleHealthKit = await loadHealthKit();
-    return await new Promise<boolean>((resolve) => {
-      AppleHealthKit.isAvailable((error: string | Object | null, available: boolean) => {
-        if (error) {
-          resolve(false);
-          return;
-        }
-        resolve(Boolean(available));
-      });
-    });
+    if (typeof AppleHealthKit?.initHealthKit !== 'function') {
+      return false;
+    }
+    // isAvailable() falha em alguns builds mesmo com HealthKit OK; initHealthKit é a fonte de verdade.
+    return true;
   } catch {
     return false;
   }
@@ -60,6 +56,7 @@ export async function requestNativeHealthPermissions(): Promise<HealthPermission
     const AppleHealthKit = await loadHealthKit();
     const { Permissions } = AppleHealthKit.Constants;
 
+    // write: [] quebra initHealthKit em várias versões — pelo menos um tipo de escrita (README do pacote).
     const permissions = {
       permissions: {
         read: [
@@ -69,25 +66,34 @@ export async function requestNativeHealthPermissions(): Promise<HealthPermission
           Permissions.StepCount,
           Permissions.Workout,
         ],
-        write: [],
+        write: [Permissions.Workout],
       },
     };
 
     return await new Promise<HealthPermissionResult>((resolve) => {
-      AppleHealthKit.initHealthKit(permissions, (error: string) => {
-        if (error) {
+      AppleHealthKit.initHealthKit(
+        permissions,
+        (error: string | Record<string, unknown> | null) => {
+          if (error) {
+            const message =
+              typeof error === 'string'
+                ? error
+                : typeof (error as { message?: string })?.message === 'string'
+                  ? (error as { message: string }).message
+                  : 'permission_denied';
+            resolve({
+              granted: false,
+              grantedTypes: [],
+              reason: message,
+            });
+            return;
+          }
           resolve({
-            granted: false,
-            grantedTypes: [],
-            reason: error || 'permission_denied',
+            granted: true,
+            grantedTypes: [...READ_TYPE_LABELS],
           });
-          return;
-        }
-        resolve({
-          granted: true,
-          grantedTypes: [...READ_TYPE_LABELS],
-        });
-      });
+        },
+      );
     });
   } catch (error) {
     return {
