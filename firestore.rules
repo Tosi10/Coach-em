@@ -69,7 +69,15 @@ service cloud.firestore {
     /** Atleta só pode alterar estes campos no próprio treino atribuído. */
     function athleteAssignedWorkoutPatchKeysOnly() {
       return request.resource.data.diff(resource.data).changedKeys()
-        .hasOnly(['status', 'completedDate', 'feedback', 'feedbackEmoji', 'feedbackText']);
+        .hasOnly([
+          'status',
+          'completedDate',
+          'startedAt',
+          'completedAt',
+          'feedback',
+          'feedbackEmoji',
+          'feedbackText',
+        ]);
     }
 
     /** Atleta atualiza só estes campos no coachemAthletes (foto, push, timestamps). */
