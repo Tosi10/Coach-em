@@ -1481,6 +1481,54 @@ export default function WorkoutDetailsScreen() {
           )}
         </View>
 
+        {/* Iniciar treino — topo (antes dos exercícios), só atleta */}
+        {isAthlete && assignedWorkout.status === 'Pendente' && (
+          <View className="mb-6">
+            {workoutInProgress && (
+              <View
+                className="rounded-xl p-4 mb-4 border"
+                style={[themeStyles.card, { borderColor: theme.colors.primary, borderWidth: 1 }]}
+              >
+                <Text className="font-semibold mb-1" style={themeStyles.text}>
+                  {t('workoutDetails.workoutInProgressTitle')}
+                </Text>
+                <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
+                  {t('workoutDetails.workoutInProgressSince', {
+                    time: new Date(assignedWorkout.startedAt).toLocaleTimeString(
+                      i18n.language === 'en' ? 'en-US' : 'pt-BR',
+                      { hour: '2-digit', minute: '2-digit' },
+                    ),
+                  })}
+                </Text>
+              </View>
+            )}
+
+            {!workoutInProgress ? (
+              <TouchableOpacity
+                className="rounded-lg py-4 px-6 border"
+                style={{
+                  borderColor: theme.colors.primary,
+                  borderWidth: 2,
+                  opacity: startLoading ? 0.7 : 1,
+                }}
+                onPress={() => void handleStartWorkout()}
+                disabled={startLoading}
+              >
+                {startLoading ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <Text
+                    className="font-semibold text-center text-lg"
+                    style={{ color: theme.colors.primary }}
+                  >
+                    {t('workoutDetails.startWorkout')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
                 {/* Lista de blocos e exercícios */}
           {workoutTemplate && (
           <View className="mb-6">
@@ -1671,52 +1719,9 @@ export default function WorkoutDetailsScreen() {
           </View>
         )}
 
-        {/* Iniciar / concluir treino (janela para métricas do relógio) — só atleta */}
+        {/* Concluir treino — final da lista (janela métricas do relógio), só atleta */}
         {isAthlete && assignedWorkout.status === 'Pendente' && (
           <View style={{ marginBottom: Math.max(insets.bottom, 24) + 30 }}>
-            {workoutInProgress && (
-              <View
-                className="rounded-xl p-4 mb-4 border"
-                style={[themeStyles.card, { borderColor: theme.colors.primary, borderWidth: 1 }]}
-              >
-                <Text className="font-semibold mb-1" style={themeStyles.text}>
-                  {t('workoutDetails.workoutInProgressTitle')}
-                </Text>
-                <Text className="text-sm leading-5" style={themeStyles.textSecondary}>
-                  {t('workoutDetails.workoutInProgressSince', {
-                    time: new Date(assignedWorkout.startedAt).toLocaleTimeString(
-                      i18n.language === 'en' ? 'en-US' : 'pt-BR',
-                      { hour: '2-digit', minute: '2-digit' },
-                    ),
-                  })}
-                </Text>
-              </View>
-            )}
-
-            {!workoutInProgress ? (
-              <TouchableOpacity
-                className="rounded-lg py-4 px-6 mb-3 border"
-                style={{
-                  borderColor: theme.colors.primary,
-                  borderWidth: 2,
-                  opacity: startLoading ? 0.7 : 1,
-                }}
-                onPress={() => void handleStartWorkout()}
-                disabled={startLoading}
-              >
-                {startLoading ? (
-                  <ActivityIndicator color={theme.colors.primary} />
-                ) : (
-                  <Text
-                    className="font-semibold text-center text-lg"
-                    style={{ color: theme.colors.primary }}
-                  >
-                    {t('workoutDetails.startWorkout')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            ) : null}
-
             <Animated.View style={{ transform: [{ scale: workoutInProgress ? pulseAnim : 1 }] }}>
               <TouchableOpacity
                 className="rounded-lg py-4 px-6"
