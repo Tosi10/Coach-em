@@ -2,6 +2,14 @@ import Constants from 'expo-constants';
 import { NativeModules, Platform } from 'react-native';
 
 /**
+ * Só o app Expo Go (não confundir com Dev Client EAS).
+ * Dev Client também usa `executionEnvironment === 'storeClient'` — não bloquear por isso.
+ */
+export function isExpoGoApp(): boolean {
+  return (Constants as { appOwnership?: string | null }).appOwnership === 'expo';
+}
+
+/**
  * Indica se o binário atual pode usar HealthKit / Health Connect (Dev Client ou loja).
  * Expo Go não inclui os módulos nativos — retorna false.
  */
@@ -10,14 +18,7 @@ export function canUseNativeHealth(): boolean {
     return false;
   }
 
-  const executionEnvironment = (Constants as { executionEnvironment?: string })
-    .executionEnvironment;
-  const appOwnership = (Constants as { appOwnership?: string }).appOwnership;
-
-  const isExpoGo =
-    executionEnvironment === 'storeClient' || appOwnership === 'expo';
-
-  if (isExpoGo) {
+  if (isExpoGoApp()) {
     return false;
   }
 

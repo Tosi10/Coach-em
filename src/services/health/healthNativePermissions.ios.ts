@@ -20,7 +20,11 @@ export type HealthConnectAvailability =
 
 async function loadHealthKit() {
   const mod = await import('react-native-health');
-  return mod.default;
+  const kit = mod.default ?? mod;
+  if (typeof kit?.initHealthKit !== 'function') {
+    throw new Error('healthkit_module_not_linked');
+  }
+  return kit;
 }
 
 export async function getHealthConnectAvailability(): Promise<HealthConnectAvailability> {

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type { HealthSnapshot } from '@/src/types/health';
 
 import { canUseNativeHealth } from './healthRuntime';
@@ -24,7 +26,12 @@ export async function readNativeHealthWindow(start: Date, end: Date): Promise<He
     return emptySnapshot(start, end, 'native_health_unavailable');
   }
   try {
-    const mod = await import('./healthReadWindow.impl');
+    const mod =
+      Platform.OS === 'ios'
+        ? await import('./healthReadWindow.impl.ios')
+        : Platform.OS === 'android'
+          ? await import('./healthReadWindow.impl.android')
+          : await import('./healthReadWindow.impl');
     return mod.readNativeHealthWindowImpl(start, end);
   } catch (error) {
     return emptySnapshot(

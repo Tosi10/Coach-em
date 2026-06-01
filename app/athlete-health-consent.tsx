@@ -10,6 +10,7 @@ import {
   canUseNativeHealth,
   getHealthConnectAvailability,
   getHealthService,
+  isExpoGoApp,
   openHealthConnectSettingsScreen,
   openHealthConnectStore,
 } from '@/src/services/health.service';
@@ -132,7 +133,14 @@ export default function AthleteHealthConsentScreen() {
     ) {
       return 'permission_denied';
     }
-    if (lower.includes('healthkit') || lower.includes('health kit') || lower.includes('unavailable')) {
+    if (
+      lower.includes('healthkit') ||
+      lower.includes('health kit') ||
+      lower.includes('unavailable') ||
+      lower.includes('unsupported_platform') ||
+      lower.includes('not_linked') ||
+      lower.includes('module_not')
+    ) {
       return 'healthkit_unavailable';
     }
     return reason;
@@ -223,8 +231,12 @@ export default function AthleteHealthConsentScreen() {
     const health = getHealthService();
     setActionLoading(true);
     try {
-      if (!canUseNativeHealth()) {
+      if (isExpoGoApp()) {
         resolvePermissionError('expo_go');
+        return;
+      }
+      if (!canUseNativeHealth()) {
+        resolvePermissionError('healthkit_module_not_linked');
         return;
       }
 
@@ -248,6 +260,9 @@ export default function AthleteHealthConsentScreen() {
 
       const result = await health.requestPermissions();
       if (!result.granted) {
+        if (__DEV__) {
+          console.warn('[HealthConsent] permissions not granted:', result.reason);
+        }
         resolvePermissionError(result.reason);
         return;
       }

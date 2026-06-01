@@ -12,8 +12,16 @@ import { Platform } from 'react-native';
 
 import type { HealthPermissionResult, HealthPlatform, HealthSnapshot } from '@/src/types/health';
 
-import * as NativeHealth from './health/healthNativePermissions';
 import { readNativeHealthWindow } from './health/healthReadWindow';
+
+/** Evita resolver por engano o stub `healthNativePermissions.ts` em builds iOS/Android. */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const NativeHealth =
+  Platform.OS === 'ios'
+    ? require('./health/healthNativePermissions.ios')
+    : Platform.OS === 'android'
+      ? require('./health/healthNativePermissions.android')
+      : require('./health/healthNativePermissions');
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -27,7 +35,7 @@ export interface HealthService {
   readWindow(start: Date, end: Date): Promise<HealthSnapshot>;
 }
 
-export { canUseNativeHealth } from './health/healthRuntime';
+export { canUseNativeHealth, isExpoGoApp } from './health/healthRuntime';
 export type { HealthConnectAvailability } from './health/healthNativePermissions';
 export {
   getHealthConnectAvailability,
