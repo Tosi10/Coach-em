@@ -13,6 +13,11 @@ export async function persistSessionAndNavigateHome(
   replace: (href: Href) => void,
   user: User
 ): Promise<void> {
+  if (user.userType == null) {
+    console.warn('[navigateAfterAuth] userType ausente — perfil Firestore incompleto');
+    replace('/(auth)/login');
+    return;
+  }
   await AsyncStorage.setItem('userType', user.userType);
   if (user.userType === UserType.ATHLETE) {
     await AsyncStorage.setItem('currentAthleteId', user.id);

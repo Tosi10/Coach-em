@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.vision10.coachem",
-      "buildNumber": "1.0.26",
+      "buildNumber": "1.0.25",
       "icon": "./assets/images/Coach-emIcone02.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
@@ -28,7 +28,6 @@
     },
     "android": {
       "package": "com.vision10.coachem",
-      "versionCode": 1,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
@@ -55,6 +54,7 @@
       "favicon": "./assets/images/Coach-emIcone02.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-image-picker",
@@ -100,12 +100,16 @@
           "healthUpdatePermission": "O Coach'em pode registar treinos concluídos no app Saúde para manter o seu histórico unificado. A gravação é opcional."
         }
       ],
-      "react-native-health-connect",
+      "expo-health-connect",
       "./node_modules/@react-native-firebase/app/app.plugin.js",
       "./node_modules/@react-native-firebase/app-check/app.plugin.js",
       [
         "expo-build-properties",
         {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 36
+          },
           "ios": {
             "extraPods": [
               {

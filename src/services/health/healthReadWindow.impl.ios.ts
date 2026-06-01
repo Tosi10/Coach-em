@@ -1,6 +1,7 @@
 import type { HealthSnapshot, HRSample, WorkoutSession, WorkoutSessionType } from '@/src/types/health';
 
 import { computeHRAggregates, resolveFcMax, sumSampleValues } from './healthAggregates';
+import { getAppleHealthKit } from './healthKitBridge';
 
 type HealthValue = {
   value?: number;
@@ -45,7 +46,7 @@ function mapWorkoutType(raw: string | undefined): WorkoutSessionType {
 
 export async function readNativeHealthWindowImpl(start: Date, end: Date): Promise<HealthSnapshot> {
   const notes: string[] = [];
-  const AppleHealthKit = (await import('react-native-health')).default;
+  const AppleHealthKit = getAppleHealthKit();
 
   let hrSamples: HRSample[] = [];
   try {

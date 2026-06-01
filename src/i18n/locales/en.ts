@@ -816,6 +816,8 @@ export default {
     adherence: 'Adherence',
     weeklyAverage: 'Weekly average',
     currentStreak: 'Current streak',
+    streakDays_one: '{{count}} day',
+    streakDays_other: '{{count}} days',
     completeWorkoutsFreqHint: 'Complete workouts to see your weekly frequency here.',
     currentAverage: 'Current average',
     lastWeekShort: 'Last week',

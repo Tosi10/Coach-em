@@ -150,11 +150,7 @@ export default function AthleteHealthConsentScreen() {
     const key = normalizeHealthErrorReason(reason);
     switch (key) {
       case 'expo_go':
-        showAlert(
-          t('healthConsent.errorExpoGoTitle'),
-          t('healthConsent.errorExpoGoBody'),
-          'warning',
-        );
+        showAlert(t('healthConsent.errorExpoGoTitle'), t('healthConsent.errorExpoGoBody'), 'warning');
         return;
       case 'health_connect_not_installed':
         showAlert(
@@ -225,6 +221,13 @@ export default function AthleteHealthConsentScreen() {
     }
   };
 
+  const failConnect = (reason: string) => {
+    if (__DEV__) {
+      console.warn('[HealthConsent] connect failed:', reason);
+    }
+    resolvePermissionError(reason);
+  };
+
   const handleConnectPress = async () => {
     if (!user?.id || actionLoading) return;
 
@@ -232,12 +235,21 @@ export default function AthleteHealthConsentScreen() {
     setActionLoading(true);
     try {
       if (isExpoGoApp()) {
-        resolvePermissionError('expo_go');
+        failConnect('expo_go');
         return;
       }
       if (!canUseNativeHealth()) {
-        resolvePermissionError('healthkit_module_not_linked');
+        failConnect('healthkit_module_not_linked');
         return;
+      }
+
+      // iOS: HealthKit tem de estar no binário (Dev Client / loja).
+      if (Platform.OS === 'ios') {
+        const available = await health.isAvailable();
+        if (!available) {
+          failConnect('healthkit_module_not_linked');
+          return;
+        }
       }
 
       // Android: exige Health Connect instalado antes do pedido de permissões.
@@ -246,24 +258,21 @@ export default function AthleteHealthConsentScreen() {
         if (!available) {
           const hcStatus = await getHealthConnectAvailability();
           if (hcStatus === 'not_installed') {
-            resolvePermissionError('health_connect_not_installed');
+            failConnect('health_connect_not_installed');
             return;
           }
           if (hcStatus === 'update_required') {
-            resolvePermissionError('health_connect_update_required');
+            failConnect('health_connect_update_required');
             return;
           }
-          resolvePermissionError('health_connect_not_installed');
+          failConnect('health_connect_not_installed');
           return;
         }
       }
 
       const result = await health.requestPermissions();
       if (!result.granted) {
-        if (__DEV__) {
-          console.warn('[HealthConsent] permissions not granted:', result.reason);
-        }
-        resolvePermissionError(result.reason);
+        failConnect(result.reason ?? 'unknown');
         return;
       }
 
@@ -275,12 +284,9 @@ export default function AthleteHealthConsentScreen() {
         'success',
       );
     } catch (err) {
-      if (__DEV__) {
-        console.warn('[HealthConsent] connect failed:', err);
-      }
-      resolvePermissionError(
-        err instanceof Error ? err.message : 'healthkit_unavailable',
-      );
+      const msg = err instanceof Error ? err.message : 'healthkit_unavailable';
+      console.warn('[HealthConsent] connect failed:', err);
+      failConnect(msg);
     } finally {
       setActionLoading(false);
     }
@@ -415,13 +421,28 @@ export default function AthleteHealthConsentScreen() {
           onPress={() => void handleConnectPress()}
           activeOpacity={0.85}
           disabled={actionLoading}
-          className="rounded-xl py-4 items-center mb-3 flex-row justify-center"
-          style={{ backgroundColor: theme.colors.primary, opacity: actionLoading ? 0.7 : 1 }}
+          className="rounded-xl py-4 items-center mb-3 flex-row justify-center border"
+          style={
+            healthEnabled
+              ? {
+                  borderColor: theme.colors.border,
+                  backgroundColor: 'transparent',
+                  opacity: actionLoading ? 0.7 : 1,
+                }
+              : {
+                  borderColor: theme.colors.primary,
+                  backgroundColor: theme.colors.primary,
+                  opacity: actionLoading ? 0.7 : 1,
+                }
+          }
         >
-          {actionLoading ? (
+          {actionLoading && !healthEnabled ? (
             <ActivityIndicator color="#ffffff" style={{ marginRight: 8 }} />
           ) : null}
-          <Text className="text-base font-semibold" style={{ color: '#ffffff' }}>
+          <Text
+            className="text-base font-semibold"
+            style={{ color: healthEnabled ? theme.colors.textSecondary : '#ffffff' }}
+          >
             {connectLabel}
           </Text>
         </TouchableOpacity>
@@ -430,16 +451,28 @@ export default function AthleteHealthConsentScreen() {
           onPress={() => void handleDisconnectPress()}
           activeOpacity={0.85}
           disabled={!healthEnabled || actionLoading}
-          className="rounded-xl py-3.5 items-center border flex-row justify-center"
-          style={{
-            borderColor: theme.colors.border,
-            opacity: !healthEnabled || actionLoading ? 0.55 : 1,
-          }}
+          className="rounded-xl py-3.5 items-center flex-row justify-center border"
+          style={
+            healthEnabled
+              ? {
+                  borderColor: theme.colors.primary,
+                  backgroundColor: theme.colors.primary,
+                  opacity: actionLoading ? 0.7 : 1,
+                }
+              : {
+                  borderColor: theme.colors.border,
+                  backgroundColor: 'transparent',
+                  opacity: !healthEnabled || actionLoading ? 0.55 : 1,
+                }
+          }
         >
           {actionLoading && healthEnabled ? (
-            <ActivityIndicator color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+            <ActivityIndicator color="#ffffff" style={{ marginRight: 8 }} />
           ) : null}
-          <Text className="font-semibold" style={{ color: theme.colors.textSecondary }}>
+          <Text
+            className="font-semibold"
+            style={{ color: healthEnabled ? '#ffffff' : theme.colors.textSecondary }}
+          >
             {disconnectLabel}
           </Text>
         </TouchableOpacity>

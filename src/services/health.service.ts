@@ -36,6 +36,12 @@ export interface HealthService {
 }
 
 export { canUseNativeHealth, isExpoGoApp } from './health/healthRuntime';
+export {
+  collectHealthDiagnostics,
+  formatHealthDiagnostics,
+  logHealthDiagnostics,
+} from './health/healthDiagnostics';
+export type { HealthDiagnostics } from './health/healthDiagnostics';
 export type { HealthConnectAvailability } from './health/healthNativePermissions';
 export {
   getHealthConnectAvailability,

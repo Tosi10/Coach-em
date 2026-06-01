@@ -2,6 +2,8 @@
 
 Plano de execução **diário** da Fase 1 do projeto **Pro+ Health** do Coach'em.
 
+> **Atalho wearables / Dev Client (Cora-ai):** [`WEARABLES_DEV_CLIENT_PLAYBOOK.md`](./WEARABLES_DEV_CLIENT_PLAYBOOK.md)
+
 > **Documento principal:** [`HEALTH_INTEGRATION_PLAN.md`](./HEALTH_INTEGRATION_PLAN.md)
 > **Início previsto:** segunda-feira após aprovação deste plano
 > **Ritmo:** **~2 horas/dia**, dias úteis

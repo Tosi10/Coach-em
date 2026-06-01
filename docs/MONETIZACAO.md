@@ -260,6 +260,7 @@ Referências no repositório:
 
 - Endurecer **enforcement no servidor** para todos os recursos limitados.
 - Opcional: diferenciais Pro/Premium (relatórios, notificações avançadas, comunicação) conforme `ROADMAP_FUNCIONALIDADES.md`.
+- **Expansão B2C (atleta solo + vínculo coach):** documento mestre [`ROADMAP_ATLETA_SOLO_E_VINCULO_COACH.md`](./ROADMAP_ATLETA_SOLO_E_VINCULO_COACH.md) — visão, UX (Início vs Treinos), monetização (Coach Pro / Athlete Pro / coached grátis), anti-abuso, matriz Firestore, fases P0–P6. Princípio: **reutilizar** ecrãs existentes; organizar permissões e gates.
 
 ---
 

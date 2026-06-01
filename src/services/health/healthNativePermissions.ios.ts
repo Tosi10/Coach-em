@@ -2,6 +2,7 @@ import { Linking } from 'react-native';
 
 import type { HealthPermissionResult } from '@/src/types/health';
 
+import { getAppleHealthKit } from './healthKitBridge';
 import { canUseNativeHealth } from './healthRuntime';
 
 const READ_TYPE_LABELS = [
@@ -18,17 +19,16 @@ export type HealthConnectAvailability =
   | 'update_required'
   | 'unavailable';
 
-async function loadHealthKit() {
-  const mod = await import('react-native-health');
-  const kit = mod.default ?? mod;
-  if (typeof kit?.initHealthKit !== 'function') {
-    throw new Error('healthkit_module_not_linked');
-  }
-  return kit;
+function loadHealthKit() {
+  return getAppleHealthKit();
 }
 
+/** No iOS não há Health Connect; espelha disponibilidade do HealthKit para diagnóstico. */
 export async function getHealthConnectAvailability(): Promise<HealthConnectAvailability> {
-  return 'unavailable';
+  if (!(await isNativeHealthAvailable())) {
+    return 'unavailable';
+  }
+  return 'available';
 }
 
 export async function isNativeHealthAvailable(): Promise<boolean> {
@@ -36,12 +36,8 @@ export async function isNativeHealthAvailable(): Promise<boolean> {
     return false;
   }
   try {
-    const AppleHealthKit = await loadHealthKit();
-    if (typeof AppleHealthKit?.initHealthKit !== 'function') {
-      return false;
-    }
-    // isAvailable() falha em alguns builds mesmo com HealthKit OK; initHealthKit é a fonte de verdade.
-    return true;
+    const AppleHealthKit = loadHealthKit();
+    return typeof AppleHealthKit.initHealthKit === 'function';
   } catch {
     return false;
   }
@@ -57,8 +53,15 @@ export async function requestNativeHealthPermissions(): Promise<HealthPermission
   }
 
   try {
-    const AppleHealthKit = await loadHealthKit();
-    const { Permissions } = AppleHealthKit.Constants;
+    const AppleHealthKit = loadHealthKit();
+    const Permissions = AppleHealthKit.Constants?.Permissions;
+    if (!Permissions) {
+      return {
+        granted: false,
+        grantedTypes: [],
+        reason: 'healthkit_constants_missing',
+      };
+    }
 
     // write: [] quebra initHealthKit em várias versões — pelo menos um tipo de escrita (README do pacote).
     const permissions = {

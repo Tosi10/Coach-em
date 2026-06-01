@@ -820,6 +820,8 @@ export default {
     adherence: 'Aderência',
     weeklyAverage: 'Média Semanal',
     currentStreak: 'Sequência Atual',
+    streakDays_one: '{{count}} dia',
+    streakDays_other: '{{count}} dias',
     completeWorkoutsFreqHint: 'Complete treinos para ver sua frequência semanal aqui.',
     currentAverage: 'Média atual',
     lastWeekShort: 'Última semana',

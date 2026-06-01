@@ -103,9 +103,22 @@ function formatAuthError(error: unknown, fallbackPrefix: string): Error {
   return new Error(`${fallbackPrefix}: ${friendly}`);
 }
 
+function resolveUserType(userData: Record<string, unknown>): UserType {
+  const raw = userData.userType;
+  if (raw === UserType.COACH || raw === UserType.ATHLETE) {
+    return raw;
+  }
+  if (Array.isArray(userData.athletes)) {
+    return UserType.COACH;
+  }
+  return UserType.ATHLETE;
+}
+
 function toAppUser(firebaseUser: FirebaseUser, userData: any): User {
+  const userType = resolveUserType(userData ?? {});
   return {
     ...userData,
+    userType,
     // O ID usado nas regras do Firestore/Storage precisa ser sempre o UID real do Firebase Auth.
     id: firebaseUser.uid,
     photoURL: userData.photoURL ?? firebaseUser.photoURL ?? undefined,
