@@ -5,6 +5,7 @@
  * Vamos explicar TUDO linha por linha!
  */
 
+import { AthleteHomeIdentity } from '@/components/AthleteHomeIdentity';
 import { EmptyState } from '@/components/EmptyState';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
@@ -13,6 +14,7 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
 import { auth, db } from '@/src/services/firebase.config';
 import { UserType } from '@/src/types';
+import { isSoloAthlete } from '@/src/types/athleteMode';
 import {
     assignedSortTimestamp,
     chartDayMonthByLocale,
@@ -181,20 +183,21 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const loadUserTypeAndWorkouts = async () => {
-      const savedType = await AsyncStorage.getItem('userType');
-      if (savedType) setUserType(savedType as UserType);
+      if (!user?.id) {
+        setWorkouts([]);
+        return;
+      }
 
-      let athleteId: string | null = null;
-      if (savedType === UserType.ATHLETE) {
-        athleteId = await AsyncStorage.getItem('currentAthleteId');
-        if (athleteId) setCurrentAthleteId(athleteId);
+      setUserType(user.userType);
+      if (user.userType === UserType.ATHLETE) {
+        setCurrentAthleteId(user.id);
       }
 
       let allWorkouts: any[] = [];
       try {
-        if (savedType === UserType.ATHLETE && athleteId) {
-          allWorkouts = await listAssignedWorkoutsByAthleteId(athleteId);
-        } else if (savedType === UserType.COACH && user?.id) {
+        if (user.userType === UserType.ATHLETE) {
+          allWorkouts = await listAssignedWorkoutsByAthleteId(user.id, { viewer: user });
+        } else if (user.userType === UserType.COACH) {
           allWorkouts = await listAssignedWorkoutsByCoachId(user.id);
         }
       } catch (e) {
@@ -203,7 +206,7 @@ export default function HomeScreen() {
       setWorkouts(allWorkouts);
     };
     loadUserTypeAndWorkouts();
-  }, [user?.id]);
+  }, [user?.id, user?.userType]);
 
   // Onboarding simples: mostra apenas na primeira vez após login
   useEffect(() => {
@@ -276,6 +279,11 @@ export default function HomeScreen() {
   const loadAthleteCoachCard = useCallback(async () => {
     const savedType = await AsyncStorage.getItem('userType');
     if (savedType !== UserType.ATHLETE) {
+      setCoachHighlight(null);
+      return;
+    }
+
+    if (user?.userType === UserType.ATHLETE && isSoloAthlete(user)) {
       setCoachHighlight(null);
       return;
     }
@@ -1209,7 +1217,7 @@ export default function HomeScreen() {
     let allWorkouts: any[] = [];
     try {
       if (savedType === UserType.ATHLETE && athleteId) {
-        allWorkouts = await listAssignedWorkoutsByAthleteId(athleteId);
+        allWorkouts = await listAssignedWorkoutsByAthleteId(athleteId, { viewer: user });
       } else if (savedType === UserType.COACH && user?.id) {
         allWorkouts = await listAssignedWorkoutsByCoachId(user.id);
       }
@@ -2260,9 +2268,10 @@ export default function HomeScreen() {
       ) : userType === UserType.ATHLETE ? (
         //Dashboard do Atleta - Tema Escuro Estilo Zeus (Profissional)
         <View className="w-full mt-3" style={{ paddingTop: 20 }}>
+          <AthleteHomeIdentity />
           {/* Saudação Personalizada */}
           {currentAthleteId && (
-            <View className="mb-6" style={{ marginTop: 20 }}>
+            <View className="mb-6" style={{ marginTop: 8 }}>
               <View className="flex-row items-start justify-between">
                 <View className="flex-1 pr-2">
                   <Text
@@ -2293,6 +2302,23 @@ export default function HomeScreen() {
                   resizeMode="contain"
                 />
               </View>
+            </View>
+          )}
+
+          {userType === UserType.ATHLETE && user?.userType === UserType.ATHLETE && isSoloAthlete(user) && (
+            <View
+              className="mb-6 rounded-xl p-4 border"
+              style={{
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Text className="text-sm font-semibold mb-1" style={{ color: theme.colors.primary }}>
+                {t('home.soloWelcomeTitle')}
+              </Text>
+              <Text className="text-xs leading-5" style={themeStyles.textSecondary}>
+                {t('home.soloWelcomeBody')}
+              </Text>
             </View>
           )}
 

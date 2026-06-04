@@ -6,7 +6,7 @@
  * (Firebase Auth + Firestore users + coachemAthletes) para o atleta poder fazer login.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.revenueCatWebhook = exports.dispatchAthleteWorkoutPushReminders = exports.sendEmailVerificationTreina = exports.sendPasswordResetEmailTreina = exports.createAthleteByCoach = void 0;
+exports.syncCoachemAthleteWithUserLink = exports.detachAthleteFromCoachByCoach = exports.unlinkAthleteFromCoach = exports.linkAthleteToCoachByCode = exports.acceptCoachInvite = exports.sendCoachInviteToAthlete = exports.registerAthleteSelf = exports.validateCoachInviteCode = exports.revenueCatWebhook = exports.dispatchAthleteWorkoutPushReminders = exports.sendEmailVerificationTreina = exports.sendPasswordResetEmailTreina = exports.createAthleteByCoach = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const params_1 = require("firebase-functions/params");
@@ -391,6 +391,7 @@ exports.createAthleteByCoach = (0, https_1.onCall)({
         email: emailTrim,
         displayName: name,
         userType: "ATHLETE",
+        athleteMode: "coached",
         coachId,
         sport: (sport === null || sport === void 0 ? void 0 : sport.trim()) || null,
         createdAt: now,
@@ -625,3 +626,13 @@ exports.dispatchAthleteWorkoutPushReminders = (0, scheduler_1.onSchedule)({
 });
 var revenueCatWebhook_1 = require("./revenueCatWebhook");
 Object.defineProperty(exports, "revenueCatWebhook", { enumerable: true, get: function () { return revenueCatWebhook_1.revenueCatWebhook; } });
+var athleteRegistration_1 = require("./athleteRegistration");
+Object.defineProperty(exports, "validateCoachInviteCode", { enumerable: true, get: function () { return athleteRegistration_1.validateCoachInviteCode; } });
+Object.defineProperty(exports, "registerAthleteSelf", { enumerable: true, get: function () { return athleteRegistration_1.registerAthleteSelf; } });
+var coachInvites_1 = require("./coachInvites");
+Object.defineProperty(exports, "sendCoachInviteToAthlete", { enumerable: true, get: function () { return coachInvites_1.sendCoachInviteToAthlete; } });
+Object.defineProperty(exports, "acceptCoachInvite", { enumerable: true, get: function () { return coachInvites_1.acceptCoachInvite; } });
+Object.defineProperty(exports, "linkAthleteToCoachByCode", { enumerable: true, get: function () { return coachInvites_1.linkAthleteToCoachByCode; } });
+Object.defineProperty(exports, "unlinkAthleteFromCoach", { enumerable: true, get: function () { return coachInvites_1.unlinkAthleteFromCoach; } });
+Object.defineProperty(exports, "detachAthleteFromCoachByCoach", { enumerable: true, get: function () { return coachInvites_1.detachAthleteFromCoachByCoach; } });
+Object.defineProperty(exports, "syncCoachemAthleteWithUserLink", { enumerable: true, get: function () { return coachInvites_1.syncCoachemAthleteWithUserLink; } });

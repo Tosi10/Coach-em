@@ -18,6 +18,8 @@ import {
     where,
     writeBatch
 } from 'firebase/firestore';
+import type { User } from '@/src/types';
+import { filterAssignedWorkoutsAfterCoachUnlink } from '@/src/utils/coachUnlinkGrace';
 import { db } from './firebase.config';
 import { enrichWorkoutBlocksWithLatestExercises } from './exercises.service';
 
@@ -169,11 +171,21 @@ export async function createAssignedWorkouts(
 /**
  * Lista treinos atribuídos a um atleta.
  */
-export async function listAssignedWorkoutsByAthleteId(athleteId: string): Promise<AssignedWorkoutDoc[]> {
-  const q = query(collection(db, COLLECTION), where('athleteId', '==', athleteId));
+export async function listAssignedWorkoutsByAthleteId(
+  athleteId: string,
+  options?: { viewer?: User | null; coachId?: string | null }
+): Promise<AssignedWorkoutDoc[]> {
+  const constraints = [where('athleteId', '==', athleteId)];
+  if (options?.coachId) {
+    constraints.push(where('coachId', '==', options.coachId));
+  }
+  const q = query(collection(db, COLLECTION), ...constraints);
   const snapshot = await getDocs(q);
-  const list = await Promise.all(snapshot.docs.map((d) => hydrateAssignedWorkout(docToAssigned(d))));
+  let list = await Promise.all(snapshot.docs.map((d) => hydrateAssignedWorkout(docToAssigned(d))));
   list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (options?.viewer) {
+    list = filterAssignedWorkoutsAfterCoachUnlink(list, options.viewer);
+  }
   return list;
 }
 

@@ -158,7 +158,8 @@ export async function createExercise(
     muscleGroups: data.muscleGroups,
     equipment: data.equipment,
     createdBy: coachId,
-    isGlobal: data.isGlobal ?? true,
+    // Atleta solo: rules exigem isGlobal == false. Coach pode passar true explicitamente.
+    isGlobal: data.isGlobal ?? false,
     createdAt: now,
     updatedAt: now,
   });

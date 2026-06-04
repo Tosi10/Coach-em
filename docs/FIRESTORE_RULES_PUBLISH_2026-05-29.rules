@@ -1,0 +1,710 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers gerais ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ---------- CooPs helpers ----------
+    function hasCoopsUserDoc() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/coopsUsers/$(request.auth.uid));
+    }
+
+    function coopsMe() {
+      return get(/databases/$(database)/documents/coopsUsers/$(request.auth.uid)).data;
+    }
+
+    function coopsAdminWs() {
+      return hasCoopsUserDoc() && coopsMe().role == 'admin' && coopsMe().workspaceId is string
+        ? coopsMe().workspaceId
+        : '';
+    }
+
+    function coopsActiveWs() {
+      return hasCoopsUserDoc()
+        ? (coopsMe().role == 'admin'
+            ? coopsMe().workspaceId
+            : (coopsMe().activeWorkspaceId is string && coopsMe().activeWorkspaceId.size() > 0
+                ? coopsMe().activeWorkspaceId
+                : coopsMe().workspaceId))
+        : '';
+    }
+
+    function coopsWs() {
+      return coopsActiveWs();
+    }
+
+    function coopsSameWs(data) {
+      return data.workspaceId is string && data.workspaceId == coopsWs();
+    }
+
+    function coopsMembershipId(uid, ws) {
+      return uid + '_' + ws;
+    }
+
+    function hasActiveMembershipIn(ws) {
+      return ws is string
+        && ws.size() > 0
+        && exists(/databases/$(database)/documents/coopsMemberships/$(coopsMembershipId(request.auth.uid, ws)))
+        && get(/databases/$(database)/documents/coopsMemberships/$(coopsMembershipId(request.auth.uid, ws))).data.status == 'active';
+    }
+
+    /** Workspace do cliente legado (antes de membership) — só migração one-shot. */
+    function coopsClientLegacyWs() {
+      return hasCoopsUserDoc() && isClient()
+        ? (coopsMe().activeWorkspaceId is string && coopsMe().activeWorkspaceId.size() > 0
+            ? coopsMe().activeWorkspaceId
+            : (coopsMe().workspaceId is string ? coopsMe().workspaceId : ''))
+        : '';
+    }
+
+    function clientMigratesOwnLegacyMembership(membershipId) {
+      let ws = coopsClientLegacyWs();
+      return isClient()
+        && ws.size() > 0
+        && membershipId == coopsMembershipId(request.auth.uid, ws)
+        && !exists(/databases/$(database)/documents/coopsMemberships/$(membershipId))
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.workspaceId == ws
+        && request.resource.data.status == 'active'
+        && request.resource.data.source == 'admin_created';
+    }
+
+    function coopsAdminCanReadUser(userId) {
+      return isAdmin() && (
+        get(/databases/$(database)/documents/coopsUsers/$(userId)).data.workspaceId == coopsWs()
+        || exists(/databases/$(database)/documents/coopsMemberships/$(coopsMembershipId(userId, coopsWs())))
+      );
+    }
+
+    function myRole() {
+      return hasCoopsUserDoc()
+        ? get(/databases/$(database)/documents/coopsUsers/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && myRole() == 'admin';
+    }
+
+    function isClient() {
+      return isSignedIn() && myRole() == 'client';
+    }
+
+    // ---------- Coach'em helpers ----------
+    function hasCoachEmUserDoc() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function coachEmMe() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function coachEmRole() {
+      return hasCoachEmUserDoc()
+        ? coachEmMe().userType
+        : null;
+    }
+
+    function isCoachEmCoach() {
+      return isSignedIn() && coachEmRole() == 'COACH';
+    }
+
+    function isCoachEmAthlete() {
+      return isSignedIn() && coachEmRole() == 'ATHLETE';
+    }
+
+    /** Solo explícito ou legado sem coachId (cadastro atleta solo no app). */
+    function athleteIsSolo() {
+      return isCoachEmAthlete() && (
+        coachEmMe().athleteMode == 'solo'
+        || (
+          coachEmMe().athleteMode != 'coached'
+          && (!('coachId' in coachEmMe()) || !(coachEmMe().coachId is string) || coachEmMe().coachId.size() == 0)
+        )
+      );
+    }
+
+    /** Athlete Pro (RevenueCat no uid do atleta — P5). */
+    function isAthleteEmPro() {
+      return isCoachEmAthlete() && coachEmMe().subscriptionTier == 'pro';
+    }
+
+    /** Solo ou coached+Pro: biblioteca/treinos próprios (coachId == próprio uid). */
+    function canAthleteSelfDirect() {
+      return athleteIsSolo() || isAthleteEmPro();
+    }
+
+    /** Treinador só gereia atleta com vínculo ativo (não Desvinculado). */
+    function coachOwnsAthlete(athleteId) {
+      let a = get(/databases/$(database)/documents/coachemAthletes/$(athleteId)).data;
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/coachemAthletes/$(athleteId))
+        && a.coachId == request.auth.uid
+        && (
+          !('status' in a)
+          || a.status == 'Ativo'
+          || a.status == 'Active'
+        );
+    }
+
+    /** Treinador com atleta na lista (Ativo ou Desvinculado): leitura de histórico; sem removidos. */
+    function coachLinkedToAthlete(athleteId) {
+      let a = get(/databases/$(database)/documents/coachemAthletes/$(athleteId)).data;
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/coachemAthletes/$(athleteId))
+        && a.coachId == request.auth.uid
+        && !('deletedAt' in a && a.deletedAt != null);
+    }
+
+    /** Dados do documento pai de um treino atribuído (para subcoleção `health`). */
+    function assignedWorkoutParentData(docId) {
+      return get(/databases/$(database)/documents/coachemAssignedWorkouts/$(docId)).data;
+    }
+
+    /** Id do atleta no treino atribuído (coerente com `health/{athleteUid}`). */
+    function assignedWorkoutAthleteId(docId) {
+      return assignedWorkoutParentData(docId).athleteId;
+    }
+
+    /** Treinos atribuídos: ids centrais não podem mudar em update. */
+    function assignedWorkoutCoreIdsUnchanged() {
+      return request.resource.data.athleteId == resource.data.athleteId
+        && request.resource.data.coachId == resource.data.coachId
+        && request.resource.data.workoutTemplateId == resource.data.workoutTemplateId;
+    }
+
+    /** Atleta só pode alterar estes campos no próprio treino atribuído. */
+    function athleteAssignedWorkoutPatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly([
+          'status',
+          'completedDate',
+          'startedAt',
+          'completedAt',
+          'feedback',
+          'feedbackEmoji',
+          'feedbackText',
+        ]);
+    }
+
+    /** Atleta atualiza só estes campos no coachemAthletes (foto, push, timestamps). */
+    function athleteProfilePatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['photoURL', 'updatedAt', 'expoPushToken', 'expoPushTokenUpdatedAt', 'expoPushPlatform']);
+    }
+
+    /** Treinador pode corrigir dados básicos do atleta que ele possui. */
+    function coachAthleteUserPatchKeysOnly() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['displayName', 'sport', 'status', 'blockedAt', 'updatedAt']);
+    }
+
+    /** Vínculo coach/atleta só via Cloud Functions (link, unlink, convite). */
+    function coachEmAthleteLinkingFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).changedKeys()
+        .hasAny([
+          'coachId',
+          'athleteMode',
+          'coachUnlinkedAt',
+          'coachAccessEndsAt',
+          'coachUnlinkedFromCoachId',
+        ]);
+    }
+
+    /** Apenas RevenueCat (webhook) ou Admin SDK; o app não altera estes campos. */
+    function coachEmBillingFieldsUnchanged() {
+      let ch = request.resource.data.diff(resource.data).changedKeys();
+      return !ch.hasAny([
+        'subscriptionTier',
+        'subscriptionExpiresAt',
+        'revenueCatSyncedAt',
+        'revenueCatLastEventType',
+        'revenueCatEnvironment',
+        'revenueCatWebhookUpdatedAt',
+      ]);
+    }
+
+    function treinaExerciseReadable() {
+      return isSignedIn() && (
+        resource.data.createdBy == request.auth.uid
+        || resource.data.isGlobal == true
+        || (
+          isCoachEmAthlete()
+          && coachEmMe().coachId is string
+          && coachEmMe().coachId.size() > 0
+          && coachEmMe().coachId == resource.data.createdBy
+        )
+      );
+    }
+
+    function treinaWorkoutTemplateReadable() {
+      return isSignedIn() && (
+        resource.data.coachId == request.auth.uid
+        || (
+          isCoachEmAthlete()
+          && coachEmMe().coachId is string
+          && coachEmMe().coachId.size() > 0
+          && coachEmMe().coachId == resource.data.coachId
+        )
+      );
+    }
+
+    function athleteCreatesOwnExercise() {
+      return canAthleteSelfDirect()
+        && request.resource.data.createdBy == request.auth.uid
+        && (!('isGlobal' in request.resource.data) || request.resource.data.isGlobal == false);
+    }
+
+    function athleteCreatesOwnTemplate() {
+      return canAthleteSelfDirect()
+        && request.resource.data.coachId == request.auth.uid;
+    }
+
+    function athleteCreatesSelfAssignedWorkout() {
+      return canAthleteSelfDirect()
+        && request.resource.data.athleteId == request.auth.uid
+        && request.resource.data.coachId == request.auth.uid;
+    }
+
+    // ---------- Coach'em ----------
+    // Perfil principal por uid
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        coachOwnsAthlete(userId)
+      );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userType in ['COACH', 'ATHLETE']
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && (
+          request.resource.data.userType != 'COACH'
+          || !('inviteCode' in request.resource.data)
+          || request.resource.data.inviteCode is string
+        )
+        && (
+          request.resource.data.userType != 'ATHLETE'
+          || (
+            (request.resource.data.athleteMode == 'solo' || !('athleteMode' in request.resource.data))
+            && (!('coachId' in request.resource.data) || request.resource.data.coachId == '')
+          )
+        );
+
+      allow update: if isSignedIn()
+        && coachEmBillingFieldsUnchanged()
+        && request.resource.data.userType == resource.data.userType
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          (
+            request.auth.uid == userId
+            && coachEmAthleteLinkingFieldsUnchanged()
+          )
+          || (
+            isCoachEmCoach()
+            && coachOwnsAthlete(userId)
+            && coachAthleteUserPatchKeysOnly()
+          )
+        );
+
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /coachemUsers/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Convites treinador → atleta (escrita só Functions / Admin SDK)
+    match /coachInvites/{inviteId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.coachId == request.auth.uid
+          || (
+            resource.data.athleteEmail == request.auth.token.email
+            && resource.data.status == 'pending'
+          )
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /coachemExercises/{docId} {
+      allow read: if treinaExerciseReadable();
+
+      allow create: if (isCoachEmCoach()
+          && request.resource.data.createdBy == request.auth.uid)
+        || athleteCreatesOwnExercise();
+
+      allow update, delete: if (isCoachEmCoach()
+          && resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdBy == resource.data.createdBy)
+        || (canAthleteSelfDirect()
+          && resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdBy == resource.data.createdBy);
+    }
+
+    match /coachemWorkoutTemplates/{docId} {
+      allow read: if treinaWorkoutTemplateReadable();
+
+      allow create: if (isCoachEmCoach()
+          && request.resource.data.coachId == request.auth.uid)
+        || athleteCreatesOwnTemplate();
+
+      allow update, delete: if (isCoachEmCoach()
+          && resource.data.coachId == request.auth.uid
+          && request.resource.data.coachId == resource.data.coachId)
+        || (canAthleteSelfDirect()
+          && resource.data.coachId == request.auth.uid
+          && request.resource.data.coachId == resource.data.coachId);
+    }
+
+    match /coachemAthletes/{athleteId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == athleteId ||
+        resource.data.coachId == request.auth.uid
+      );
+
+      allow create: if isCoachEmCoach()
+        && request.resource.data.coachId == request.auth.uid;
+
+      allow update: if (isCoachEmCoach()
+          && resource.data.coachId == request.auth.uid
+          && request.resource.data.coachId == resource.data.coachId)
+        || (
+          resource.data.coachId == request.resource.data.coachId
+          && athleteProfilePatchKeysOnly()
+          && (
+            request.auth.uid == athleteId
+            || ('authUid' in resource.data && resource.data.authUid == request.auth.uid)
+          )
+          && (!('authUid' in resource.data)
+            || request.resource.data.authUid == resource.data.authUid)
+        );
+
+      allow delete: if isSignedIn() && (
+        (isCoachEmCoach() && resource.data.coachId == request.auth.uid) ||
+        request.auth.uid == athleteId
+      );
+    }
+
+    match /coachemAssignedWorkouts/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        resource.data.coachId == request.auth.uid ||
+        coachLinkedToAthlete(resource.data.athleteId)
+      );
+
+      allow create: if (isCoachEmCoach()
+          && request.resource.data.coachId == request.auth.uid
+          && coachOwnsAthlete(request.resource.data.athleteId))
+        || athleteCreatesSelfAssignedWorkout();
+
+      allow update: if isSignedIn()
+        && assignedWorkoutCoreIdsUnchanged()
+        && (
+          (isCoachEmCoach() && resource.data.coachId == request.auth.uid)
+          || (
+            resource.data.athleteId == request.auth.uid
+            && athleteAssignedWorkoutPatchKeysOnly()
+          )
+        );
+
+      allow delete: if (isCoachEmCoach()
+          && resource.data.coachId == request.auth.uid)
+        || (
+          canAthleteSelfDirect()
+          && resource.data.athleteId == request.auth.uid
+          && resource.data.coachId == request.auth.uid
+        );
+
+      match /health/{athleteUid} {
+        allow read: if isSignedIn()
+          && athleteUid == assignedWorkoutAthleteId(docId)
+          && (
+            request.auth.uid == athleteUid ||
+            assignedWorkoutParentData(docId).coachId == request.auth.uid ||
+            coachLinkedToAthlete(assignedWorkoutAthleteId(docId))
+          );
+
+        allow create, update: if isSignedIn()
+          && athleteUid == assignedWorkoutAthleteId(docId)
+          && request.auth.uid == athleteUid;
+
+        allow delete: if false;
+      }
+    }
+
+    match /coachemExerciseWeightHistory/{docId} {
+      allow read: if isSignedIn() && (
+        resource.data.athleteId == request.auth.uid ||
+        coachLinkedToAthlete(resource.data.athleteId)
+      );
+
+      allow create: if isSignedIn() && (
+        request.resource.data.athleteId == request.auth.uid ||
+        (isCoachEmCoach() && coachOwnsAthlete(request.resource.data.athleteId))
+      );
+
+      allow update, delete: if false;
+    }
+
+    // ---------- CooPs (isolamento por workspaceId + memberships) ----------
+    match /coopsWorkspaces/{workspaceId} {
+      allow read: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        workspaceId == coopsWs() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /coopsMemberships/{membershipId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || (isAdmin() && resource.data.workspaceId == coopsWs())
+      );
+      allow create: if isSignedIn() && (
+        isAdmin()
+          && request.resource.data.workspaceId == coopsWs()
+          && request.resource.data.status == 'active'
+          && request.resource.data.userId != request.auth.uid
+        || clientMigratesOwnLegacyMembership(membershipId)
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() && resource.data.workspaceId == coopsWs()
+        || (
+          isClient()
+          && resource.data.userId == request.auth.uid
+          && resource.data.status == 'active'
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.workspaceId == resource.data.workspaceId
+          && request.resource.data.status == 'active'
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['credits', 'passValidOn', 'passHours', 'updatedAt'])
+        )
+      );
+      allow delete: if false;
+    }
+
+    match /coopsUsers/{userId} {
+      allow read: if isSignedIn() && (
+        userId == request.auth.uid
+        || coopsAdminCanReadUser(userId)
+      );
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && (
+          request.resource.data.role == 'admin'
+          || request.resource.data.role == 'client'
+        );
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId
+        || (isAdmin() && coopsAdminCanReadUser(userId))
+      );
+      allow delete: if isAdmin() && coopsAdminCanReadUser(userId);
+    }
+
+    match /coopsRooms/{roomId} {
+      allow read: if isSignedIn() && (
+        (isAdmin() && coopsSameWs(resource.data))
+        || hasActiveMembershipIn(resource.data.workspaceId)
+      );
+      allow write: if isAdmin() && coopsSameWs(request.resource.data);
+    }
+
+    match /coopsDesks/{deskId} {
+      allow read: if isSignedIn() && (
+        (isAdmin() && coopsSameWs(resource.data))
+        || hasActiveMembershipIn(resource.data.workspaceId)
+      );
+      allow write: if isAdmin() && coopsSameWs(request.resource.data);
+    }
+
+    match /coopsBookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        (isAdmin() && coopsSameWs(resource.data))
+        || (
+          isClient()
+          && resource.data.workspaceId == coopsWs()
+          && hasActiveMembershipIn(resource.data.workspaceId)
+        )
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && (
+          (isAdmin() && coopsSameWs(request.resource.data))
+          || (
+            isClient()
+            && request.resource.data.userId == request.auth.uid
+            && hasActiveMembershipIn(request.resource.data.workspaceId)
+          )
+        );
+      allow update, delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || (isAdmin() && coopsSameWs(resource.data))
+      );
+    }
+
+    match /coopsPackages/{packageId} {
+      allow read: if isSignedIn() && (
+        (isAdmin() && coopsSameWs(resource.data))
+        || hasActiveMembershipIn(resource.data.workspaceId)
+      );
+      allow write: if isAdmin() && coopsSameWs(request.resource.data);
+    }
+
+    match /coopsPackagePurchases/{purchaseId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (isAdmin() && coopsSameWs(resource.data))
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && (
+          (isAdmin() && coopsSameWs(request.resource.data))
+          || (
+            request.resource.data.userId == request.auth.uid
+            && hasActiveMembershipIn(request.resource.data.workspaceId)
+            && (
+              request.resource.data.kind == 'hours'
+              || (
+                request.resource.data.kind == 'day_pass'
+                && request.resource.data.validOn is string
+                && request.resource.data.validOn.size() == 10
+              )
+            )
+          )
+        );
+      allow update, delete: if isAdmin() && coopsSameWs(resource.data);
+    }
+
+    match /coopsCreditMovements/{movementId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (isAdmin() && coopsSameWs(resource.data))
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && (
+          isAdmin()
+          || (
+            request.resource.data.userId == request.auth.uid
+            && hasActiveMembershipIn(request.resource.data.workspaceId)
+          )
+        );
+      allow update, delete: if false;
+    }
+
+    match /coopsDayPassTickets/{ticketId} {
+      allow read: if isSignedIn() && (
+        resource == null ||
+        resource.data.userId == request.auth.uid ||
+        (isAdmin() && coopsSameWs(resource.data))
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && (
+          isAdmin()
+          || (
+            request.resource.data.userId == request.auth.uid
+            && hasActiveMembershipIn(request.resource.data.workspaceId)
+            && request.resource.data.status == 'active'
+            && ticketId == request.resource.data.purchaseId
+            && exists(/databases/$(database)/documents/coopsPackagePurchases/$(ticketId))
+            && get(/databases/$(database)/documents/coopsPackagePurchases/$(ticketId)).data.userId == request.auth.uid
+            && get(/databases/$(database)/documents/coopsPackagePurchases/$(ticketId)).data.kind == 'day_pass'
+            && get(/databases/$(database)/documents/coopsPackagePurchases/$(ticketId)).data.validOn == request.resource.data.validOn
+          )
+        );
+      allow update: if isAdmin() && coopsSameWs(resource.data);
+    }
+
+    match /coopsWorkspaceSettings/{docId} {
+      allow read: if isSignedIn() && hasCoopsUserDoc() && (
+        docId == coopsWs()
+        || (isAdmin() && docId == coopsAdminWs())
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId == docId
+        && exists(/databases/$(database)/documents/coopsWorkspaces/$(docId))
+        && get(/databases/$(database)/documents/coopsWorkspaces/$(docId)).data.ownerId == request.auth.uid;
+      allow update: if isAdmin() && docId == coopsWs();
+      allow delete: if false;
+    }
+
+    function canAccessConversation(conversationId) {
+      let d = get(/databases/$(database)/documents/coopsConversations/$(conversationId)).data;
+      return isSignedIn()
+        && d.workspaceId is string
+        && (
+          (isAdmin() && d.adminId == request.auth.uid && d.workspaceId == coopsWs())
+          || (isClient() && d.clientId == request.auth.uid
+            && hasActiveMembershipIn(d.workspaceId))
+        );
+    }
+
+    match /coopsConversations/{conversationId} {
+      allow read: if isSignedIn() && coopsSameWs(resource.data) && (
+        (isAdmin() && resource.data.adminId == request.auth.uid) ||
+        (isClient() && resource.data.clientId == request.auth.uid
+          && hasActiveMembershipIn(resource.data.workspaceId))
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && request.resource.data.participantIds is list
+        && request.resource.data.participantIds.size() == 2
+        && request.resource.data.adminId in request.resource.data.participantIds
+        && request.resource.data.clientId in request.resource.data.participantIds
+        && request.resource.data.participantKey is string
+        && (
+          isAdmin()
+            && request.resource.data.workspaceId == coopsWs()
+            && request.resource.data.adminId == request.auth.uid
+          || (
+            isClient()
+            && request.resource.data.clientId == request.auth.uid
+            && request.resource.data.workspaceId == coopsWs()
+            && hasActiveMembershipIn(request.resource.data.workspaceId)
+            && request.resource.data.adminId != request.auth.uid
+            && exists(/databases/$(database)/documents/coopsWorkspaces/$(request.resource.data.workspaceId))
+            && get(/databases/$(database)/documents/coopsWorkspaces/$(request.resource.data.workspaceId)).data.ownerId
+                == request.resource.data.adminId
+          )
+        );
+
+      allow update: if isSignedIn()
+        && coopsSameWs(resource.data)
+        && request.auth.uid in resource.data.participantIds;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if canAccessConversation(conversationId);
+
+        allow create: if canAccessConversation(conversationId)
+          && request.auth.uid in
+            get(/databases/$(database)/documents/coopsConversations/$(conversationId)).data.participantIds
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0;
+
+        allow update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

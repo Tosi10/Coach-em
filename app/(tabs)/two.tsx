@@ -1,7 +1,9 @@
+import { AthleteWorkoutActions } from '@/components/AthleteWorkoutActions';
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { auth } from '@/src/services/firebase.config';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
     requestNotificationPermissions,
@@ -19,7 +21,7 @@ import { getFeedbackIconSource } from '@/src/utils/feedbackIcons';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -51,6 +53,9 @@ export default function TabTwoScreen() {
     const normalized = String(status || '').toLowerCase();
     if (normalized === 'bloqueado') {
       return { label: t('common.blocked'), color: '#ef4444' };
+    }
+    if (normalized === 'desvinculado' || normalized === 'inativo') {
+      return { label: t('athleteCoachStatus.unlinked'), color: '#f59e0b' };
     }
     if (normalized === 'conta removida') {
       return { label: t('common.accountRemoved'), color: theme.colors.textTertiary };
@@ -108,14 +113,32 @@ export default function TabTwoScreen() {
     loadUserData();
   }, []);
 
+  // Logout: limpar estado local assim que a sessão Firebase termina (evita query sem auth).
+  useEffect(() => {
+    if (!user) {
+      setUserType(null);
+      setCurrentAthleteId(null);
+      setAthleteWorkouts([]);
+      setAthletes([]);
+      return;
+    }
+    setUserType(user.userType);
+    if (user.userType === UserType.ATHLETE) {
+      setCurrentAthleteId(user.id);
+    }
+  }, [user]);
+
   const loadAthleteWorkouts = useCallback(async () => {
     try {
-      if (!currentAthleteId) {
+      if (!user?.id || user.userType !== UserType.ATHLETE || !auth.currentUser) {
         setAthleteWorkouts([]);
         return;
       }
+      const athleteId = user.id;
       const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
-      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(currentAthleteId);
+      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteId, {
+        viewer: user,
+      });
       setAthleteWorkouts(workoutsWithStatus);
 
       // Garante lembretes locais do atleta (30 min antes + na hora) neste dispositivo.
@@ -125,23 +148,23 @@ export default function TabTwoScreen() {
         await setupNotificationChannel();
         const hasPermission = await requestNotificationPermissions();
         if (!hasPermission) return;
-        await syncAthleteWorkoutReminders(currentAthleteId, 'workouts');
+        await syncAthleteWorkoutReminders(athleteId, 'workouts');
       } catch (notifErr) {
         console.warn('Lembretes do atleta não agendados:', notifErr);
       } finally {
         isSchedulingAthleteRemindersRef.current = false;
       }
     } catch (error) {
+      if (!auth.currentUser) return;
       console.error('Erro ao carregar treinos do atleta:', error);
     }
-  }, [currentAthleteId]);
+  }, [user]);
 
-  // Carregar treinos do atleta quando for atleta
   useEffect(() => {
-    if (userType === UserType.ATHLETE && currentAthleteId) {
+    if (user?.userType === UserType.ATHLETE && user.id) {
       loadAthleteWorkouts();
     }
-  }, [userType, currentAthleteId, loadAthleteWorkouts]);
+  }, [user, loadAthleteWorkouts]);
 
   const loadCoachAthletes = useCallback(async () => {
     if (!user?.id) {
@@ -171,9 +194,10 @@ export default function TabTwoScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userType === UserType.COACH) loadCoachAthletes();
-      if (userType === UserType.ATHLETE && currentAthleteId) loadAthleteWorkouts();
-    }, [userType, currentAthleteId, loadCoachAthletes, loadAthleteWorkouts])
+      if (!user) return;
+      if (user.userType === UserType.COACH) loadCoachAthletes();
+      if (user.userType === UserType.ATHLETE) loadAthleteWorkouts();
+    }, [user, loadCoachAthletes, loadAthleteWorkouts])
   );
 
   const handleDeleteWorkout = async (workoutIds: string[], isGroup: boolean) => {
@@ -207,12 +231,11 @@ export default function TabTwoScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      if (userType === UserType.ATHLETE) {
+      if (user?.userType === UserType.ATHLETE) {
         await loadAthleteWorkouts();
         showToast(t('tabTwo.workoutsUpdated'), 'success');
       } else {
-        // Simular carregamento de dados para treinador
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadCoachAthletes();
         showToast(t('tabTwo.athletesListUpdated'), 'success');
       }
     } catch (error) {
@@ -220,7 +243,7 @@ export default function TabTwoScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [showToast, userType, t]);
+  }, [showToast, userType, t, loadCoachAthletes]);
 
   // Se for ATLETA, mostrar treinos
   if (userType === UserType.ATHLETE) {
@@ -356,6 +379,10 @@ export default function TabTwoScreen() {
           <Text className="mb-6" style={themeStyles.textSecondary}>
             {t('tabTwo.myWorkoutsSubtitle')}
           </Text>
+
+          {currentAthleteId ? (
+            <AthleteWorkoutActions athleteUid={currentAthleteId} />
+          ) : null}
 
           {/* Sub-tabs: Próximos, Histórico e Calendário */}
           <View className="flex-row mb-4" style={{ borderBottomColor: theme.colors.border, borderBottomWidth: 1 }}>
@@ -756,11 +783,11 @@ export default function TabTwoScreen() {
           <TouchableOpacity
             className="rounded-xl py-2.5 px-4 flex-row items-center"
             style={{ backgroundColor: theme.colors.primary }}
-            onPress={() => router.push('/add-athlete')}
+            onPress={() => router.push('/invite-athlete' as Href)}
           >
             <FontAwesome name="plus" size={14} color="#fff" style={{ marginRight: 8 }} />
             <Text className="font-semibold text-sm" style={{ color: '#fff' }}>
-              {t('tabTwo.addAthlete')}
+              {t('tabTwo.inviteAthlete')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -770,8 +797,8 @@ export default function TabTwoScreen() {
           <EmptyState
             icon="users"
             message={t('tabTwo.emptyAthletes')}
-            actionLabel={t('tabTwo.registerAthlete')}
-            onAction={() => router.push('/add-athlete')}
+            actionLabel={t('tabTwo.inviteAthlete')}
+            onAction={() => router.push('/invite-athlete' as Href)}
           />
         ) : (
           athletes.map((athlete) => (

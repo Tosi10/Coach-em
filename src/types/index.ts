@@ -1,3 +1,8 @@
+import type { AthleteMode } from './athleteMode';
+
+export type { AthleteMode } from './athleteMode';
+export { resolveAthleteMode, isSoloAthlete, isCoachedAthlete, normalizeAthleteMode } from './athleteMode';
+
 /**
  * Coach'em - TypeScript Interfaces
  * 
@@ -48,6 +53,8 @@ export interface Coach extends BaseUser {
   specialization?: string; // Ex: "Futebol", "Atletismo", etc.
   athletes?: string[]; // Array de IDs dos atletas vinculados
   welcomeMessage?: string; // Mensagem opcional exibida para atletas
+  /** Código para atleta se cadastrar (ex. COACH-7K3M). Gerado no registro do coach. */
+  inviteCode?: string;
   /** Preenchido pelo backend (ex.: webhook RevenueCat). Ausente = plano grátis. */
   subscriptionTier?: 'free' | 'pro';
   subscriptionExpiresAt?: Date | string | FirestoreTimestamp;
@@ -60,7 +67,15 @@ export interface Coach extends BaseUser {
  */
 export interface Athlete extends BaseUser {
   userType: UserType.ATHLETE;
-  coachId?: string; // ID do treinador responsável
+  /** `solo` = treina por conta própria; `coached` = segue treinador. */
+  athleteMode?: AthleteMode;
+  coachId?: string; // UID do treinador quando `athleteMode === 'coached'`
+  /** Após desvincular: quando o vínculo terminou. */
+  coachUnlinkedAt?: Date | string | FirestoreTimestamp;
+  /** Até esta data, pendentes do ex-coach ainda aparecem (30 dias). */
+  coachAccessEndsAt?: Date | string | FirestoreTimestamp;
+  /** UID do treinador de quem se desvinculou (filtro de graça). */
+  coachUnlinkedFromCoachId?: string;
   dateOfBirth?: Date | string;
   sport?: string;
 }

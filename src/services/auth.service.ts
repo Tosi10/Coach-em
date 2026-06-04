@@ -20,7 +20,9 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, functions } from './firebase.config';
-import { User, UserType, Coach, Athlete } from '@/src/types';
+import { User, UserType, Coach, Athlete, type AthleteMode } from '@/src/types';
+import { resolveAthleteMode } from '@/src/types/athleteMode';
+import { generateCoachInviteCode } from '@/src/utils/coachInviteCode';
 import { FirebaseError } from 'firebase/app';
 
 export interface SignUpData {
@@ -32,6 +34,9 @@ export interface SignUpData {
   specialization?: string;
   dateOfBirth?: Date | string;
   sport?: string;
+  /** Registro de atleta: solo ou com código do treinador (tratado em registerAthleteSelf). */
+  athleteMode?: AthleteMode;
+  coachInviteCode?: string;
 }
 
 export interface SignInData {
@@ -70,7 +75,9 @@ async function ensureAthleteIsAllowed(firebaseUser: FirebaseUser, userData: any)
     throw new BlockedAccountError();
   }
 
-  // Verifica também a coleção de atletas gerenciada pelo treinador
+  // Atleta solo não precisa de doc em coachemAthletes
+  if (resolveAthleteMode(userData) === 'solo') return;
+
   const athleteDoc = await getDoc(doc(db, 'coachemAthletes', firebaseUser.uid));
   if (athleteDoc.exists() && isBlockedStatus(athleteDoc.data()?.status)) {
     await signOut(auth);
@@ -116,9 +123,12 @@ function resolveUserType(userData: Record<string, unknown>): UserType {
 
 function toAppUser(firebaseUser: FirebaseUser, userData: any): User {
   const userType = resolveUserType(userData ?? {});
+  const athleteMode =
+    userType === UserType.ATHLETE ? resolveAthleteMode(userData) : undefined;
   return {
     ...userData,
     userType,
+    ...(athleteMode ? { athleteMode } : {}),
     // O ID usado nas regras do Firestore/Storage precisa ser sempre o UID real do Firebase Auth.
     id: firebaseUser.uid,
     photoURL: userData.photoURL ?? firebaseUser.photoURL ?? undefined,
@@ -135,6 +145,7 @@ async function ensureProfileForExistingAuthUser(firebaseUser: FirebaseUser): Pro
     email: firebaseUser.email ?? '',
     displayName: firebaseUser.displayName ?? 'Usuário',
     userType: UserType.ATHLETE,
+    athleteMode: 'solo',
     createdAt: now,
     updatedAt: now,
   };
@@ -177,7 +188,14 @@ export async function signUp(data: SignUpData): Promise<User> {
         (userData as Omit<Coach, 'id'>).specialization = data.specialization;
       }
       (userData as Omit<Coach, 'id'>).athletes = [];
+      (userData as Omit<Coach, 'id'>).inviteCode = generateCoachInviteCode();
     } else if (data.userType === UserType.ATHLETE) {
+      if (data.athleteMode === 'coached' || data.coachInviteCode) {
+        throw new Error(
+          'Cadastro com treinador: use a tela de registo de atleta (código do treinador).'
+        );
+      }
+      (userData as Omit<Athlete, 'id'>).athleteMode = 'solo';
       if (data.dateOfBirth !== undefined) {
         (userData as Omit<Athlete, 'id'>).dateOfBirth = data.dateOfBirth;
       }

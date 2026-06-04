@@ -6,6 +6,7 @@ import {
 } from '@/src/constants/freePlan';
 import { db } from '@/src/services/firebase.config';
 import { listAthletesByCoachId } from '@/src/services/athletes.service';
+import { isAthleteActiveForCoach } from '@/src/utils/athleteCoachStatus';
 import { listExercisesByCoachId } from '@/src/services/exercises.service';
 import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
 import { doc, getDoc } from 'firebase/firestore';
@@ -121,7 +122,9 @@ export async function getCoachAthleteAccess(coachId: string): Promise<CoachAthle
     listAthletesByCoachId(coachId),
   ]);
 
-  const ordered = sortAthletesByCreatedAtAsc(athletes);
+  const ordered = sortAthletesByCreatedAtAsc(
+    athletes.filter((a) => isAthleteActiveForCoach(a.status))
+  );
   if (tier === 'pro') {
     const ids = ordered.map((a) => a.id);
     return {
@@ -146,6 +149,11 @@ export async function assertCanManageAthleteInCurrentPlan(
   coachId: string,
   athleteId: string
 ): Promise<void> {
+  const { getAthleteById } = await import('@/src/services/athletes.service');
+  const athlete = await getAthleteById(athleteId);
+  if (!athlete || !isAthleteActiveForCoach(athlete.status)) {
+    throw new Error('Este atleta não está mais vinculado. Não é possível atribuir treinos.');
+  }
   const access = await getCoachAthleteAccess(coachId);
   if (access.tier === 'pro') return;
   if (access.allowedAthleteIds.includes(athleteId)) return;

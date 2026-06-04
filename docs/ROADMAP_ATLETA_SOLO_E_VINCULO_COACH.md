@@ -1,8 +1,9 @@
 # Roadmap — Coach'em para treinadores e atletas (solo + com coach)
 
 **Documento mestre de produto** — tudo o que foi acordado em conversa de alinhamento.  
-**Status:** decisões fechadas · **implementação pendente** (não codar até priorização explícita).  
-**Última atualização:** 2026-06-01  
+**Status:** **P1 ✅** · **P2** (deploy OK; **rules Console** + testes manuais pendentes) · **P3 parcial** · **P4 em código** (deploy `unlinkAthleteFromCoach` pendente) · **P6 parcial** (UI convite) · **P5** por fazer.  
+**Última atualização:** 2026-05-29  
+**Acompanhar evolução:** secção [15. Checklist de implementação](#15-checklist-de-implementação) (checkboxes abaixo).  
 
 **Relacionado:** [`MONETIZACAO.md`](./MONETIZACAO.md) · [`COACHEM_FIRESTORE_COLECOES.md`](./COACHEM_FIRESTORE_COLECOES.md) · [`HEALTH_PHASE_1.md`](./HEALTH_PHASE_1.md) (paralelo, independente)
 
@@ -23,7 +24,8 @@
 11. [Fases de implementação](#11-fases-de-implementação)  
 12. [Checklist de decisões fechadas](#12-checklist-de-decisões-fechadas)  
 13. [Aberto / comercial](#13-aberto--comercial)  
-14. [Histórico de revisões](#14-histórico-de-revisões)
+14. [Histórico de revisões](#14-histórico-de-revisões)  
+15. [Checklist de implementação](#15-checklist-de-implementação)
 
 ---
 
@@ -333,22 +335,24 @@ Sem Athlete Pro, amigos no código do coach **só** recebem treinos do coach —
 
 ## 11. Fases de implementação
 
-| Fase | Entrega |
-|------|---------|
-| **P0** | Este documento (feito) |
-| **P1** | `athleteMode`, cadastro solo/coach + código, `inviteCode`, Functions de link |
-| **P2** | Convite email + aceitar/recusar |
-| **P3** | UX: Início (foto/nome) + Treinos (botões, calendário, listas) + gates Pro solo |
-| **P4** | Desvincular + graça 30 dias |
-| **P5** | RevenueCat Athlete Pro + rules (solo) |
-| **P5b** | Coached + Athlete Pro (extras) + matriz rules completa |
-| **P6** | Remover UI criar atleta pelo coach; migração legado |
+| Fase | Entrega | Estado |
+|------|---------|--------|
+| **P0** | Este documento | ✅ |
+| **P1** | `athleteMode`, cadastro solo/coach + código, `inviteCode`, Functions P1 | ✅ app + deploy |
+| **P2** | Convite email + aceitar + ligar coach no perfil | 🟡 deploy OK; rules + testes |
+| **P3** | UX Início/Treinos + gates | 🟡 parcial (ver §15) |
+| **P4** | Desvincular + graça 30 dias | 🟡 código; deploy function |
+| **P5** | RevenueCat Athlete Pro + rules solo | ⬜ |
+| **P5b** | Coached + Athlete Pro + matriz rules | ⬜ |
+| **P6** | Deprecar criar atleta pelo coach | 🟡 UI convite; legado mantido |
 
 **Paralelo:** Health / Android Dev Client (`HEALTH_PHASE_1.md`) — não bloqueia este roadmap.
 
 ---
 
 ## 12. Checklist de decisões fechadas
+
+> **Nota:** estes itens são **decisões de produto** já acordadas (não mudam com o código). O progresso **de código/deploy** está na [secção 15](#15-checklist-de-implementação).
 
 - [x] Dois tipos: `COACH`, `ATHLETE`.  
 - [x] `athleteMode`: `solo` | `coached`.  
@@ -375,9 +379,86 @@ Sem Athlete Pro, amigos no código do coach **só** recebem treinos do coach —
 
 ---
 
+## 15. Checklist de implementação
+
+Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste** confirmado.
+
+### P1 — Cadastro e código do treinador
+
+- [x] Tipos: `athleteMode`, `Athlete`/`Coach`, helpers `resolveAthleteMode`, `athleteCapabilities`
+- [x] `inviteCode` no registro do coach + gerar no Perfil se faltar
+- [x] Cloud Functions: `validateCoachInviteCode`, `registerAthleteSelf`
+- [x] Deploy functions P1 (`futeba-96395`)
+- [x] Ecrã `register-athlete` (solo vs código coach) + links no login
+- [x] Auth: signup solo; coached só via Function; `ensureAthleteIsAllowed` ajustado
+- [x] Doc Console: índice `users` (`inviteCode` + `userType`) — `docs/ATHLETE_SOLO_P1_FIRESTORE_CONSOLE.md`
+- [ ] Teste manual: registo solo + registo com código coach (após email confirmado)
+
+### P2 — Convites e ligar coach
+
+- [x] Cloud Functions: `sendCoachInviteToAthlete`, `acceptCoachInvite`, `linkAthleteToCoachByCode`
+- [x] Deploy functions P2 — marcar `[x]` quando o terminal mostrar `Deploy complete!`
+- [x] `coachInvites.service` + coleção `coachInvites` (Functions Admin)
+- [x] Ecrã coach `invite-athlete` + botão no Perfil
+- [x] `AthleteCoachLinkPanel` no Perfil (convites pendentes + código solo)
+- [x] i18n pt-BR / en (`inviteAthlete`, `athleteCoachLink`, etc.)
+- [ ] Firestore rules: `coachInvites` read + self-assign — `docs/FIRESTORE_ATHLETE_SOLO_RULES_ADDON.md`
+- [ ] Índice `coachInvites` (`athleteEmail` + `status`) se o Console pedir
+- [ ] Teste manual: convite email → aceitar; solo → ligar por código
+
+### P3 — UX atleta (Início + Treinos)
+
+- [x] `AthleteHomeIdentity` + card welcome solo na Home
+- [x] `AthleteWorkoutActions` (biblioteca / meus treinos / adicionar) para `canManageOwnTraining`
+- [x] `assign-workout` self-assign (`coachId` = próprio uid) para solo
+- [x] Hint coached free na aba Treinos (sem Athlete Pro)
+- [ ] CTA Athlete Pro na loja (RevenueCat P5)
+- [ ] Calendário Treinos alinhado à agenda do coach (polish)
+- [ ] Teste manual: solo cria treino (depende rules P2/P5)
+
+### P4 — Desvincular coach
+
+- [x] Function `unlinkAthleteFromCoach` (+ limpa campos graça ao religar)
+- [ ] Deploy function P4
+- [x] UI Perfil “Desligar treinador”
+- [x] Campos `coachUnlinkedAt`, `coachAccessEndsAt`, `coachUnlinkedFromCoachId`
+- [x] Filtro UI pós-graça (`coachUnlinkGrace` + `listAssignedWorkoutsByAthleteId`)
+- [ ] Rules (se necessário para atleta atualizar `users` — hoje via Function)
+
+### P5 — Athlete Pro (solo)
+
+- [ ] Produto RevenueCat + webhook `subscriptionTier` em atletas
+- [ ] Gates free vs Pro em biblioteca/templates
+- [ ] Rules Firestore matriz solo (secção 9)
+
+### P5b — Coached + Athlete Pro
+
+- [ ] Treinos extra `coachId == athleteId` com gate Pro
+- [ ] Botões Treinos para coached + Pro
+- [ ] Matriz rules completa
+
+### P6 — Legado
+
+- [x] Aba Atletas: botão principal → `invite-athlete` (convite)
+- [x] `add-athlete`: banner recomendado + secção legado
+- [ ] Remover rota legado / desativar Function `createAthleteByCoach` (futuro)
+- [x] Migração atletas antigos sem `athleteMode` (inferência no app)
+
+### App — qualidade
+
+- [x] `refreshUser` no AuthContext (após ligar/aceitar/desvincular)
+
+### Infra / paralelo
+
+- [x] Health MVP (iOS) — ver `HEALTH_PHASE_1.md` (paralelo)
+- [ ] Mapa/GPS corrida — **fora de escopo** (dados via wearables depois)
+
+---
+
 ## 14. Histórico de revisões
 
 | Data | Alteração |
 |------|-----------|
 | 2026-06-01 | Documento inicial e iterações de produto |
 | 2026-06-01 | Consolidação mestre: visão B2C, UX Início/Treinos, coached+Athlete Pro, matriz Firestore, princípio organizar vs reescrever |
+| 2026-05-29 | Secção 15: checklist de implementação por fase; status P1/P2/P3 atualizado |

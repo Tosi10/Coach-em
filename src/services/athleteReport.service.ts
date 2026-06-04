@@ -205,11 +205,12 @@ function buildWeightByExercise(
 
 export async function buildAthleteReportData(
   athleteId: string,
-  period: AthleteReportPeriod
+  period: AthleteReportPeriod,
+  options?: { coachId?: string | null }
 ): Promise<AthleteReportData> {
   const [athleteDoc, allWorkouts, allWeight] = await Promise.all([
     getAthleteById(athleteId),
-    listAssignedWorkoutsByAthleteId(athleteId),
+    listAssignedWorkoutsByAthleteId(athleteId, { coachId: options?.coachId ?? null }),
     listExerciseWeightHistoryByAthlete(athleteId),
   ]);
 

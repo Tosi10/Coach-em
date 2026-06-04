@@ -1,6 +1,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { UserType } from '@/src/types';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createExercise as createExerciseInFirestore, updateExercise } from '@/src/services/exercises.service';
 import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
@@ -141,7 +142,8 @@ export default function CreateExerciseScreen() {
                 notes: defaultPrescription.notes,
               } as Exercise['defaultPrescription'])
             : undefined,
-          isGlobal: true,
+          // Biblioteca pessoal do utilizador; só treinador pode marcar global na app.
+          isGlobal: user?.userType === UserType.COACH,
         };
 
         try {

@@ -36,6 +36,8 @@ type AuthContextValue = {
   updateDisplayName: (displayName: string) => Promise<void>;
   /** Envia imagem da galeria para Storage e atualiza Firestore + Auth. */
   updateProfilePhoto: (localUri: string) => Promise<void>;
+  /** Recarrega perfil Firestore (ex.: após ligar/desvincular treinador). */
+  refreshUser: () => Promise<User | null>;
   /** Só em __DEV__: entra como treinador sem Firebase (para usar o app sem configurar o projeto). */
   signInDev?: () => void;
 };
@@ -150,6 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (u) setUser(u);
   }, []);
 
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    const u = await getCurrentUser();
+    setUser(u);
+    return u;
+  }, []);
+
   const signInDev = useCallback(() => {
     setError(null);
     const mockUser: User = {
@@ -175,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     deleteAccount,
     updateDisplayName,
     updateProfilePhoto,
+    refreshUser,
     ...(__DEV__ ? { signInDev } : {}),
   };
 

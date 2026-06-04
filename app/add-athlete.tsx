@@ -12,7 +12,7 @@ import { createAthleteWithLogin } from '@/src/services/athletes.service';
 import { FreePlanLimitError, assertCanCreateResource } from '@/src/services/planLimits.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -160,8 +160,28 @@ export default function AddAthleteScreen() {
           <Text className="text-2xl font-bold mb-2" style={themeStyles.text}>
             {t('addAthlete.title')}
           </Text>
-          <Text className="mb-6" style={themeStyles.textSecondary}>
+          <Text className="mb-4" style={themeStyles.textSecondary}>
             {t('addAthlete.subtitle')}
+          </Text>
+
+          <View
+            className="mb-4 rounded-xl p-4 border"
+            style={{ borderColor: theme.colors.primary, backgroundColor: theme.colors.card }}
+          >
+            <Text className="text-sm mb-3" style={themeStyles.textSecondary}>
+              {t('addAthlete.deprecatedBanner')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/invite-athlete' as Href)}
+              className="rounded-xl py-3 items-center"
+              style={{ backgroundColor: theme.colors.primary }}
+            >
+              <Text className="font-semibold text-black">{t('addAthlete.goInvite')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text className="text-xs font-medium mb-3 uppercase" style={themeStyles.textTertiary}>
+            {t('addAthlete.legacySection')}
           </Text>
 
           <View className="mb-4">

@@ -1,6 +1,9 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { UserType } from '@/src/types';
+import { canManageOwnTraining } from '@/src/utils/athleteCapabilities';
+import { isAthleteActiveForCoach } from '@/src/utils/athleteCoachStatus';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
@@ -216,7 +219,14 @@ export default function AssignWorkoutScreen() {
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
     const { athleteId: athleteIdParam } = useLocalSearchParams<{ athleteId?: string }>();
-    const athleteId = Array.isArray(athleteIdParam) ? athleteIdParam[0] : athleteIdParam;
+    const athleteIdParamResolved = Array.isArray(athleteIdParam) ? athleteIdParam[0] : athleteIdParam;
+    const isAthleteSelfAssign =
+      user?.userType === UserType.ATHLETE &&
+      canManageOwnTraining(user) &&
+      (!athleteIdParamResolved || athleteIdParamResolved === user.id);
+    const athleteId =
+      athleteIdParamResolved ??
+      (isAthleteSelfAssign && user?.id ? user.id : undefined);
   
     // Estado para armazenar qual treino foi selecionado
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
@@ -254,13 +264,18 @@ export default function AssignWorkoutScreen() {
         setAthleteStatus(null);
         return;
       }
+      if (isAthleteSelfAssign && user?.id === athleteId) {
+        setAthleteName(user.displayName ?? null);
+        setAthleteStatus('Ativo');
+        return;
+      }
       import('@/src/services/athletes.service').then(({ getAthleteById }) =>
         getAthleteById(athleteId).then((a) => {
           setAthleteName(a?.name ?? null);
           setAthleteStatus(a?.status ?? 'Ativo');
         })
       );
-    }, [athleteId]);
+    }, [athleteId, isAthleteSelfAssign, user?.displayName, user?.id]);
 
     useEffect(() => {
       if (athleteId || !user?.id) {
@@ -275,7 +290,9 @@ export default function AssignWorkoutScreen() {
           ([list, access]) => {
             const blocked = new Set(access.blockedAthleteIds);
             setAthletesList(
-              list.map((a) => ({ id: a.id, name: a.name, lockedByPlan: blocked.has(a.id) }))
+              list
+                .filter((a) => isAthleteActiveForCoach(a.status))
+                .map((a) => ({ id: a.id, name: a.name, lockedByPlan: blocked.has(a.id) }))
             );
           }
         )
@@ -379,8 +396,12 @@ export default function AssignWorkoutScreen() {
                 return;
             }
 
-            const { assertCanManageAthleteInCurrentPlan } = await import('@/src/services/planLimits.service');
-            await assertCanManageAthleteInCurrentPlan(coachId, athlete.id);
+            if (user?.userType === UserType.COACH) {
+              const { assertCanManageAthleteInCurrentPlan } = await import(
+                '@/src/services/planLimits.service'
+              );
+              await assertCanManageAthleteInCurrentPlan(coachId, athlete.id);
+            }
 
             let datesToAssign: string[] = [];
 

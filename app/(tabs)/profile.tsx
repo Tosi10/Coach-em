@@ -4,6 +4,7 @@
  * Treinador e atleta: dados do usuário, tema, trocar senha, logout, excluir conta.
  */
 
+import { AthleteCoachLinkPanel } from '@/components/AthleteCoachLinkPanel';
 import { CustomAlert } from '@/components/CustomAlert';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { getPrivacyUrlByLanguage, getTermsUrlByLanguage } from '@/src/constants/legalUrls';
@@ -12,7 +13,8 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { syncCoachPublicProfileToAthletes } from '@/src/services/athletes.service';
 import { db } from '@/src/services/firebase.config';
-import { UserType } from '@/src/types';
+import { UserType, type Coach } from '@/src/types';
+import { generateCoachInviteCode } from '@/src/utils/coachInviteCode';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +27,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Share,
     KeyboardAvoidingView,
     Linking,
     Modal,
@@ -72,6 +75,10 @@ export default function ProfileScreen() {
   const [coachWelcomeMessage, setCoachWelcomeMessage] = useState('');
   const [coachPublicName, setCoachPublicName] = useState('');
   const [savingCoachMessage, setSavingCoachMessage] = useState(false);
+  const [coachInviteCode, setCoachInviteCode] = useState<string | null>(() => {
+    const fromUser = (user as Coach | undefined)?.inviteCode;
+    return typeof fromUser === 'string' && fromUser.trim() ? fromUser.trim() : null;
+  });
   const hydratedCoachFieldsUserIdRef = useRef<string | null>(null);
 
   const MAX_COACH_MESSAGE_LENGTH = 180;
@@ -118,9 +125,8 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      await AsyncStorage.multiRemove(['userType', 'currentAthleteId']);
       await signOut();
-      await AsyncStorage.removeItem('userType');
-      await AsyncStorage.removeItem('currentAthleteId');
       router.replace('/(auth)/login');
     } catch (e) {
       console.error('Erro ao sair:', e);
@@ -293,6 +299,23 @@ export default function ProfileScreen() {
     setCoachWelcomeMessage((user as any)?.welcomeMessage ?? '');
     setCoachPublicName((user as any)?.publicCoachName ?? user?.displayName ?? '');
     hydratedCoachFieldsUserIdRef.current = user.id;
+
+    void (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', user.id));
+        let code = snap.data()?.inviteCode as string | undefined;
+        if (!code || typeof code !== 'string') {
+          code = generateCoachInviteCode();
+          await updateDoc(doc(db, 'users', user.id), {
+            inviteCode: code,
+            updatedAt: serverTimestamp(),
+          });
+        }
+        setCoachInviteCode(code);
+      } catch {
+        setCoachInviteCode((user as Coach & { inviteCode?: string })?.inviteCode ?? null);
+      }
+    })();
   }, [isCoach, user?.id, user?.displayName]);
 
   return (
@@ -431,6 +454,8 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {!isCoach && <AthleteCoachLinkPanel />}
+
         {!isCoach && (
           <View className="mb-6">
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
@@ -499,6 +524,65 @@ export default function ProfileScreen() {
 
         {isCoach && (
           <View className="mb-6">
+            <Text className="text-sm font-medium mb-2" style={themeStyles.textSecondary}>
+              {t('profile.inviteCodeSection')}
+            </Text>
+            <View className="rounded-2xl border p-4 mb-4" style={[themeStyles.card, { borderWidth: 1 }]}>
+              <Text className="text-2xl font-bold tracking-widest mb-2" style={{ color: theme.colors.primary }}>
+                {coachInviteCode ?? '—'}
+              </Text>
+              <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
+                {coachInviteCode ? t('profile.inviteCodeHint') : t('profile.inviteCodeMissing')}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'stretch' }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    const code = coachInviteCode?.trim();
+                    if (!code) return;
+                    void Share.share({
+                      message: `${t('profile.inviteCodeSection')}: ${code}`,
+                    });
+                  }}
+                  disabled={!coachInviteCode}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 44,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.colors.primary,
+                    opacity: coachInviteCode ? 1 : 0.45,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-black text-center">
+                    {t('profile.shareInviteCode')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/invite-athlete' as Href)}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 44,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.colors.primary,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-black text-center">
+                    {t('profile.inviteByEmail')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
               {t('profile.coachMessageSection')}
             </Text>

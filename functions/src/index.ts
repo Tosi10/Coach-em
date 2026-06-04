@@ -490,6 +490,7 @@ export const createAthleteByCoach = onCall(
       email: emailTrim,
       displayName: name,
       userType: "ATHLETE",
+      athleteMode: "coached",
       coachId,
       sport: sport?.trim() || null,
       createdAt: now,
@@ -780,3 +781,12 @@ export const dispatchAthleteWorkoutPushReminders = onSchedule(
 );
 
 export { revenueCatWebhook } from "./revenueCatWebhook";
+export { validateCoachInviteCode, registerAthleteSelf } from "./athleteRegistration";
+export {
+  sendCoachInviteToAthlete,
+  acceptCoachInvite,
+  linkAthleteToCoachByCode,
+  unlinkAthleteFromCoach,
+  detachAthleteFromCoachByCoach,
+  syncCoachemAthleteWithUserLink,
+} from "./coachInvites";

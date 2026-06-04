@@ -12,7 +12,7 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import { CustomAlert } from '@/components/CustomAlert';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -304,8 +304,18 @@ export default function LoginScreen() {
               activeOpacity={0.7}
             >
               <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
-                {t('login.noAccountPrefix')}
-                <Text className="font-semibold">{t('login.registerInline')}</Text>
+                {t('login.registerCoach')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/register-athlete' as Href)}
+              disabled={loading}
+              className="mt-2 py-2"
+              activeOpacity={0.7}
+            >
+              <Text className="text-center text-sm font-semibold" style={{ color: theme.colors.primary }}>
+                {t('login.registerAthlete')}
               </Text>
             </TouchableOpacity>
 

@@ -10,12 +10,17 @@
  */
 
 import { AthleteHealthTrendCard } from '@/components/AthleteHealthTrendCard';
+import { CoachAthleteActionButton } from '@/components/CoachAthleteActionButton';
 import { CustomAlert } from '@/components/CustomAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { assignedSortTimestamp, chartDayMonthByLocale, formatAssignedCalendarDateByLocale, getLocalTodayYmd, parseDateOnlyLocal, toLocalCalendarYmd } from '@/src/utils/dateOnly';
 import { getFeedbackIconSource, getFeedbackLabel } from '@/src/utils/feedbackIcons';
+import {
+  isAthleteActiveForCoach,
+  isAthleteUnlinkedFromCoach,
+} from '@/src/utils/athleteCoachStatus';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -140,7 +145,10 @@ export default function AthleteProfileScreen() {
         return;
       }
       const { listAssignedWorkoutsByAthleteId } = await import('@/src/services/assignedWorkouts.service');
-      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString);
+      const workoutsWithStatus = await listAssignedWorkoutsByAthleteId(athleteIdString, {
+        coachId: user?.id ?? null,
+        viewer: user ?? null,
+      });
       setAthleteWorkouts(workoutsWithStatus);
 
       const today = getLocalTodayYmd();
@@ -152,7 +160,7 @@ export default function AthleteProfileScreen() {
     } catch (error) {
       console.error('Error loading athlete workouts:', error);
     }
-  }, [athleteIdString]);
+  }, [athleteIdString, user]);
 
   useEffect(() => {
     if (!athleteIdString) return;
@@ -298,41 +306,36 @@ export default function AthleteProfileScreen() {
     );
   };
 
-  const handleToggleAthleteAccess = () => {
-    const isBlocked = String(athlete?.status || '').toLowerCase() === 'bloqueado';
-    const shouldBlock = !isBlocked;
-
+  const handleDetachAthlete = () => {
     showAlert(
-      shouldBlock ? t('athleteProfile.blockAthleteTitle') : t('athleteProfile.unblockAthleteTitle'),
-      shouldBlock
-        ? t('athleteProfile.blockAthleteMessage')
-        : t('athleteProfile.unblockAthleteMessage'),
+      t('athleteProfile.detachAthleteTitle'),
+      t('athleteProfile.detachAthleteMessage'),
       'warning',
       async () => {
         if (!athleteIdString) return;
         try {
-          const { setAthleteBlockedStatus } = await import('@/src/services/athletes.service');
-          await setAthleteBlockedStatus(athleteIdString, shouldBlock);
-          await loadAthleteFromFirestore();
-          showAlert(
-            t('common.success'),
-            shouldBlock
-              ? t('athleteProfile.blockSuccess')
-              : t('athleteProfile.unblockSuccess'),
-            'success'
+          const { detachAthleteFromCoachByCoach } = await import(
+            '@/src/services/coachInvites.service'
           );
+          await detachAthleteFromCoachByCoach(athleteIdString);
+          await loadAthleteFromFirestore();
+          showAlert(t('common.success'), t('athleteProfile.detachAthleteSuccess'), 'success');
         } catch (error) {
-          console.error('Error updating athlete account status:', error);
-          showAlert(t('common.error'), t('athleteProfile.accountStatusUpdateError'), 'error');
+          console.error('Error detaching athlete:', error);
+          showAlert(
+            t('common.error'),
+            error instanceof Error ? error.message : t('athleteProfile.detachAthleteError'),
+            'error'
+          );
         }
       }
     );
   };
 
-  const handleDeleteAthlete = () => {
+  const handleRemoveFromList = () => {
     showAlert(
-      t('athleteProfile.deleteAthleteTitle'),
-      t('athleteProfile.deleteAthleteMessage'),
+      t('athleteProfile.removeFromListTitle'),
+      t('athleteProfile.removeFromListMessage'),
       'warning',
       async () => {
         if (!athleteIdString) return;
@@ -341,13 +344,13 @@ export default function AthleteProfileScreen() {
           await deleteAthlete(athleteIdString);
           showAlert(
             t('common.success'),
-            t('athleteProfile.deleteAthleteSuccess'),
+            t('athleteProfile.removeFromListSuccess'),
             'success',
             () => router.back()
           );
         } catch (error) {
-          console.error('Error deleting athlete:', error);
-          showAlert(t('common.error'), t('athleteProfile.deleteAthleteError'), 'error');
+          console.error('Error removing athlete from list:', error);
+          showAlert(t('common.error'), t('athleteProfile.removeFromListError'), 'error');
         }
       }
     );
@@ -406,10 +409,14 @@ export default function AthleteProfileScreen() {
       const { buildAthleteReportData } = await import('@/src/services/athleteReport.service');
       const { generateAthleteReportPdf, sharePdf } = await import('@/src/services/pdfExport.service');
 
-      const reportData = await buildAthleteReportData(athleteIdString, {
-        startDate: reportStartDate,
-        endDate: reportEndDate,
-      });
+      const reportData = await buildAthleteReportData(
+        athleteIdString,
+        {
+          startDate: reportStartDate,
+          endDate: reportEndDate,
+        },
+        { coachId: user?.id ?? null }
+      );
       const file = await generateAthleteReportPdf(reportData);
       const shared = await sharePdf(file.uri);
       if (shared) {
@@ -442,6 +449,10 @@ export default function AthleteProfileScreen() {
 
   const normalizedAthleteStatus = String(athlete?.status || '').toLowerCase();
   const isBlocked = normalizedAthleteStatus === 'bloqueado';
+  const isUnlinked =
+    isAthleteUnlinkedFromCoach(athlete?.status) ||
+    String(athlete?.status || '').toLowerCase() === 'inativo';
+  const isActiveLink = isAthleteActiveForCoach(athlete?.status);
   const workoutEditLabelRaw = t('workoutTemplateDetails.edit');
   const workoutEditLabel =
     workoutEditLabelRaw === 'workoutTemplateDetails.edit'
@@ -494,19 +505,39 @@ export default function AthleteProfileScreen() {
               style={{
                 backgroundColor: isRemoved
                   ? theme.colors.backgroundSecondary
+                  : isUnlinked
+                  ? (theme.mode === 'dark' ? 'rgba(245, 158, 11, 0.16)' : 'rgba(245, 158, 11, 0.08)')
                   : isBlocked
                   ? (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)')
                   : (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.08)'),
-                borderColor: isRemoved ? theme.colors.border : isBlocked ? '#ef444455' : '#10b98155',
+                borderColor: isRemoved
+                  ? theme.colors.border
+                  : isUnlinked
+                  ? '#f59e0b55'
+                  : isBlocked
+                  ? '#ef444455'
+                  : '#10b98155',
               }}
             >
               <Text
                 className="font-semibold text-xs"
                 style={{
-                  color: isRemoved ? theme.colors.textTertiary : isBlocked ? '#ef4444' : '#10b981',
+                  color: isRemoved
+                    ? theme.colors.textTertiary
+                    : isUnlinked
+                    ? '#f59e0b'
+                    : isBlocked
+                    ? '#ef4444'
+                    : '#10b981',
                 }}
               >
-                {isRemoved ? t('common.accountRemoved') : isBlocked ? t('common.blocked') : t('common.active')}
+                {isRemoved
+                  ? t('common.accountRemoved')
+                  : isUnlinked
+                  ? t('athleteCoachStatus.unlinked')
+                  : isBlocked
+                  ? t('common.blocked')
+                  : t('common.active')}
               </Text>
             </View>
             
@@ -1224,10 +1255,18 @@ export default function AthleteProfileScreen() {
               : 'rgba(251, 146, 60, 0.18)',
             borderColor: theme.colors.primary + '85',
             borderWidth: 1.4,
-            opacity: isRemoved || athleteLockedByPlan ? 0.45 : 1,
+            opacity: isRemoved || athleteLockedByPlan || isUnlinked ? 0.45 : 1,
           }}
-          disabled={isRemoved || athleteLockedByPlan}
+          disabled={isRemoved || athleteLockedByPlan || isUnlinked}
           onPress={() => {
+            if (isUnlinked) {
+              showAlert(
+                t('common.warning'),
+                t('athleteProfile.cannotAssignUnlinked'),
+                'warning'
+              );
+              return;
+            }
             if (athleteLockedByPlan) {
               showAlert(
                 t('common.warning'),
@@ -1381,13 +1420,12 @@ export default function AthleteProfileScreen() {
         </View>
 
         {!isRemoved && (
-          <TouchableOpacity
-            className="rounded-xl py-3.5 px-6 mt-4 border"
-            style={{
-              backgroundColor: theme.mode === 'dark' ? 'rgba(251, 146, 60, 0.16)' : 'rgba(251, 146, 60, 0.08)',
-              borderColor: theme.colors.primary + '55',
-              opacity: athleteLockedByPlan ? 0.45 : 1,
-            }}
+          <CoachAthleteActionButton
+            className="mt-4"
+            icon="pencil"
+            tone="primary"
+            label={t('athleteProfile.editAthleteData')}
+            disabled={athleteLockedByPlan}
             onPress={() => {
               if (athleteLockedByPlan) {
                 showAlert(
@@ -1401,51 +1439,25 @@ export default function AthleteProfileScreen() {
               setEditAthleteSport(athlete.sport && athlete.sport !== '-' ? athlete.sport : '');
               setEditAthleteModalVisible(true);
             }}
-            disabled={athleteLockedByPlan}
-            activeOpacity={0.8}
-          >
-            <Text className="font-semibold text-center" style={{ color: theme.colors.primary }}>
-              {t('athleteProfile.editAthleteData')}
-            </Text>
-          </TouchableOpacity>
+          />
         )}
 
-        {/* Botão Bloquear/Desbloquear conta do atleta */}
-        {!isRemoved && (
-          <TouchableOpacity
-            className="rounded-xl py-3.5 px-6 mt-4 border"
-            style={{
-              backgroundColor: isBlocked
-                ? (theme.mode === 'dark' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)')
-                : (theme.mode === 'dark' ? 'rgba(239, 68, 68, 0.14)' : 'rgba(239, 68, 68, 0.08)'),
-              borderColor: isBlocked ? '#10b98155' : '#ef444455',
-            }}
-            onPress={handleToggleAthleteAccess}
-            activeOpacity={0.8}
-          >
-            <Text
-              className="font-semibold text-center"
-              style={{ color: isBlocked ? '#10b981' : '#ef4444' }}
-            >
-              {isBlocked ? t('athleteProfile.unblockAthleteButton') : t('athleteProfile.blockAthleteButton')}
-            </Text>
-          </TouchableOpacity>
+        {!isRemoved && isActiveLink && (
+          <CoachAthleteActionButton
+            icon="unlink"
+            tone="warning"
+            label={t('athleteProfile.detachAthleteButton')}
+            onPress={handleDetachAthlete}
+          />
         )}
 
         {!isRemoved && (
-          <TouchableOpacity
-            className="rounded-xl py-3.5 px-6 mt-3 border"
-            style={{
-              backgroundColor: theme.mode === 'dark' ? 'rgba(127, 29, 29, 0.2)' : 'rgba(239, 68, 68, 0.08)',
-              borderColor: '#ef444455',
-            }}
-            onPress={handleDeleteAthlete}
-            activeOpacity={0.8}
-          >
-            <Text className="font-semibold text-center" style={{ color: '#ef4444' }}>
-              {t('athleteProfile.deleteAthleteButton')}
-            </Text>
-          </TouchableOpacity>
+          <CoachAthleteActionButton
+            icon="user-times"
+            tone="danger"
+            label={t('athleteProfile.removeFromListButton')}
+            onPress={handleRemoveFromList}
+          />
         )}
 
         {isRemoved && (

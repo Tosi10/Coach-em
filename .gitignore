@@ -40,3 +40,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firestore rules — DB partilhado com CooPs; publicar pela Console / coworking-app (não versionar aqui)
+firestore.rules
