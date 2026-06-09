@@ -1,4 +1,6 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Quando .easignore existe, o EAS usa-o NO LUGAR do .gitignore.
+# É uma cópia do .gitignore SEM excluir GoogleService-Info.plist / google-services.json,
+# pois o build EAS precisa desses ficheiros (estão fora do git por higiene do repo público).
 
 # dependencies
 node_modules/
@@ -34,13 +36,6 @@ yarn-error.*
 .env
 .env*.local
 
-# Firebase client config (mantidos localmente; enviados ao EAS via .easignore)
-GoogleService-Info.plist
-google-services.json
-
-# Firebase deploy cache
-.firebase/
-
 # typescript
 *.tsbuildinfo
 
@@ -48,5 +43,12 @@ google-services.json
 /ios
 /android
 
-# Firestore rules — DB partilhado com CooPs; publicar pela Console / coworking-app (não versionar aqui)
+# Firestore rules
 firestore.rules
+
+# Firebase deploy cache
+.firebase/
+
+# não necessários no build
+docs/
+.git/
