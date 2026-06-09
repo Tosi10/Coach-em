@@ -1,8 +1,8 @@
 # Roadmap — Coach'em para treinadores e atletas (solo + com coach)
 
 **Documento mestre de produto** — tudo o que foi acordado em conversa de alinhamento.  
-**Status:** **P1 ✅** · **P2 ✅** · **P3 ✅** (core; polish/Pro pendente) · **P4 ✅** · **P6 ✅** (UI; ficheiro legado a remover) · **P5 / P5b** próximo sprint.  
-**Última atualização:** 2026-03-09  
+**Status:** **P1 ✅** · **P2 ✅** · **P3 ✅** (core) · **P4 ✅** · **P5 🟡** (app+RC+webhook ✅; compra real após Apple) · **P5b ✅** (código) · **P6 ✅** · **Sprint D** polish.  
+**Última atualização:** 2026-06-09  
 **Commit de referência:** `b93d21b` (`feat/security-app-check`)  
 **Acompanhar evolução:** secção [15. Checklist de implementação](#15-checklist-de-implementação) (checkboxes abaixo).  
 
@@ -374,7 +374,7 @@ Sem Athlete Pro, amigos no código do coach **só** recebem treinos do coach —
 
 ## 13. Aberto / comercial
 
-- Preço Athlete Pro vs Coach Pro.  
+- ~~Preço Athlete Pro vs Coach Pro.~~ **Definido (2026-06):** Athlete **US$ 5,99/mês** · **US$ 59,99/ano**; Coach **US$ 12,90/mês** (grupo separado na Apple).  
 - Trial Athlete Pro.  
 - Legenda/cores no calendário (coach vs self).  
 - QR no código do coach.
@@ -433,10 +433,15 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### P5 — Athlete Pro (solo)
 
-- [x] App: ecrã `/subscription` atleta + RevenueCat packages + webhook código (deploy pendente)
-- [ ] Produto RevenueCat no dashboard (`coachem_athlete_pro_*`, offering `athlete_default`)
-- [ ] Deploy `revenueCatWebhook` com suporte ATHLETE
+- [x] App: ecrã `/subscription` atleta + RevenueCat packages (`athlete_default`)
+- [x] App Store: grupo **Athlete Pro** + `coachem_athlete_pro_monthly` (US$ 5,99) + `coachem_athlete_pro_annual` (US$ 59,99) — **aguardando revisão Apple**
+- [x] RevenueCat: produtos importados + entitlement `pro` + offering **`athlete_default`** (`$rc_monthly` / `$rc_annual`)
+- [x] `.env` `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- [x] Deploy `revenueCatWebhook` com suporte ATHLETE (`futeba-96395`, 2026-06-09)
+- [x] Webhook RevenueCat test event **200 OK**
 - [x] Gates free vs Pro em biblioteca/templates (`planLimits` + `assertCanCreateResource`)
+- [ ] Compra Sandbox / dev build no iPhone (após Apple aprovar produtos)
+- [ ] `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` (quando Play Store)
 - [ ] Rules Firestore matriz solo (secção 9) — validar em produção
 
 ### P5b — Coached + Athlete Pro
@@ -479,11 +484,13 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### Sprint B — Athlete Pro / RevenueCat (P5)
 
-- [ ] Produto **Athlete Pro** no RevenueCat + `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
-- [x] Webhook código: `subscriptionTier` em `users` do atleta (`getCoachemUserKind`)
-- [ ] Deploy webhook + teste compra real
-- [x] Gates free vs Pro (biblioteca, templates, treinos próprios solo)
-- [x] CTA upgrade na aba Treinos / Perfil
+- [x] App Store Connect: grupo Athlete Pro + SKUs mensal/anual (aguardando revisão)
+- [x] RevenueCat: import + entitlement `pro` + offering `athlete_default`
+- [x] `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` no `.env`
+- [x] Deploy webhook + teste RC **200**
+- [x] Gates free vs Pro + CTA Perfil / Treinos
+- [ ] **Dev build** iPhone + compra Sandbox (bloqueado até Apple aprovar IAP)
+- [ ] `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` (Play Store — depois)
 - [ ] Rules: matriz solo secção 9 (revisão final)
 
 ### Sprint C — Coached + Athlete Pro (P5b)
@@ -512,3 +519,4 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 | 2026-03-09 | Sprint A: removido `add-athlete`; `createAthleteByCoach` descontinuado |
 | 2026-05-29 | Sprint B (app): Athlete Pro subscription UI, RevenueCat service, webhook ATHLETE |
 | 2026-05-29 | Sprint C: treinos extra coached+Pro, guards anti-abuso, legenda calendário |
+| 2026-06-09 | P5 infra: App Store Athlete Pro, RevenueCat `athlete_default`, webhook deploy + teste 200; preços US$ 5,99 / 59,99 |
