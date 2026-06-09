@@ -9,7 +9,12 @@ import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
 import { createAssignedWorkouts } from '@/src/services/assignedWorkouts.service';
 import { listWorkoutTemplatesByCoachId } from '@/src/services/workoutTemplates.service';
-import { requestNotificationPermissions, scheduleWorkoutRemindersForCoach, setupNotificationChannel } from '@/src/services/notifications.service';
+import {
+  requestNotificationPermissions,
+  scheduleWorkoutRemindersForAthlete,
+  scheduleWorkoutRemindersForCoach,
+  setupNotificationChannel,
+} from '@/src/services/notifications.service';
 import { Exercise, WorkoutBlock, WorkoutBlockData, WorkoutExercise } from '@/src/types';
 import {
   formatAssignedCalendarDateByLocale,
@@ -220,13 +225,28 @@ export default function AssignWorkoutScreen() {
     const themeStyles = getThemeStyles(theme.colors);
     const { athleteId: athleteIdParam } = useLocalSearchParams<{ athleteId?: string }>();
     const athleteIdParamResolved = Array.isArray(athleteIdParam) ? athleteIdParam[0] : athleteIdParam;
+    const isAthleteUser = user?.userType === UserType.ATHLETE;
     const isAthleteSelfAssign =
-      user?.userType === UserType.ATHLETE &&
+      isAthleteUser &&
       canManageOwnTraining(user) &&
       (!athleteIdParamResolved || athleteIdParamResolved === user.id);
     const athleteId =
-      athleteIdParamResolved ??
-      (isAthleteSelfAssign && user?.id ? user.id : undefined);
+      isAthleteSelfAssign && user?.id
+        ? user.id
+        : isAthleteUser
+          ? undefined
+          : athleteIdParamResolved;
+
+    useEffect(() => {
+      if (!isAthleteUser || !user?.id) return;
+      if (!canManageOwnTraining(user)) {
+        router.replace('/(tabs)/two');
+        return;
+      }
+      if (athleteIdParamResolved && athleteIdParamResolved !== user.id) {
+        router.replace({ pathname: '/assign-workout', params: { athleteId: user.id } });
+      }
+    }, [athleteIdParamResolved, isAthleteUser, router, user]);
   
     // Estado para armazenar qual treino foi selecionado
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
@@ -396,7 +416,12 @@ export default function AssignWorkoutScreen() {
                 return;
             }
 
-            if (user?.userType === UserType.COACH) {
+            if (isAthleteUser) {
+              if (!canManageOwnTraining(user) || athlete.id !== user.id) {
+                showAlert(t('common.error'), t('assignWorkout.errAthleteSelfOnly'), 'error');
+                return;
+              }
+            } else if (user?.userType === UserType.COACH) {
               const { assertCanManageAthleteInCurrentPlan } = await import(
                 '@/src/services/planLimits.service'
               );
@@ -451,20 +476,29 @@ export default function AssignWorkoutScreen() {
             });
 
             await createAssignedWorkouts(coachId, newAssignments);
-            
-            // Agendar lembrete para o TREINADOR (apenas na hora do treino, 1 por aula)
+
             try {
                 const hasPermission = await requestNotificationPermissions();
                 if (hasPermission) {
                     await setupNotificationChannel();
                     for (const assignment of newAssignments) {
-                        await scheduleWorkoutRemindersForCoach(
-                            assignment.id,
-                            assignment.date,
-                            scheduledTime,
-                            workout.name,
-                            'workouts'
+                      if (isAthleteSelfAssign) {
+                        await scheduleWorkoutRemindersForAthlete(
+                          assignment.id,
+                          assignment.date,
+                          scheduledTime,
+                          workout.name,
+                          'workouts'
                         );
+                      } else {
+                        await scheduleWorkoutRemindersForCoach(
+                          assignment.id,
+                          assignment.date,
+                          scheduledTime,
+                          workout.name,
+                          'workouts'
+                        );
+                      }
                     }
                 }
             } catch (notifErr) {

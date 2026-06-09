@@ -15,6 +15,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useOwnTrainingGuard } from '@/src/hooks/useOwnTrainingGuard';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { listExercisesByCoachId } from '@/src/services/exercises.service';
@@ -43,6 +44,7 @@ export default function CreateWorkoutScreen() {
     const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
+    const { blocked } = useOwnTrainingGuard();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
 
@@ -493,6 +495,8 @@ export default function CreateWorkoutScreen() {
             </View>
         );
     };
+
+    if (blocked) return null;
 
     return (
         <>

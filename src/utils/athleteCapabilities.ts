@@ -39,3 +39,22 @@ export function getAthleteModeLabel(user: User | null | undefined): 'solo' | 'co
   if (!user || user.userType !== UserType.ATHLETE) return null;
   return resolveAthleteMode(user);
 }
+
+/** Treino extra do atleta (`coachId` = `athleteId`), distinto do plano do PT. */
+export function isSelfDirectedWorkout(workout: {
+  coachId?: string | null;
+  athleteId?: string | null;
+}): boolean {
+  const coachId = workout.coachId?.trim();
+  const athleteId = workout.athleteId?.trim();
+  return Boolean(coachId && athleteId && coachId === athleteId);
+}
+
+/** Atleta só remove treinos extra criados por si (rules: `canAthleteSelfDirect` + coachId == self). */
+export function canAthleteDeleteAssignedWorkout(
+  user: User | null | undefined,
+  workout: { coachId?: string | null; athleteId?: string | null }
+): boolean {
+  if (!user || user.userType !== UserType.ATHLETE) return false;
+  return isSelfDirectedWorkout(workout) && workout.athleteId === user.id;
+}

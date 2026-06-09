@@ -265,10 +265,14 @@ service cloud.firestore {
         && request.resource.data.coachId == request.auth.uid;
     }
 
-    function athleteCreatesSelfAssignedWorkout() {
-      return canAthleteSelfDirect()
-        && request.resource.data.athleteId == request.auth.uid
+    /** Treino extra do atleta coached+Pro ou solo (`coachId` == `athleteId`). */
+    function isSelfDirectedAssignment() {
+      return request.resource.data.athleteId == request.auth.uid
         && request.resource.data.coachId == request.auth.uid;
+    }
+
+    function athleteCreatesSelfAssignedWorkout() {
+      return canAthleteSelfDirect() && isSelfDirectedAssignment();
     }
 
     // ---------- Coach'em ----------

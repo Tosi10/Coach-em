@@ -11,6 +11,8 @@ import {
     setupNotificationChannel,
 } from '@/src/services/notifications.service';
 import { UserType } from '@/src/types';
+import { isCoachedAthlete } from '@/src/types/athleteMode';
+import { isSelfDirectedWorkout } from '@/src/utils/athleteCapabilities';
 import {
   assignedSortTimestamp,
   formatAssignedCalendarDateByLocale,
@@ -261,18 +263,40 @@ export default function TabTwoScreen() {
       return aTime.localeCompare(bTime);
     });
 
+    const showWorkoutSourceLegend = isCoachedAthlete(user);
+
     const markedDates = Object.entries(workoutsByDate).reduce<Record<string, any>>((acc, [date, workouts]) => {
-      const hasCompleted = workouts.some((w: any) => w.status === 'Concluído');
+      const hasCoachWorkout = workouts.some((w: any) => !isSelfDirectedWorkout(w));
+      const hasExtraWorkout = workouts.some((w: any) => isSelfDirectedWorkout(w));
       const hasPending = workouts.some((w: any) => w.status !== 'Concluído');
+      const hasCompleted = workouts.some((w: any) => w.status === 'Concluído');
+
+      if (hasCoachWorkout && hasExtraWorkout) {
+        acc[date] = {
+          marked: true,
+          dots: [
+            { key: 'coach', color: hasPending ? '#3b82f6' : '#10b981' },
+            { key: 'extra', color: hasPending ? '#fb923c' : '#10b981' },
+          ],
+        };
+        return acc;
+      }
+
       let dotColor = '#fb923c';
-      if (hasPending) dotColor = '#fb923c';
-      else if (hasCompleted) dotColor = '#10b981';
-      acc[date] = {
-        marked: true,
-        dotColor,
-      };
+      if (!hasPending && hasCompleted) dotColor = '#10b981';
+      else if (hasCoachWorkout) dotColor = '#3b82f6';
+
+      acc[date] = { marked: true, dotColor };
       return acc;
     }, {});
+
+    const workoutSourceLabel = (workout: { coachId?: string; athleteId?: string; coach?: string; coachPublicName?: string }) => {
+      if (isSelfDirectedWorkout(workout)) return t('tabTwo.sourceExtra');
+      const coachName =
+        (typeof workout.coachPublicName === 'string' && workout.coachPublicName.trim()) ||
+        (typeof workout.coach === 'string' && workout.coach.trim());
+      return coachName || t('tabTwo.sourceCoach');
+    };
 
     markedDates[selectedCalendarDate] = {
       ...(markedDates[selectedCalendarDate] || {}),
@@ -473,9 +497,15 @@ export default function TabTwoScreen() {
                     textDayHeaderFontSize: 12,
                   }}
                 />
-                <View className="flex-row mt-3 justify-between">
+                <View className="flex-row mt-3 flex-wrap gap-y-1 justify-between">
                   <Text className="text-xs" style={{ color: '#fb923c' }}>{t('tabTwo.legendPending')}</Text>
                   <Text className="text-xs" style={{ color: '#10b981' }}>{t('tabTwo.legendCompleted')}</Text>
+                  {showWorkoutSourceLegend ? (
+                    <>
+                      <Text className="text-xs w-full" style={{ color: '#3b82f6' }}>{t('tabTwo.legendCoach')}</Text>
+                      <Text className="text-xs w-full" style={{ color: '#fb923c' }}>{t('tabTwo.legendExtra')}</Text>
+                    </>
+                  ) : null}
                 </View>
               </View>
 
@@ -521,6 +551,11 @@ export default function TabTwoScreen() {
                             <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                               {workout.name}
                             </Text>
+                            {showWorkoutSourceLegend ? (
+                              <Text className="text-xs mb-1 font-medium" style={{ color: isSelfDirectedWorkout(workout) ? '#fb923c' : '#3b82f6' }}>
+                                {workoutSourceLabel(workout)}
+                              </Text>
+                            ) : null}
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                               {workout.dayOfWeek}
                               {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}
@@ -664,6 +699,11 @@ export default function TabTwoScreen() {
                             <Text className="font-semibold text-lg mb-1" style={themeStyles.text}>
                               {workout.name}
                             </Text>
+                            {showWorkoutSourceLegend ? (
+                              <Text className="text-xs mb-1 font-medium" style={{ color: isSelfDirectedWorkout(workout) ? '#fb923c' : '#3b82f6' }}>
+                                {workoutSourceLabel(workout)}
+                              </Text>
+                            ) : null}
                             <Text className="text-sm mb-1" style={themeStyles.textSecondary}>
                               {formatAssignedCalendarDateByLocale(workout.date, i18n.language)} • {workout.dayOfWeek}
                               {workout.scheduledTime ? ` • ${workout.scheduledTime}` : ''}

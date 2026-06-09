@@ -1,6 +1,7 @@
 import { CustomAlert } from '@/components/CustomAlert';
 import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useOwnTrainingGuard } from '@/src/hooks/useOwnTrainingGuard';
 import { UserType } from '@/src/types';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createExercise as createExerciseInFirestore, updateExercise } from '@/src/services/exercises.service';
@@ -20,6 +21,7 @@ export default function CreateExerciseScreen() {
     const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
+    const { blocked } = useOwnTrainingGuard();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
 
@@ -201,6 +203,8 @@ export default function CreateExerciseScreen() {
             showAlert(t('common.error'), t('createExercise.errSaveFailed'), 'error');
         }
       };
+
+    if (blocked) return null;
 
     return ( 
         <>

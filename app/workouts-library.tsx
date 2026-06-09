@@ -2,6 +2,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { WorkoutCard } from '@/src/components/WorkoutCard';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useOwnTrainingGuard } from '@/src/hooks/useOwnTrainingGuard';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { DEFAULT_WORKOUT_TEMPLATES } from '@/src/data/defaultWorkoutTemplates';
@@ -172,6 +173,7 @@ export default function WorkoutLibraryScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
+  const { blocked } = useOwnTrainingGuard();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [allWorkouts, setAllWorkouts] = useState<any[]>([]);
@@ -284,6 +286,8 @@ export default function WorkoutLibraryScreen() {
     };
 
     const filteredWorkouts = getFilteredWorkouts();
+
+    if (blocked) return null;
 
     return (
         <ScrollView className="flex-1" style={themeStyles.bg}>

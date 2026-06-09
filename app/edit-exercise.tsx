@@ -2,6 +2,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { WorkoutPrescriptionEditor } from '@/components/WorkoutPrescriptionEditor';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useOwnTrainingGuard } from '@/src/hooks/useOwnTrainingGuard';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { createExercise, getExerciseById, updateExercise } from '@/src/services/exercises.service';
@@ -21,6 +22,7 @@ export default function EditExerciseScreen() {
     const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthContext();
+    const { blocked } = useOwnTrainingGuard();
     const { theme } = useTheme();
     const themeStyles = getThemeStyles(theme.colors);
     const { exerciseId } = useLocalSearchParams();
@@ -366,6 +368,8 @@ export default function EditExerciseScreen() {
             </View>
         );
     }
+
+    if (blocked) return null;
 
     // PARTE 3: JSX (igual ao create-exercise.tsx, mas com título "Editar Exercício")
     return (

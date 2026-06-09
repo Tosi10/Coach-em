@@ -47,6 +47,8 @@ export function AthleteWorkoutActions({ athleteUid }: Props) {
 
   const showSoloFreeHint =
     user?.userType === UserType.ATHLETE && isSoloAthlete(user) && !isAthletePro(user);
+  const showCoachedProHint =
+    user?.userType === UserType.ATHLETE && isCoachedAthlete(user) && isAthletePro(user);
 
   const cardShadow = {
     shadowColor: '#fb923c',
@@ -111,6 +113,11 @@ export function AthleteWorkoutActions({ athleteUid }: Props) {
             </Text>
           </TouchableOpacity>
         </View>
+      )}
+      {showCoachedProHint && (
+        <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
+          {t('tabTwo.coachedProExtraHint')}
+        </Text>
       )}
 
       <View className="flex-row gap-3 mb-3">

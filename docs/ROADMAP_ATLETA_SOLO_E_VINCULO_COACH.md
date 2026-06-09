@@ -441,9 +441,11 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### P5b — Coached + Athlete Pro
 
-- [ ] Treinos extra `coachId == athleteId` com gate Pro
-- [ ] Botões Treinos para coached + Pro
-- [ ] Matriz rules completa
+- [x] Treinos extra `coachId == athleteId` com gate Pro (app + rules)
+- [x] Botões Treinos para coached + Pro (`canManageOwnTraining`)
+- [x] Guards anti-abuso (deep link biblioteca / assign-workout)
+- [x] Calendário: legenda coach vs extra (coached)
+- [ ] Teste manual coached+Pro com compra RevenueCat
 
 ### P6 — Legado
 
@@ -486,9 +488,10 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### Sprint C — Coached + Athlete Pro (P5b)
 
-- [ ] Treinos `coachId == athleteId` com gate Pro
-- [ ] Botões Treinos para coached + Pro
-- [ ] Testes anti-abuso (código coach sem Pro)
+- [x] Treinos `coachId == athleteId` com gate Pro
+- [x] Botões Treinos para coached + Pro
+- [x] Testes anti-abuso no app (guards + rules `isSelfDirectedAssignment`)
+- [ ] Teste E2E coached+Pro após RevenueCat
 
 ### Sprint D — Polish (P3 restante)
 
@@ -508,3 +511,4 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 | 2026-03-09 | P1–P4 e P6 UI marcados ✅ após testes manuais; secção 16 próximos sprints (P5 legado) |
 | 2026-03-09 | Sprint A: removido `add-athlete`; `createAthleteByCoach` descontinuado |
 | 2026-05-29 | Sprint B (app): Athlete Pro subscription UI, RevenueCat service, webhook ATHLETE |
+| 2026-05-29 | Sprint C: treinos extra coached+Pro, guards anti-abuso, legenda calendário |

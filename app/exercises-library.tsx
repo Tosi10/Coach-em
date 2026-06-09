@@ -7,6 +7,7 @@
 
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useOwnTrainingGuard } from '@/src/hooks/useOwnTrainingGuard';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES, mergeDefaultExercisesWithCoachSaved } from '@/src/data/defaultExercises';
 import { deleteExercises, listExercisesByCoachId } from '@/src/services/exercises.service';
@@ -25,6 +26,7 @@ export default function ExercisesLibraryScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
+  const { blocked } = useOwnTrainingGuard();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const [searchText, setSearchText] = useState('');
@@ -229,6 +231,8 @@ export default function ExercisesLibraryScreen() {
         return difficulty;
     }
   };
+
+  if (blocked) return null;
 
   return (
     <ScrollView className="flex-1" style={themeStyles.bg}>
