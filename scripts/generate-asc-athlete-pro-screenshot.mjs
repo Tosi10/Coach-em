@@ -40,11 +40,11 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
 
   <rect x="72" y="1020" width="520" height="200" rx="20" fill="#1a1a1a" stroke="#fb923c" stroke-width="3"/>
   <text x="100" y="1080" fill="#ffffff" font-size="32" font-family="Arial" font-weight="bold">Plano mensal</text>
-  <text x="100" y="1150" fill="#fb923c" font-size="40" font-family="Arial" font-weight="bold">US$ 5,99/mês</text>
+  <text x="100" y="1150" fill="#fb923c" font-size="40" font-family="Arial" font-weight="bold">US$ 3,99/mês</text>
 
   <rect x="620" y="1020" width="550" height="200" rx="20" fill="#1a1a1a" stroke="#333" stroke-width="2"/>
   <text x="648" y="1080" fill="#ffffff" font-size="32" font-family="Arial" font-weight="bold">Plano anual</text>
-  <text x="648" y="1150" fill="#fb923c" font-size="40" font-family="Arial" font-weight="bold">US$ 59,99/ano</text>
+  <text x="648" y="1150" fill="#fb923c" font-size="40" font-family="Arial" font-weight="bold">US$ 39,99/ano</text>
 
   <rect x="72" y="1280" width="1098" height="100" rx="24" fill="#ea580c"/>
   <text x="621" y="1345" fill="#ffffff" font-size="36" font-family="Arial" font-weight="bold" text-anchor="middle">Assinar Pro — mensal</text>

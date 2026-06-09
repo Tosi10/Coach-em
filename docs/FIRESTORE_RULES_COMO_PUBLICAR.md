@@ -1,14 +1,23 @@
 # Como publicar as Firestore Rules (CooPs + Coach'em)
 
-## Onde colar
+## Fonte única (2026-06-09)
 
-1. **Fonte recomendada:** copiar o conteúdo de  
-   [`FIRESTORE_RULES_PUBLISH_2026-05-29.rules`](./FIRESTORE_RULES_PUBLISH_2026-05-29.rules)  
-   para **`coworking-app/firestore.rules`** (repo que partilha o projeto `futeba-96395`).
+**Editar sempre:** `C:\NativeReact\firestore.rules`  
+**Documentação:** `C:\NativeReact\FIRESTORE_RULES.md`
 
-2. **Ou** Firebase Console → Firestore → **Rules** → substituir **todo** o ficheiro → **Publish**.
+Ambos os repos (`Coach-em` e `coworking-app`) usam `firebase.json` → `"rules": "../firestore.rules"`.
 
-Não uses `Coach-em/firestore.rules` no Git (está no `.gitignore`); o ficheiro em `docs/` é só referência.
+## Publicar
+
+```bash
+cd C:\NativeReact\coworking-app
+firebase deploy --only firestore:rules --project futeba-96395
+```
+
+Ou colar o conteúdo de `NativeReact/firestore.rules` na Firebase Console → Firestore → Rules → **Publish**.
+
+Não uses `Coach-em/firestore.rules` no Git (está no `.gitignore`).  
+`docs/FIRESTORE_RULES_PUBLISH_2026-05-29.rules` é arquivo histórico.
 
 ## O que foi acrescentado vs o rules que enviaste
 

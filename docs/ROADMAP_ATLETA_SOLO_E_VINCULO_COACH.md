@@ -374,7 +374,7 @@ Sem Athlete Pro, amigos no código do coach **só** recebem treinos do coach —
 
 ## 13. Aberto / comercial
 
-- ~~Preço Athlete Pro vs Coach Pro.~~ **Definido (2026-06):** Athlete **US$ 5,99/mês** · **US$ 59,99/ano**; Coach **US$ 12,90/mês** (grupo separado na Apple).  
+- ~~Preço Athlete Pro vs Coach Pro.~~ **Definido (2026-06):** Athlete **US$ 3,99/mês** · **US$ 39,99/ano** (revisto de 5,99/59,99 em 2026-06-09); Coach **US$ 12,90/mês** (grupo separado na Apple).  
 - Trial Athlete Pro.  
 - Legenda/cores no calendário (coach vs self).  
 - QR no código do coach.
@@ -416,7 +416,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] `assign-workout` self-assign (`coachId` = próprio uid) para solo
 - [x] Hint coached free na aba Treinos (sem Athlete Pro)
 - [x] CTA Athlete Pro na loja (RevenueCat P5) — Perfil + aba Treinos → `/subscription`
-- [ ] Calendário Treinos alinhado à agenda do coach (polish)
+- [x] Calendário Treinos alinhado à agenda do coach (botões → abas → calendário → lista do dia)
 - [x] Teste manual: solo cria exercício/treino (rules publicadas)
 
 ### P4 — Desvincular coach
@@ -434,7 +434,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 ### P5 — Athlete Pro (solo)
 
 - [x] App: ecrã `/subscription` atleta + RevenueCat packages (`athlete_default`)
-- [x] App Store: grupo **Athlete Pro** + `coachem_athlete_pro_monthly` (US$ 5,99) + `coachem_athlete_pro_annual` (US$ 59,99) — **aguardando revisão Apple**
+- [x] App Store: grupo **Athlete Pro** + `coachem_athlete_pro_monthly` (US$ 3,99) + `coachem_athlete_pro_annual` (US$ 39,99) — **aguardando revisão Apple**
 - [x] RevenueCat: produtos importados + entitlement `pro` + offering **`athlete_default`** (`$rc_monthly` / `$rc_annual`)
 - [x] `.env` `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
 - [x] Deploy `revenueCatWebhook` com suporte ATHLETE (`futeba-96395`, 2026-06-09)
@@ -442,7 +442,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Gates free vs Pro em biblioteca/templates (`planLimits` + `assertCanCreateResource`)
 - [ ] Compra Sandbox / dev build no iPhone (após Apple aprovar produtos)
 - [ ] `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` (quando Play Store)
-- [ ] Rules Firestore matriz solo (secção 9) — validar em produção
+- [x] Rules Firestore matriz solo (secção 9) — publicadas na Console (2026-06-09); fonte única `NativeReact/firestore.rules`
 
 ### P5b — Coached + Athlete Pro
 
@@ -491,7 +491,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Gates free vs Pro + CTA Perfil / Treinos
 - [ ] **Dev build** iPhone + compra Sandbox (bloqueado até Apple aprovar IAP)
 - [ ] `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` (Play Store — depois)
-- [ ] Rules: matriz solo secção 9 (revisão final)
+- [x] Rules: matriz solo secção 9 — publicadas; fonte única `NativeReact/firestore.rules`
 
 ### Sprint C — Coached + Athlete Pro (P5b)
 
@@ -500,10 +500,11 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Testes anti-abuso no app (guards + rules `isSelfDirectedAssignment`)
 - [ ] Teste E2E coached+Pro após RevenueCat
 
-### Sprint D — Polish (P3 restante)
+### Sprint D — Polish (P3 restante) — opcional / pós-lançamento
 
-- [ ] Calendário Treinos vs agenda do coach
-- [ ] Legenda cores treino coach vs self no calendário
+- [x] Calendário Treinos vs agenda do coach (layout + cards do dia — confirmado 2026-06)
+- [x] Legenda cores treino coach vs self (coached + Pro; azul/laranja)
+- [ ] Refinos visuais menores (paridade pixel-a-pixel com `athlete-profile` do coach)
 - [ ] Email transacional no convite (opcional; hoje só `coachInvites` no Firestore)
 
 ---
@@ -520,3 +521,5 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 | 2026-05-29 | Sprint B (app): Athlete Pro subscription UI, RevenueCat service, webhook ATHLETE |
 | 2026-05-29 | Sprint C: treinos extra coached+Pro, guards anti-abuso, legenda calendário |
 | 2026-06-09 | P5 infra: App Store Athlete Pro, RevenueCat `athlete_default`, webhook deploy + teste 200; preços US$ 5,99 / 59,99 |
+| 2026-06-09 | Segurança: chaves Firebase restringidas (iOS/Android), config files fora do repo + `.easignore`; preços Athlete Pro revistos para US$ 3,99 / 39,99 |
+| 2026-06-09 | Firestore rules: fonte única `NativeReact/firestore.rules` + `FIRESTORE_RULES.md`; Console = produção (CooPs + Coach'em) |
