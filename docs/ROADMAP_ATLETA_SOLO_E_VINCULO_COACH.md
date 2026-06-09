@@ -480,7 +480,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Desativar `createAthleteByCoach` na Function
 - [x] Deploy `createAthleteByCoach` stub (`futeba-96395`, 2026-03)
 - [x] Atualizar README e `functions/README.md`
-- [ ] Push/merge branch `feat/security-app-check` → `main`
+- [x] Push/merge branch `feat/security-app-check` → `main` (2026-06-09, fast-forward)
 
 ### Sprint B — Athlete Pro / RevenueCat (P5)
 
