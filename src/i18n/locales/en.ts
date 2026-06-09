@@ -44,6 +44,7 @@ export default {
     registerAthleteShort: 'Athlete',
     orCreateAccount: 'or create account',
     backToSignIn: 'Back to sign in',
+    createAccount: 'Create account',
     developedBy: 'Developed by',
     fillAllFields: 'Please fill in all fields.',
     loginError: 'Error',
@@ -62,6 +63,11 @@ export default {
     resetSentBody:
       'If an account exists for this address, you will receive a link to reset your password. Also check your spam folder.',
     resetError: 'Could not send the email.',
+  },
+  signUp: {
+    tagline: 'Sports Performance Management',
+    title: 'Create account',
+    subtitle: 'Choose coach or athlete and fill in your details below.',
   },
   register: {
     tagline: 'Sports Performance Management',

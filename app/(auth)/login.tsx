@@ -12,13 +12,8 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import { CustomAlert } from '@/components/CustomAlert';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  AuthInlineRegister,
-  AuthRegisterModePicker,
-  type RegisterMode,
-} from '@/components/auth/AuthInlineRegister';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { type Href, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -46,9 +41,7 @@ export default function LoginScreen() {
   const isDark = theme.mode === 'dark';
   const fieldBorder = inputBorderColor(isDark);
   const { signIn, loading, error } = useAuth();
-  const { register } = useLocalSearchParams<{ register?: string }>();
 
-  const [registerMode, setRegisterMode] = useState<RegisterMode>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -66,11 +59,6 @@ export default function LoginScreen() {
     message: '',
     type: 'info',
   });
-
-  useEffect(() => {
-    if (register === 'coach') setRegisterMode('coach');
-    else if (register === 'athlete') setRegisterMode('athlete');
-  }, [register]);
 
   const showAlert = (
     title: string,
@@ -309,15 +297,22 @@ export default function LoginScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <AuthRegisterModePicker
-              mode={registerMode}
-              onSelect={(m) => setRegisterMode(m)}
-            />
-
-            <AuthInlineRegister
-              mode={registerMode}
-              onClose={() => setRegisterMode(null)}
-            />
+            <View className="mt-6 pt-5 border-t" style={{ borderTopColor: theme.colors.border }}>
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/sign-up' as Href)}
+                disabled={loading}
+                activeOpacity={0.85}
+                className="rounded-xl py-3.5 px-4 border items-center"
+                style={{
+                  borderColor: theme.colors.primary + '66',
+                  backgroundColor: theme.colors.primary + '12',
+                }}
+              >
+                <Text className="text-base font-semibold" style={{ color: theme.colors.primary }}>
+                  {t('login.createAccount')}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <Text className="text-center text-[11px] mt-5" style={themeStyles.textTertiary}>
               {t('login.developedBy')}{' '}

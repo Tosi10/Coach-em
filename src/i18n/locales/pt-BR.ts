@@ -44,6 +44,7 @@ export default {
     registerAthleteShort: 'Atleta',
     orCreateAccount: 'ou criar conta',
     backToSignIn: 'Voltar ao login',
+    createAccount: 'Criar conta',
     developedBy: 'Desenvolvido por',
     fillAllFields: 'Por favor, preencha todos os campos.',
     loginError: 'Erro',
@@ -62,6 +63,11 @@ export default {
     resetSentBody:
       'Se existir uma conta com este endereço, você receberá um link para redefinir a senha. Verifique também a pasta de spam.',
     resetError: 'Não foi possível enviar o email.',
+  },
+  signUp: {
+    tagline: 'Gestão de Performance Esportiva',
+    title: 'Criar conta',
+    subtitle: 'Escolha se é treinador ou atleta e preencha os dados abaixo.',
   },
   register: {
     tagline: 'Gestão de Performance Esportiva',

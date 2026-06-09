@@ -1,5 +1,5 @@
 /**
- * Registo treinador / atleta inline no ecrã de login (sem navegar para outro ficheiro).
+ * Registo treinador / atleta — picker + formulário (página sign-up).
  */
 
 import { CustomAlert } from '@/components/CustomAlert';
@@ -36,14 +36,18 @@ type AthletePath = 'solo' | 'coached' | null;
 type Props = {
   mode: RegisterMode;
   onClose: () => void;
+  /** Na página sign-up o formulário fica no mesmo card (sem borda superior extra). */
+  embedded?: boolean;
 };
 
 export function AuthRegisterModePicker({
   mode,
   onSelect,
+  showDivider = true,
 }: {
   mode: RegisterMode;
   onSelect: (m: 'coach' | 'athlete') => void;
+  showDivider?: boolean;
 }) {
   const { t } = useTranslation();
   const { theme } = useTheme();
@@ -81,14 +85,16 @@ export function AuthRegisterModePicker({
   };
 
   return (
-    <View className="mt-6">
-      <View className="flex-row items-center mb-4">
-        <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.border }} />
-        <Text className="mx-3 text-xs font-medium" style={{ color: theme.colors.textTertiary }}>
-          {t('login.orCreateAccount')}
-        </Text>
-        <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.border }} />
-      </View>
+    <View className={showDivider ? 'mt-6' : 'mt-2'}>
+      {showDivider ? (
+        <View className="flex-row items-center mb-4">
+          <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.border }} />
+          <Text className="mx-3 text-xs font-medium" style={{ color: theme.colors.textTertiary }}>
+            {t('login.orCreateAccount')}
+          </Text>
+          <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.border }} />
+        </View>
+      ) : null}
       <View className="flex-row" style={{ gap: 10 }}>
         {pill('coach', 'id-card')}
         {pill('athlete', 'user')}
@@ -97,7 +103,7 @@ export function AuthRegisterModePicker({
   );
 }
 
-export function AuthInlineRegister({ mode, onClose }: Props) {
+export function AuthInlineRegister({ mode, onClose, embedded = false }: Props) {
   const { t, i18n } = useTranslation();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -351,19 +357,21 @@ export function AuthInlineRegister({ mode, onClose }: Props) {
   return (
     <>
       <View
-        className="mt-4 pt-4 border-t"
-        style={{ borderTopColor: theme.colors.border }}
+        className={embedded ? 'mt-4' : 'mt-4 pt-4 border-t'}
+        style={embedded ? undefined : { borderTopColor: theme.colors.border }}
       >
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-base font-semibold" style={themeStyles.text}>
-            {mode === 'coach' ? t('register.title') : t('registerAthlete.title')}
-          </Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text className="text-sm" style={{ color: theme.colors.primary }}>
-              {t('login.backToSignIn')}
+        {!embedded ? (
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-base font-semibold" style={themeStyles.text}>
+              {mode === 'coach' ? t('register.title') : t('registerAthlete.title')}
             </Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text className="text-sm" style={{ color: theme.colors.primary }}>
+                {t('login.backToSignIn')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {mode === 'athlete' && (
           <>

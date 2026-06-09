@@ -468,9 +468,9 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 ### Sprint A — Fechar legado (1–2 dias)
 
 - [x] Remover `app/add-athlete.tsx` e `createAthleteWithLogin` no cliente
-- [x] Desativar `createAthleteByCoach` na Function (deploy pendente)
+- [x] Desativar `createAthleteByCoach` na Function
+- [x] Deploy `createAthleteByCoach` stub (`futeba-96395`, 2026-03)
 - [x] Atualizar README e `functions/README.md`
-- [ ] Deploy: `firebase deploy --only functions:createAthleteByCoach`
 - [ ] Push/merge branch `feat/security-app-check` → `main`
 
 ### Sprint B — Athlete Pro / RevenueCat (P5)
