@@ -19,8 +19,8 @@ Esta rodada focou em deixar o app pronto para release internacional (PT/EN), man
 | **Correção de blocos não traduzidos** | Correção no componente compartilhado `src/components/WorkoutDetails.tsx`: nomes de bloco e labels (aquecimento/principal/finalização, séries, reps, duração, descanso, vazio) passaram a respeitar idioma atual. |
 | **Perfil (UX refinada)** | Reorganização do `app/(tabs)/profile.tsx`: idioma e aparência integrados no mesmo card; seletor de idioma em formato segmentado compacto; toggle de tema reduzido e com largura compacta real. |
 | **Theme toggle** | Ajustes no `components/ThemeToggle.tsx`: dimensões menores (trilho/bolinha/ícone), melhor proporção visual e `alignSelf: 'flex-start'` para evitar largura total. |
-| **Tutorial de novo atleta** | Adicionado `FirstTimeTip` em `app/add-athlete.tsx` explicando claramente que a senha criada pelo treinador é **provisória** e deve ser repassada ao atleta para o primeiro login. |
-| **Modais de limite de plano (padrão visual único)** | Padronização dos alertas de limite do plano para `CustomAlert` (substituindo alert nativo branco) em: `create-workout`, `add-athlete`, `create-exercise`, `edit-exercise` e `workouts-library`. Inclui botões **Fechar** / **Ver planos** e navegação para `/subscription`. |
+| **Vínculo atleta ↔ treinador** | Fluxo atual: atleta regista-se (solo ou com **código** do treinador) ou aceita **convite por email**. Treinador convida em `invite-athlete` e partilha código no Perfil. Ver `docs/ROADMAP_ATLETA_SOLO_E_VINCULO_COACH.md`. |
+| **Modais de limite de plano (padrão visual único)** | Padronização dos alertas de limite do plano para `CustomAlert` (substituindo alert nativo branco) em: `create-workout`, `create-exercise`, `edit-exercise` e `workouts-library`. Inclui botões **Fechar** / **Ver planos** e navegação para `/subscription`. |
 | **Fluxos preservados** | Alterações mantidas como **UI-only / UX-only**: sem mudanças de contrato de banco, sem alteração de regras de negócio de domínio, sem impactar payloads críticos de Firestore/Functions. |
 | **Validação técnica contínua** | Após os lotes relevantes de alteração: `npx tsc --noEmit` e leitura de lints, ambos sem erros introduzidos nesta rodada. |
 
@@ -142,9 +142,14 @@ Se uma chave já foi commitada: no [Google Cloud Console](https://console.cloud.
 
 ---
 
-## Cadastro de atleta (treinador)
+## Vínculo atleta ↔ treinador
 
-O treinador cadastra atleta em **Adicionar atleta** com nome, email e **senha provisória**. A Cloud Function `createAthleteByCoach` cria o usuário no Auth e os documentos necessários. Recomenda-se que o atleta **troque a senha** após o primeiro acesso (fluxo acima).
+O treinador **não cria** a conta do atleta. Duas formas de vincular:
+
+1. **Convite por email** — aba Atletas / Perfil → **Convidar atleta** (`invite-athlete`); o atleta aceita no Perfil após login.
+2. **Código do treinador** — o atleta regista-se em **Criar conta atleta** com o código (ex. `COACH-7K3M`) ou liga um conta solo existente no Perfil.
+
+O código aparece no **Perfil do treinador** (`inviteCode`). Cloud Functions: `sendCoachInviteToAthlete`, `acceptCoachInvite`, `linkAthleteToCoachByCode`, `registerAthleteSelf`. Roadmap: `docs/ROADMAP_ATLETA_SOLO_E_VINCULO_COACH.md`.
 
 ---
 

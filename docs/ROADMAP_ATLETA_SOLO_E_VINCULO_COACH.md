@@ -1,8 +1,9 @@
 # Roadmap — Coach'em para treinadores e atletas (solo + com coach)
 
 **Documento mestre de produto** — tudo o que foi acordado em conversa de alinhamento.  
-**Status:** **P1 ✅** · **P2** (deploy OK; **rules Console** + testes manuais pendentes) · **P3 parcial** · **P4 em código** (deploy `unlinkAthleteFromCoach` pendente) · **P6 parcial** (UI convite) · **P5** por fazer.  
-**Última atualização:** 2026-05-29  
+**Status:** **P1 ✅** · **P2 ✅** · **P3 ✅** (core; polish/Pro pendente) · **P4 ✅** · **P6 ✅** (UI; ficheiro legado a remover) · **P5 / P5b** próximo sprint.  
+**Última atualização:** 2026-03-09  
+**Commit de referência:** `b93d21b` (`feat/security-app-check`)  
 **Acompanhar evolução:** secção [15. Checklist de implementação](#15-checklist-de-implementação) (checkboxes abaixo).  
 
 **Relacionado:** [`MONETIZACAO.md`](./MONETIZACAO.md) · [`COACHEM_FIRESTORE_COLECOES.md`](./COACHEM_FIRESTORE_COLECOES.md) · [`HEALTH_PHASE_1.md`](./HEALTH_PHASE_1.md) (paralelo, independente)
@@ -25,7 +26,8 @@
 12. [Checklist de decisões fechadas](#12-checklist-de-decisões-fechadas)  
 13. [Aberto / comercial](#13-aberto--comercial)  
 14. [Histórico de revisões](#14-histórico-de-revisões)  
-15. [Checklist de implementação](#15-checklist-de-implementação)
+15. [Checklist de implementação](#15-checklist-de-implementação)  
+16. [Próximos sprints](#16-próximos-sprints-a-partir-de-2026-03-09)
 
 ---
 
@@ -338,13 +340,13 @@ Sem Athlete Pro, amigos no código do coach **só** recebem treinos do coach —
 | Fase | Entrega | Estado |
 |------|---------|--------|
 | **P0** | Este documento | ✅ |
-| **P1** | `athleteMode`, cadastro solo/coach + código, `inviteCode`, Functions P1 | ✅ app + deploy |
-| **P2** | Convite email + aceitar + ligar coach no perfil | 🟡 deploy OK; rules + testes |
-| **P3** | UX Início/Treinos + gates | 🟡 parcial (ver §15) |
-| **P4** | Desvincular + graça 30 dias | 🟡 código; deploy function |
-| **P5** | RevenueCat Athlete Pro + rules solo | ⬜ |
+| **P1** | `athleteMode`, cadastro solo/coach + código, `inviteCode`, Functions P1 | ✅ |
+| **P2** | Convite email + aceitar + ligar coach no perfil | ✅ |
+| **P3** | UX Início/Treinos + gates (solo/coached free) | ✅ core · polish ⬜ |
+| **P4** | Desvincular + graça 30 dias (atleta e coach) | ✅ |
+| **P5** | RevenueCat Athlete Pro + rules solo | ⬜ **próximo** |
 | **P5b** | Coached + Athlete Pro + matriz rules | ⬜ |
-| **P6** | Deprecar criar atleta pelo coach | 🟡 UI convite; legado mantido |
+| **P6** | Deprecar criar atleta pelo coach | ✅ |
 
 **Paralelo:** Health / Android Dev Client (`HEALTH_PHASE_1.md`) — não bloqueia este roadmap.
 
@@ -392,7 +394,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Ecrã `register-athlete` (solo vs código coach) + links no login
 - [x] Auth: signup solo; coached só via Function; `ensureAthleteIsAllowed` ajustado
 - [x] Doc Console: índice `users` (`inviteCode` + `userType`) — `docs/ATHLETE_SOLO_P1_FIRESTORE_CONSOLE.md`
-- [ ] Teste manual: registo solo + registo com código coach (após email confirmado)
+- [x] Teste manual: registo solo + registo com código coach (confirmado 2026-05)
 
 ### P2 — Convites e ligar coach
 
@@ -402,9 +404,10 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Ecrã coach `invite-athlete` + botão no Perfil
 - [x] `AthleteCoachLinkPanel` no Perfil (convites pendentes + código solo)
 - [x] i18n pt-BR / en (`inviteAthlete`, `athleteCoachLink`, etc.)
-- [ ] Firestore rules: `coachInvites` read + self-assign — `docs/FIRESTORE_ATHLETE_SOLO_RULES_ADDON.md`
-- [ ] Índice `coachInvites` (`athleteEmail` + `status`) se o Console pedir
-- [ ] Teste manual: convite email → aceitar; solo → ligar por código
+- [x] Firestore rules publicadas — `docs/FIRESTORE_RULES_PUBLISH_2026-05-29.rules` (+ `coachLinkedToAthlete` leitura histórico Desvinculado)
+- [x] Índice `coachInvites` — não pedido no Console (ou já criado)
+- [x] Teste manual: convite email → aceitar; solo → ligar por código; sync `deletedAt` ao religar
+- [x] Function `syncCoachemAthleteWithUserLink` (reparar lista coach após aceite)
 
 ### P3 — UX atleta (Início + Treinos)
 
@@ -414,16 +417,19 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] Hint coached free na aba Treinos (sem Athlete Pro)
 - [ ] CTA Athlete Pro na loja (RevenueCat P5)
 - [ ] Calendário Treinos alinhado à agenda do coach (polish)
-- [ ] Teste manual: solo cria treino (depende rules P2/P5)
+- [x] Teste manual: solo cria exercício/treino (rules publicadas)
 
 ### P4 — Desvincular coach
 
 - [x] Function `unlinkAthleteFromCoach` (+ limpa campos graça ao religar)
-- [ ] Deploy function P4
-- [x] UI Perfil “Desligar treinador”
+- [x] Function `detachAthleteFromCoachByCoach` (coach desvincula; status **Desvinculado** na lista)
+- [x] Deploy functions P4 (+ sync lista)
+- [x] UI Perfil atleta “Desligar treinador” (`CustomAlert`)
+- [x] UI Perfil coach: desvincular / remover da lista (`CoachAthleteActionButton`)
 - [x] Campos `coachUnlinkedAt`, `coachAccessEndsAt`, `coachUnlinkedFromCoachId`
 - [x] Filtro UI pós-graça (`coachUnlinkGrace` + `listAssignedWorkoutsByAthleteId`)
-- [ ] Rules (se necessário para atleta atualizar `users` — hoje via Function)
+- [x] Rules: vínculo `users` só via Functions; coach lê histórico Desvinculado (`coachLinkedToAthlete`)
+- [x] Teste manual: desvincular pelos dois lados; remover da lista; sem atribuir treino a Desvinculado
 
 ### P5 — Athlete Pro (solo)
 
@@ -439,19 +445,53 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### P6 — Legado
 
-- [x] Aba Atletas: botão principal → `invite-athlete` (convite)
-- [x] `add-athlete`: banner recomendado + secção legado
-- [ ] Remover rota legado / desativar Function `createAthleteByCoach` (futuro)
+- [x] Aba Atletas + Perfil coach: só **Convidar atleta** (`invite-athlete`) e partilhar **código**
+- [x] Sem entrada na UI para `add-athlete` / criar conta com senha provisória (confirmado 2026-03)
+- [x] Apagar ficheiro `app/add-athlete.tsx` e referências README (2026-03-09)
+- [x] Function `createAthleteByCoach` desativada (responde erro + mensagem convite/código)
 - [x] Migração atletas antigos sem `athleteMode` (inferência no app)
 
 ### App — qualidade
 
 - [x] `refreshUser` no AuthContext (após ligar/aceitar/desvincular)
+- [x] Botões bloquear login do atleta removidos (decisão produto)
 
 ### Infra / paralelo
 
 - [x] Health MVP (iOS) — ver `HEALTH_PHASE_1.md` (paralelo)
 - [ ] Mapa/GPS corrida — **fora de escopo** (dados via wearables depois)
+
+---
+
+## 16. Próximos sprints (a partir de 2026-03-09)
+
+### Sprint A — Fechar legado (1–2 dias)
+
+- [x] Remover `app/add-athlete.tsx` e `createAthleteWithLogin` no cliente
+- [x] Desativar `createAthleteByCoach` na Function (deploy pendente)
+- [x] Atualizar README e `functions/README.md`
+- [ ] Deploy: `firebase deploy --only functions:createAthleteByCoach`
+- [ ] Push/merge branch `feat/security-app-check` → `main`
+
+### Sprint B — Athlete Pro / RevenueCat (P5)
+
+- [ ] Produto **Athlete Pro** no RevenueCat + `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
+- [ ] Webhook: `subscriptionTier` em `users` do atleta
+- [ ] Gates free vs Pro (biblioteca, templates, treinos próprios solo)
+- [ ] CTA upgrade na aba Treinos / Perfil
+- [ ] Rules: matriz solo secção 9
+
+### Sprint C — Coached + Athlete Pro (P5b)
+
+- [ ] Treinos `coachId == athleteId` com gate Pro
+- [ ] Botões Treinos para coached + Pro
+- [ ] Testes anti-abuso (código coach sem Pro)
+
+### Sprint D — Polish (P3 restante)
+
+- [ ] Calendário Treinos vs agenda do coach
+- [ ] Legenda cores treino coach vs self no calendário
+- [ ] Email transacional no convite (opcional; hoje só `coachInvites` no Firestore)
 
 ---
 
@@ -462,3 +502,5 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 | 2026-06-01 | Documento inicial e iterações de produto |
 | 2026-06-01 | Consolidação mestre: visão B2C, UX Início/Treinos, coached+Athlete Pro, matriz Firestore, princípio organizar vs reescrever |
 | 2026-05-29 | Secção 15: checklist de implementação por fase; status P1/P2/P3 atualizado |
+| 2026-03-09 | P1–P4 e P6 UI marcados ✅ após testes manuais; secção 16 próximos sprints (P5 legado) |
+| 2026-03-09 | Sprint A: removido `add-athlete`; `createAthleteByCoach` descontinuado |

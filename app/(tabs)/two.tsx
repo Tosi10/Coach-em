@@ -775,7 +775,7 @@ export default function TabTwoScreen() {
           {t('tabTwo.myAthletesSubtitle')}
         </Text>
 
-        {/* Contador e botão Adicionar atleta */}
+        {/* Contador e botão Convidar atleta */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold" style={themeStyles.text}>
             {t('tabTwo.totalAthletes', { count: athletes.length })}

@@ -12,8 +12,13 @@ import { getThemeStyles } from '@/src/utils/themeStyles';
 import { CustomAlert } from '@/components/CustomAlert';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
-import { type Href, useRouter } from 'expo-router';
-import { useState } from 'react';
+import {
+  AuthInlineRegister,
+  AuthRegisterModePicker,
+  type RegisterMode,
+} from '@/components/auth/AuthInlineRegister';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -41,7 +46,9 @@ export default function LoginScreen() {
   const isDark = theme.mode === 'dark';
   const fieldBorder = inputBorderColor(isDark);
   const { signIn, loading, error } = useAuth();
+  const { register } = useLocalSearchParams<{ register?: string }>();
 
+  const [registerMode, setRegisterMode] = useState<RegisterMode>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +66,11 @@ export default function LoginScreen() {
     message: '',
     type: 'info',
   });
+
+  useEffect(() => {
+    if (register === 'coach') setRegisterMode('coach');
+    else if (register === 'athlete') setRegisterMode('athlete');
+  }, [register]);
 
   const showAlert = (
     title: string,
@@ -297,29 +309,17 @@ export default function LoginScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/register')}
-              disabled={loading}
-              className="mt-6 py-2"
-              activeOpacity={0.7}
-            >
-              <Text className="text-center text-sm" style={{ color: theme.colors.primary }}>
-                {t('login.registerCoach')}
-              </Text>
-            </TouchableOpacity>
+            <AuthRegisterModePicker
+              mode={registerMode}
+              onSelect={(m) => setRegisterMode(m)}
+            />
 
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/register-athlete' as Href)}
-              disabled={loading}
-              className="mt-2 py-2"
-              activeOpacity={0.7}
-            >
-              <Text className="text-center text-sm font-semibold" style={{ color: theme.colors.primary }}>
-                {t('login.registerAthlete')}
-              </Text>
-            </TouchableOpacity>
+            <AuthInlineRegister
+              mode={registerMode}
+              onClose={() => setRegisterMode(null)}
+            />
 
-            <Text className="text-center text-[11px] mt-3" style={themeStyles.textTertiary}>
+            <Text className="text-center text-[11px] mt-5" style={themeStyles.textTertiary}>
               {t('login.developedBy')}{' '}
               <Text style={{ color: theme.colors.primary }}>Vision10</Text>
             </Text>

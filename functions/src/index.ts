@@ -1,8 +1,8 @@
 /**
  * Cloud Functions – Coach'em
  *
- * createAthleteByCoach: o treinador (autenticado) cria a conta do atleta
- * (Firebase Auth + Firestore users + coachemAthletes) para o atleta poder fazer login.
+ * Vínculo atleta: convite email, código no registo (`coachInvites`, `registerAthleteSelf`).
+ * `createAthleteByCoach` descontinuado (2026-03).
  */
 
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
@@ -24,21 +24,6 @@ const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
-const FREE_PLAN_ATHLETES_LIMIT = 3;
-const PRO_PLAN_ATHLETES_LIMIT = 25;
-
-async function getCoachSubscriptionTier(coachId: string): Promise<"free" | "pro"> {
-  const snap = await db.collection("users").doc(coachId).get();
-  const data = snap.data();
-  const tier = data?.subscriptionTier;
-  if (tier !== "pro") return "free";
-  const exp = data?.subscriptionExpiresAt as admin.firestore.Timestamp | undefined;
-  if (exp && typeof exp.toMillis === "function" && exp.toMillis() < Date.now()) {
-    return "free";
-  }
-  return "pro";
-}
-
 function hourBucket(): number {
   return Math.floor(Date.now() / HOUR_MS);
 }
@@ -102,47 +87,6 @@ async function consumePublicEmailRateLimits(
       { merge: true }
     );
   });
-}
-
-/** Evita treinador a disparar criação+email em massa acidental ou script. */
-async function consumeCreateAthleteEmailRate(coachId: string): Promise<void> {
-  const max = 35;
-  const docId = rateDocId("createAthleteEmail", `coach:${coachId}`);
-  const ref = db.collection(RATE_LIMIT_COLLECTION).doc(docId);
-  await db.runTransaction(async (t) => {
-    const snap = await t.get(ref);
-    const next = (snap.data()?.count as number | undefined) ?? 0;
-    if (next + 1 > max) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "Limite de cadastros de atletas com email nesta hora. Tente novamente mais tarde."
-      );
-    }
-    t.set(
-      ref,
-      {
-        count: next + 1,
-        action: "createAthleteEmail",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
-}
-
-async function assertCoachAthleteLimit(coachId: string): Promise<void> {
-  const tier = await getCoachSubscriptionTier(coachId);
-  const limit = tier === "pro" ? PRO_PLAN_ATHLETES_LIMIT : FREE_PLAN_ATHLETES_LIMIT;
-  const athletesSnap = await db
-    .collection("coachemAthletes")
-    .where("coachId", "==", coachId)
-    .get();
-  if (athletesSnap.size >= limit) {
-    throw new HttpsError(
-      "failed-precondition",
-      `Limite do seu plano atingido (${limit} atletas).`
-    );
-  }
 }
 
 /** URLs em atributos HTML precisam de & escapado para amp; */
@@ -403,143 +347,25 @@ async function sendEmailVerificationWithGmail(
   }
 }
 
-interface CreateAthleteByCoachData {
-  displayName: string;
-  email: string;
-  temporaryPassword: string;
-  sport?: string;
-}
-
 /**
- * Só o treinador pode chamar. Cria o usuário no Auth, documento em users e em coachemAthletes.
- * O atleta poderá fazer login com email e temporaryPassword.
- * athleteId = uid do Auth (usado em coachemAssignedWorkouts).
- *
- * Firebase Functions v2: callable com secrets Gmail para enviar o mesmo email de confirmação Coach'em.
+ * @deprecated Descontinuado (2026-03). Use convite por email ou código no registo do atleta.
+ * Mantida só para apps antigos receberem mensagem clara em vez de criar conta.
  */
-export const createAthleteByCoach = onCall(
-  {
-    region: "us-central1",
-    secrets: [gmailUserSecret, gmailPassSecret],
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "É preciso estar logado.");
-    }
-
-    const coachId = request.auth.uid;
-    const data = (request.data || {}) as CreateAthleteByCoachData;
-    const { displayName, email, temporaryPassword, sport } = data;
-
-    if (!displayName || typeof displayName !== "string" || !displayName.trim()) {
-      throw new HttpsError("invalid-argument", "Nome do atleta é obrigatório.");
-    }
-    if (!email || typeof email !== "string" || !email.trim()) {
-      throw new HttpsError("invalid-argument", "Email do atleta é obrigatório.");
-    }
-    if (
-      !temporaryPassword ||
-      typeof temporaryPassword !== "string" ||
-      temporaryPassword.length < 6
-    ) {
-      throw new HttpsError(
-        "invalid-argument",
-        "A senha provisória deve ter no mínimo 6 caracteres."
-      );
-    }
-
-    const coachRef = db.collection("users").doc(coachId);
-    const coachSnap = await coachRef.get();
-    if (!coachSnap.exists) {
-      throw new HttpsError("failed-precondition", "Perfil do treinador não encontrado.");
-    }
-    const coachData = coachSnap.data();
-    if (coachData?.userType !== "COACH") {
-      throw new HttpsError(
-        "permission-denied",
-        "Apenas treinadores podem cadastrar atletas com login."
-      );
-    }
-
-    await consumeCreateAthleteEmailRate(coachId);
-    await assertCoachAthleteLimit(coachId);
-
-    const name = displayName.trim();
-    const emailTrim = email.trim().toLowerCase();
-
-    let userRecord: admin.auth.UserRecord;
-    try {
-      userRecord = await auth.createUser({
-        email: emailTrim,
-        password: temporaryPassword,
-        displayName: name,
-        emailVerified: false,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("email-already-exists") || msg.includes("already in use")) {
-        throw new HttpsError("already-exists", "Já existe uma conta com este email.");
-      }
-      throw new HttpsError("internal", `Erro ao criar conta: ${msg}`);
-    }
-
-    const uid = userRecord.uid;
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    const userDoc = {
-      email: emailTrim,
-      displayName: name,
-      userType: "ATHLETE",
-      athleteMode: "coached",
-      coachId,
-      sport: sport?.trim() || null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const athleteDoc = {
-      coachId,
-      name,
-      sport: sport?.trim() || null,
-      status: "Ativo",
-      authUid: uid,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.runTransaction(async (tx) => {
-      tx.set(db.collection("users").doc(uid), userDoc);
-      tx.set(db.collection("coachemAthletes").doc(uid), athleteDoc);
-    });
-
-    try {
-      const verifyLink = await auth.generateEmailVerificationLink(emailTrim);
-      await sendEmailVerificationWithGmail(
-        emailTrim,
-        verifyLink,
-        gmailUserSecret.value(),
-        gmailPassSecret.value()
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("createAthleteByCoach: falha ao enviar confirmação:", msg);
-      await db.collection("users").doc(uid).delete().catch(() => undefined);
-      await db.collection("coachemAthletes").doc(uid).delete().catch(() => undefined);
-      try {
-        await auth.deleteUser(uid);
-      } catch (delAuth: unknown) {
-        console.error("createAthleteByCoach: rollback auth:", delAuth);
-      }
-      if (err instanceof HttpsError) throw err;
-      throw new HttpsError(
-        "internal",
-        "Não foi possível enviar o email de confirmação para o atleta. Nada foi salvo — tente novamente."
-      );
-    }
-
-    return { athleteId: uid };
+export const createAthleteByCoach = onCall({ region: "us-central1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "É preciso estar logado.");
   }
-);
+
+  const coachSnap = await db.collection("users").doc(request.auth.uid).get();
+  if (!coachSnap.exists || coachSnap.data()?.userType !== "COACH") {
+    throw new HttpsError("permission-denied", "Apenas treinadores podem usar esta função.");
+  }
+
+  throw new HttpsError(
+    "failed-precondition",
+    "Criar conta do atleta pelo treinador foi descontinuado. Convida por email no app ou partilha o teu código para o atleta se registar."
+  );
+});
 
 /**
  * Recuperação de senha com email HTML (Gmail via nodemailer).

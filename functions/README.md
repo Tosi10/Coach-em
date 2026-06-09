@@ -4,15 +4,9 @@ Projeto: **`futeba-96395`** (definido em `.firebaserc` na raiz do app). Região 
 
 ---
 
-## `createAthleteByCoach`
+## `createAthleteByCoach` (descontinuado)
 
-Permite que o **treinador** crie a conta do atleta (Firebase Auth + Firestore `users` + `coachemAthletes`) para o atleta poder fazer login com email e senha provisória. O treinador continua logado.
-
-### Regras
-
-- Apenas usuários autenticados com `users/{uid}.userType === 'COACH'` podem chamar.
-- O atleta é criado no Auth com o email e a senha provisória informados.
-- O documento em `coachemAthletes/{uid}` usa o `uid` do Auth como ID.
+**Não usar.** Responde com erro orientando convite por email ou código no registo do atleta. Substituído por `sendCoachInviteToAthlete`, `acceptCoachInvite`, `linkAthleteToCoachByCode` e `registerAthleteSelf`.
 
 ---
 
@@ -53,7 +47,6 @@ Ou só uma função:
 
 ```bash
 firebase deploy --only functions:sendPasswordResetEmailTreina
-firebase deploy --only functions:createAthleteByCoach
 ```
 
 ### Firebase CLI

@@ -72,7 +72,7 @@ export default function SubscriptionScreen() {
   const [rcConfigError, setRcConfigError] = useState<string | null>(null);
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<ProPlanOption>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<ProPlanOption>('monthly');
   const [rcDiagLine, setRcDiagLine] = useState<string | null>(null);
   const [loadingScreen, setLoadingScreen] = useState(true);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
@@ -120,10 +120,10 @@ export default function SubscriptionScreen() {
       setStorePro(isProEntitlementActive(info));
       setMonthlyPackage(monthlyPkg);
       setAnnualPackage(annualPkg);
-      if (annualPkg) {
-        setSelectedPlan('annual');
-      } else if (monthlyPkg) {
+      if (monthlyPkg) {
         setSelectedPlan('monthly');
+      } else if (annualPkg) {
+        setSelectedPlan('annual');
       }
       // Limpa linha RC só quando não precisamos dela; caso rcOk && !pkg é preenchido pelo useEffect abaixo
       // (evita rcDiagLine=null quando reload falha a meio ou race com async).
@@ -482,11 +482,12 @@ export default function SubscriptionScreen() {
 
               {tier !== 'pro' && (
                 <>
-                  <View className="rounded-2xl border overflow-hidden mb-3" style={{ borderColor: theme.colors.border }}>
+                  <View className="mb-4">
                     <TouchableOpacity
-                      className="px-4 py-3 border-b"
+                      className="rounded-2xl border px-4 py-3.5 mb-3"
                       style={{
-                        borderBottomColor: theme.colors.border,
+                        borderColor:
+                          selectedPlan === 'monthly' ? theme.colors.primary + '88' : theme.colors.border,
                         backgroundColor:
                           selectedPlan === 'monthly' ? theme.colors.primary + '1f' : theme.colors.card,
                       }}
@@ -503,8 +504,10 @@ export default function SubscriptionScreen() {
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      className="px-4 py-3"
+                      className="rounded-2xl border px-4 py-3.5"
                       style={{
+                        borderColor:
+                          selectedPlan === 'annual' ? theme.colors.primary + '88' : theme.colors.border,
                         backgroundColor:
                           selectedPlan === 'annual' ? theme.colors.primary + '1f' : theme.colors.card,
                       }}
@@ -512,7 +515,7 @@ export default function SubscriptionScreen() {
                       activeOpacity={0.85}
                     >
                       <View className="flex-row justify-between items-center">
-                        <View>
+                        <View className="flex-1 pr-3">
                           <Text className="font-semibold" style={themeStyles.text}>
                             {t('subscription.planAnnualTitle')}
                           </Text>
@@ -527,7 +530,7 @@ export default function SubscriptionScreen() {
                     </TouchableOpacity>
                   </View>
                   <TouchableOpacity
-                    className="rounded-xl py-4 px-4 mb-3 items-center"
+                    className="rounded-xl py-4 px-4 mb-4 items-center"
                     style={{
                       backgroundColor: theme.colors.primary,
                       opacity:
@@ -578,7 +581,7 @@ export default function SubscriptionScreen() {
               )}
 
               <TouchableOpacity
-                className="rounded-xl py-3 px-4 mb-6 items-center border"
+                className="rounded-xl py-3 px-4 mt-1 mb-6 items-center border"
                 style={{ borderColor: theme.colors.border }}
                 disabled={restoreBusy}
                 onPress={onRestore}
