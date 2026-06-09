@@ -5,7 +5,7 @@
 import { useAuthContext } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { UserType } from '@/src/types';
-import { isCoachedAthlete } from '@/src/types/athleteMode';
+import { isCoachedAthlete, isSoloAthlete } from '@/src/types/athleteMode';
 import { canManageOwnTraining, isAthletePro } from '@/src/utils/athleteCapabilities';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,11 +34,19 @@ export function AthleteWorkoutActions({ athleteUid }: Props) {
           <Text className="text-sm" style={themeStyles.textSecondary}>
             {t('tabTwo.coachedFreeHint')}
           </Text>
+          <TouchableOpacity onPress={() => router.push('/subscription')} className="mt-3">
+            <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
+              {t('tabTwo.upgradeAthletePro')}
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
     return null;
   }
+
+  const showSoloFreeHint =
+    user?.userType === UserType.ATHLETE && isSoloAthlete(user) && !isAthletePro(user);
 
   const cardShadow = {
     shadowColor: '#fb923c',
@@ -92,10 +100,17 @@ export function AthleteWorkoutActions({ athleteUid }: Props) {
 
   return (
     <View className="mb-6">
-      {!isAthletePro(user) && (
-        <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
-          {t('tabTwo.soloFreeLimitsHint')}
-        </Text>
+      {showSoloFreeHint && (
+        <View className="mb-3">
+          <Text className="text-xs" style={themeStyles.textSecondary}>
+            {t('tabTwo.soloFreeLimitsHint')}
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/subscription')} className="mt-2">
+            <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
+              {t('tabTwo.upgradeAthletePro')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       <View className="flex-row gap-3 mb-3">

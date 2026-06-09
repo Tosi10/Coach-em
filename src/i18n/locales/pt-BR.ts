@@ -162,6 +162,9 @@ export default {
     planSection: "Plano Coach'em",
     planRowTitle: 'Plano e assinatura',
     planRowSubtitle: "Ver limites Grátis vs Pro, assinar Coach'em Pro ou restaurar compras.",
+    athletePlanSection: 'Athlete Pro',
+    athletePlanRowTitle: 'Plano e assinatura',
+    athletePlanRowSubtitle: 'Ver limites grátis vs Pro, assinar Athlete Pro ou restaurar compras.',
     healthSection: 'Saúde e relógio',
     healthRowTitle: 'Apple Watch / saúde',
     healthRowSubtitle:
@@ -316,9 +319,12 @@ export default {
   },
   subscription: {
     back: 'Voltar',
-    athleteOnlyTitle: 'Planos Pro',
-    athleteOnlyBody:
-      'A gestão de subscrições é apenas para treinadores. Peça ao seu treinador para gerir o plano da equipa.',
+    unavailableTitle: 'Planos indisponíveis',
+    athleteTitle: 'Athlete Pro',
+    athleteSubtitle:
+      'Biblioteca completa, treinos-modelo e wearables — ideal para atleta solo ou extras com treinador.',
+    athleteUsageLine:
+      'Uso: {{templates}}/{{maxTemplates}} treinos-modelo · {{exercises}}/{{maxExercises}} exercícios',
     title: "Plano Coach'em",
     subtitle:
       'Compare limites e subscreva o Pro para trabalhar com mais atletas, treinos e exercícios.',
@@ -962,6 +968,7 @@ export default {
     coachedFreeHint:
       'Os treinos do seu treinador aparecem aqui. Para criar treinos próprios, ative o Athlete Pro (em breve na loja).',
     soloFreeLimitsHint: 'Plano grátis: limites na biblioteca e nos templates (como no coach free).',
+    upgradeAthletePro: 'Ver Athlete Pro',
     upcoming: 'Próximos',
     calendarTab: 'Calendário',
     history: 'Histórico',

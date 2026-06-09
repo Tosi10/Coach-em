@@ -493,10 +493,10 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {isCoach && (
+        {(isCoach || user?.userType === UserType.ATHLETE) && (
           <View className="mb-6">
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
-              {t('profile.planSection')}
+              {isCoach ? t('profile.planSection') : t('profile.athletePlanSection')}
             </Text>
             <View className="rounded-2xl border overflow-hidden" style={{ borderColor: theme.colors.border, borderWidth: 1 }}>
               <TouchableOpacity
@@ -509,10 +509,10 @@ export default function ProfileScreen() {
                   <FontAwesome name="credit-card-alt" size={18} color={theme.colors.primary} style={{ marginRight: 12 }} />
                   <View className="flex-1">
                     <Text className="font-semibold" style={themeStyles.text}>
-                      {t('profile.planRowTitle')}
+                      {isCoach ? t('profile.planRowTitle') : t('profile.athletePlanRowTitle')}
                     </Text>
                     <Text className="text-xs mt-0.5" style={themeStyles.textSecondary} numberOfLines={2}>
-                      {t('profile.planRowSubtitle')}
+                      {isCoach ? t('profile.planRowSubtitle') : t('profile.athletePlanRowSubtitle')}
                     </Text>
                   </View>
                 </View>

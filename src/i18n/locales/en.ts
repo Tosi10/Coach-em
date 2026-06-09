@@ -162,6 +162,9 @@ export default {
     planSection: "Coach'em plan",
     planRowTitle: 'Plan & subscription',
     planRowSubtitle: 'See Free vs Pro limits, subscribe to Coach’em Pro, or restore purchases.',
+    athletePlanSection: 'Athlete Pro',
+    athletePlanRowTitle: 'Plan & subscription',
+    athletePlanRowSubtitle: 'See free vs Pro limits, subscribe to Athlete Pro, or restore purchases.',
     healthSection: 'Health & watch',
     healthRowTitle: 'Apple Watch / health',
     healthRowSubtitle:
@@ -316,9 +319,12 @@ export default {
   },
   subscription: {
     back: 'Back',
-    athleteOnlyTitle: 'Pro plans',
-    athleteOnlyBody:
-      'Subscription management is for coaches. Ask your coach to manage the team plan.',
+    unavailableTitle: 'Plans unavailable',
+    athleteTitle: 'Athlete Pro',
+    athleteSubtitle:
+      'Full library, workout templates, and wearables — for solo athletes or extras with a coach.',
+    athleteUsageLine:
+      'Usage: {{templates}}/{{maxTemplates}} templates · {{exercises}}/{{maxExercises}} exercises',
     title: "Coach'em plan",
     subtitle: 'Compare limits and subscribe to Pro for more athletes, workouts, and exercises.',
     firebaseState: 'In-app status (Firebase)',
@@ -958,6 +964,7 @@ export default {
     coachedFreeHint:
       'Your coach’s workouts appear here. To create your own, enable Athlete Pro (coming soon).',
     soloFreeLimitsHint: 'Free plan: limits on library and templates (like coach free).',
+    upgradeAthletePro: 'View Athlete Pro',
     upcoming: 'Upcoming',
     calendarTab: 'Calendar',
     history: 'History',

@@ -26,13 +26,15 @@ function hasProEntitlement(e) {
     const ids = e.entitlement_ids;
     return Array.isArray(ids) && ids.includes(ENTITLEMENT_PRO);
 }
-async function coachUserExists(uid) {
+async function getCoachemUserKind(uid) {
     var _a;
     const snap = await db.collection("users").doc(uid).get();
     if (!snap.exists)
-        return false;
+        return null;
     const ut = (_a = snap.data()) === null || _a === void 0 ? void 0 : _a.userType;
-    return ut === "COACH";
+    if (ut === "COACH" || ut === "ATHLETE")
+        return ut;
+    return null;
 }
 async function setPro(uid, expirationMs, meta) {
     var _a, _b;
@@ -66,22 +68,22 @@ async function applyEvent(uid, e) {
         const from = Array.isArray(e.transferred_from) ? e.transferred_from : [];
         const to = Array.isArray(e.transferred_to) ? e.transferred_to : [];
         for (const fid of from) {
-            if (typeof fid === "string" && fid.trim() && (await coachUserExists(fid.trim()))) {
+            if (typeof fid === "string" && fid.trim() && (await getCoachemUserKind(fid.trim()))) {
                 await setFree(fid.trim(), { ...meta, type: "TRANSFER(from)" });
             }
         }
         const expMs = typeof e.expiration_at_ms === "number" ? e.expiration_at_ms : null;
         if (hasProEntitlement(e) && expMs !== null && expMs > Date.now()) {
             for (const tid of to) {
-                if (typeof tid === "string" && tid.trim() && (await coachUserExists(tid.trim()))) {
+                if (typeof tid === "string" && tid.trim() && (await getCoachemUserKind(tid.trim()))) {
                     await setPro(tid.trim(), expMs, meta);
                 }
             }
         }
         return;
     }
-    if (!(await coachUserExists(uid))) {
-        console.warn(`revenueCatWebhook: utilizador ignorado (${uid.substring(0, 8)}…) — não é treinador Coach'em`);
+    if (!(await getCoachemUserKind(uid))) {
+        console.warn(`revenueCatWebhook: utilizador ignorado (${uid.substring(0, 8)}…) — não é COACH/ATHLETE`);
         return;
     }
     if (type === "EXPIRATION") {

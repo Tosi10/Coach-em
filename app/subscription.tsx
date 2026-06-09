@@ -1,5 +1,5 @@
 /**
- * Coach — Planos Coach'em (Grátis vs Pro): comparação, compra mensal RevenueCat, restaurar.
+ * Planos Coach'em Pro — treinador ou atleta (RevenueCat).
  * Entrada: Perfil → "Plano e assinatura", ou alertas de limite → "Ver planos".
  */
 
@@ -12,11 +12,15 @@ import {
   collectRevenueCatDiagnostics,
   ensureRevenueCatConfigured,
   fetchCustomerInfo,
+  getAthleteProAnnualPackage,
+  getAthleteProMonthlyPackage,
   getCoachProAnnualPackage,
   getRevenueCatConfigurationError,
   getCoachProMonthlyPackage,
   isProEntitlementActive,
   isUserCancelledPurchaseError,
+  purchaseAthleteProAnnual,
+  purchaseAthleteProMonthly,
   purchaseCoachProAnnual,
   purchaseCoachProMonthly,
   restorePurchases,
@@ -83,8 +87,10 @@ export default function SubscriptionScreen() {
   const [coachAlertMessage, setCoachAlertMessage] = useState('');
   const [coachAlertType, setCoachAlertType] = useState<CoachAlertType>('info');
 
-  const coachId = user?.id ?? '';
+  const accountId = user?.id ?? '';
   const isCoach = user?.userType === UserType.COACH;
+  const isAthlete = user?.userType === UserType.ATHLETE;
+  const canAccessPlans = isCoach || isAthlete;
   const expoGo = Constants.appOwnership === 'expo';
 
   const dismissCoachAlert = () => setCoachAlertVisible(false);
@@ -97,21 +103,29 @@ export default function SubscriptionScreen() {
   };
 
   const reload = useCallback(async () => {
-    if (!coachId || !isCoach) {
+    if (!accountId || !canAccessPlans) {
       setLoadingScreen(false);
       return;
     }
     setLoadingScreen(true);
     try {
       const [t, u, rcOk] = await Promise.all([
-        getCoachSubscriptionTier(coachId),
-        getCoachFreePlanUsage(coachId),
+        getCoachSubscriptionTier(accountId),
+        getCoachFreePlanUsage(accountId),
         ensureRevenueCatConfigured(),
       ]);
       const [info, monthlyPkg, annualPkg] = await Promise.all([
         rcOk ? fetchCustomerInfo() : Promise.resolve(null),
-        rcOk ? getCoachProMonthlyPackage() : Promise.resolve(null),
-        rcOk ? getCoachProAnnualPackage() : Promise.resolve(null),
+        rcOk
+          ? isAthlete
+            ? getAthleteProMonthlyPackage()
+            : getCoachProMonthlyPackage()
+          : Promise.resolve(null),
+        rcOk
+          ? isAthlete
+            ? getAthleteProAnnualPackage()
+            : getCoachProAnnualPackage()
+          : Promise.resolve(null),
       ]);
       setTier(t);
       setUsage(u);
@@ -137,14 +151,14 @@ export default function SubscriptionScreen() {
     } finally {
       setLoadingScreen(false);
     }
-  }, [coachId, isCoach]);
+  }, [accountId, canAccessPlans, isAthlete]);
 
   /** Diagnóstico RC desacoplado do reload: garante texto técnico sempre que RC ok mas sem package. */
   useEffect(() => {
     if (
       loadingScreen ||
-      !coachId ||
-      !isCoach ||
+      !accountId ||
+      !canAccessPlans ||
       !configured ||
       monthlyPackage !== null ||
       annualPackage !== null
@@ -168,7 +182,7 @@ export default function SubscriptionScreen() {
     return () => {
       cancelled = true;
     };
-  }, [loadingScreen, configured, monthlyPackage, annualPackage, coachId, isCoach]);
+  }, [loadingScreen, configured, monthlyPackage, annualPackage, accountId, canAccessPlans]);
 
   useFocusEffect(
     useCallback(() => {
@@ -236,15 +250,25 @@ export default function SubscriptionScreen() {
     const targetPlan = selectedPlan === 'annual' ? 'annual' : 'monthly';
     let pkg = targetPlan === 'annual' ? annualPackage : monthlyPackage;
     if (!pkg) {
-      pkg =
-        targetPlan === 'annual'
-          ? await getCoachProAnnualPackage()
-          : await getCoachProMonthlyPackage();
+      if (isAthlete) {
+        pkg =
+          targetPlan === 'annual'
+            ? await getAthleteProAnnualPackage()
+            : await getAthleteProMonthlyPackage();
+      } else {
+        pkg =
+          targetPlan === 'annual'
+            ? await getCoachProAnnualPackage()
+            : await getCoachProMonthlyPackage();
+      }
     }
     setPurchaseBusy(true);
     try {
-      const info =
-        targetPlan === 'annual'
+      const info = isAthlete
+        ? targetPlan === 'annual'
+          ? await purchaseAthleteProAnnual(pkg)
+          : await purchaseAthleteProMonthly(pkg)
+        : targetPlan === 'annual'
           ? await purchaseCoachProAnnual(pkg)
           : await purchaseCoachProMonthly(pkg);
       setStorePro(isProEntitlementActive(info));
@@ -324,7 +348,7 @@ export default function SubscriptionScreen() {
     />
   );
 
-  if (!isCoach) {
+  if (!canAccessPlans) {
     return (
       <>
         <View style={[{ flex: 1, paddingTop: insets.top + 24 }, themeStyles.bg]} className="px-6">
@@ -335,16 +359,26 @@ export default function SubscriptionScreen() {
             </Text>
           </TouchableOpacity>
           <Text className="text-xl font-bold" style={themeStyles.text}>
-            {t('subscription.athleteOnlyTitle')}
-          </Text>
-          <Text className="mt-3" style={themeStyles.textSecondary}>
-            {t('subscription.athleteOnlyBody')}
+            {t('subscription.unavailableTitle')}
           </Text>
         </View>
         {coachAlertFooter}
       </>
     );
   }
+
+  const compareRows = (
+    isAthlete
+      ? [
+          [t('subscription.workoutTemplates'), FREE_PLAN_LIMITS.workoutTemplates, PRO_PLAN_LIMITS.workoutTemplates],
+          [t('subscription.exercises'), FREE_PLAN_LIMITS.exercises, PRO_PLAN_LIMITS.exercises],
+        ]
+      : [
+          [t('subscription.athletes'), FREE_PLAN_LIMITS.athletes, PRO_PLAN_LIMITS.athletes],
+          [t('subscription.workoutTemplates'), FREE_PLAN_LIMITS.workoutTemplates, PRO_PLAN_LIMITS.workoutTemplates],
+          [t('subscription.exercises'), FREE_PLAN_LIMITS.exercises, PRO_PLAN_LIMITS.exercises],
+        ]
+  ) as const;
 
   return (
     <>
@@ -365,10 +399,10 @@ export default function SubscriptionScreen() {
           </TouchableOpacity>
 
           <Text className="text-3xl font-bold mb-1" style={themeStyles.text}>
-            {t('subscription.title')}
+            {isAthlete ? t('subscription.athleteTitle') : t('subscription.title')}
           </Text>
           <Text className="mb-6 text-sm" style={themeStyles.textSecondary}>
-            {t('subscription.subtitle')}
+            {isAthlete ? t('subscription.athleteSubtitle') : t('subscription.subtitle')}
           </Text>
 
           {loadingScreen ? (
@@ -386,14 +420,21 @@ export default function SubscriptionScreen() {
                 </Text>
                 {usage && (
                   <Text className="text-sm mt-3" style={themeStyles.textSecondary}>
-                    {t('subscription.usageLine', {
-                      athletes: usage.athletes,
-                      maxAthletes: limits.athletes,
-                      templates: usage.workoutTemplates,
-                      maxTemplates: limits.workoutTemplates,
-                      exercises: usage.exercises,
-                      maxExercises: limits.exercises,
-                    })}
+                    {isAthlete
+                      ? t('subscription.athleteUsageLine', {
+                          templates: usage.workoutTemplates,
+                          maxTemplates: limits.workoutTemplates,
+                          exercises: usage.exercises,
+                          maxExercises: limits.exercises,
+                        })
+                      : t('subscription.usageLine', {
+                          athletes: usage.athletes,
+                          maxAthletes: limits.athletes,
+                          templates: usage.workoutTemplates,
+                          maxTemplates: limits.workoutTemplates,
+                          exercises: usage.exercises,
+                          maxExercises: limits.exercises,
+                        })}
                   </Text>
                 )}
               </View>
@@ -447,13 +488,7 @@ export default function SubscriptionScreen() {
                     Pro
                   </Text>
                 </View>
-                {(
-                  [
-                    [t('subscription.athletes'), FREE_PLAN_LIMITS.athletes, PRO_PLAN_LIMITS.athletes],
-                    [t('subscription.workoutTemplates'), FREE_PLAN_LIMITS.workoutTemplates, PRO_PLAN_LIMITS.workoutTemplates],
-                    [t('subscription.exercises'), FREE_PLAN_LIMITS.exercises, PRO_PLAN_LIMITS.exercises],
-                  ] as const
-                ).map(([label, freeN, proN]) => (
+                {compareRows.map(([label, freeN, proN]) => (
                   <View
                     key={String(label)}
                     className="flex-row px-3 py-3 border-b"

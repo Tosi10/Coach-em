@@ -14,8 +14,11 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import {
+  COACHEM_ATHLETE_PRO_ANNUAL_PRODUCT_ID,
+  COACHEM_ATHLETE_PRO_MONTHLY_PRODUCT_ID,
   COACHEM_PRO_ANNUAL_PRODUCT_ID,
   COACHEM_PRO_MONTHLY_PRODUCT_ID,
+  REVENUECAT_ATHLETE_OFFERING_ID,
   REVENUECAT_ENTITLEMENT_PRO,
   REVENUECAT_IOS_DEFAULT_OFFERING_ID,
 } from '@/src/constants/subscriptions';
@@ -44,13 +47,19 @@ export type RevenueCatDiagnostics = {
   targetProductId: string;
 };
 
-/** Quando o SDK não preenche `offerings.current`, ainda pode haver `all.ios_default`. */
-function resolveOfferingForMonthlyPackage(offerings: PurchasesOfferings): PurchasesOffering | null {
-  if (offerings.current) return offerings.current;
+/** Quando o SDK não preenche `offerings.current`, ainda pode haver offering nomeado. */
+function resolveOfferingForMonthlyPackage(
+  offerings: PurchasesOfferings,
+  preferredOfferingId = REVENUECAT_IOS_DEFAULT_OFFERING_ID
+): PurchasesOffering | null {
   const all = offerings.all as Record<string, PurchasesOffering> | undefined;
+  if (all && typeof all === 'object' && all[preferredOfferingId]) {
+    return all[preferredOfferingId];
+  }
+  if (offerings.current) return offerings.current;
   if (!all || typeof all !== 'object') return null;
-  const preferred = all[REVENUECAT_IOS_DEFAULT_OFFERING_ID];
-  if (preferred) return preferred;
+  const fallback = all[REVENUECAT_IOS_DEFAULT_OFFERING_ID];
+  if (fallback) return fallback;
   const keys = Object.keys(all);
   if (keys.length === 1) return all[keys[0]] ?? null;
   return null;
@@ -58,9 +67,10 @@ function resolveOfferingForMonthlyPackage(offerings: PurchasesOfferings): Purcha
 
 function resolvePackageByProductId(
   offerings: PurchasesOfferings,
-  productId: string
+  productId: string,
+  preferredOfferingId?: string
 ): PurchasesPackage | null {
-  const current = resolveOfferingForMonthlyPackage(offerings);
+  const current = resolveOfferingForMonthlyPackage(offerings, preferredOfferingId);
   if (!current) return null;
   const byProduct = current.availablePackages.find((p) => p.product.identifier === productId);
   return byProduct ?? null;
@@ -211,6 +221,34 @@ export async function getCoachProAnnualPackage(): Promise<PurchasesPackage | nul
   return current?.annual ?? null;
 }
 
+export async function getAthleteProMonthlyPackage(): Promise<PurchasesPackage | null> {
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) return null;
+  const offerings = await Purchases.getOfferings();
+  const fromProduct = resolvePackageByProductId(
+    offerings,
+    COACHEM_ATHLETE_PRO_MONTHLY_PRODUCT_ID,
+    REVENUECAT_ATHLETE_OFFERING_ID
+  );
+  if (fromProduct) return fromProduct;
+  const current = resolveOfferingForMonthlyPackage(offerings, REVENUECAT_ATHLETE_OFFERING_ID);
+  return current?.monthly ?? current?.availablePackages[0] ?? null;
+}
+
+export async function getAthleteProAnnualPackage(): Promise<PurchasesPackage | null> {
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) return null;
+  const offerings = await Purchases.getOfferings();
+  const fromProduct = resolvePackageByProductId(
+    offerings,
+    COACHEM_ATHLETE_PRO_ANNUAL_PRODUCT_ID,
+    REVENUECAT_ATHLETE_OFFERING_ID
+  );
+  if (fromProduct) return fromProduct;
+  const current = resolveOfferingForMonthlyPackage(offerings, REVENUECAT_ATHLETE_OFFERING_ID);
+  return current?.annual ?? null;
+}
+
 /**
  * Fallback quando `offerings.current` não devolve package:
  * tenta buscar o produto direto pelo Product ID configurado na App Store.
@@ -326,6 +364,28 @@ export async function purchaseCoachProAnnual(pkg: PurchasesPackage | null): Prom
   }
   const { customerInfo } = await Purchases.purchaseStoreProduct(product);
   return customerInfo;
+}
+
+async function purchaseProByProductId(
+  pkg: PurchasesPackage | null,
+  productId: string
+): Promise<CustomerInfo> {
+  if (pkg) return purchasePackage(pkg);
+  const ok = await ensureRevenueCatConfigured();
+  if (!ok) throw new Error('offering_and_product_not_found');
+  const products = await Purchases.getProducts([productId]);
+  const product = products[0];
+  if (!product) throw new Error('offering_and_product_not_found');
+  const { customerInfo } = await Purchases.purchaseStoreProduct(product);
+  return customerInfo;
+}
+
+export async function purchaseAthleteProMonthly(pkg: PurchasesPackage | null): Promise<CustomerInfo> {
+  return purchaseProByProductId(pkg, COACHEM_ATHLETE_PRO_MONTHLY_PRODUCT_ID);
+}
+
+export async function purchaseAthleteProAnnual(pkg: PurchasesPackage | null): Promise<CustomerInfo> {
+  return purchaseProByProductId(pkg, COACHEM_ATHLETE_PRO_ANNUAL_PRODUCT_ID);
 }
 
 export async function restorePurchases(): Promise<CustomerInfo> {

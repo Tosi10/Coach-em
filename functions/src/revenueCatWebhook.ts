@@ -40,11 +40,14 @@ function hasProEntitlement(e: RcEvent): boolean {
   return Array.isArray(ids) && ids.includes(ENTITLEMENT_PRO);
 }
 
-async function coachUserExists(uid: string): Promise<boolean> {
+type CoachemUserKind = "COACH" | "ATHLETE" | null;
+
+async function getCoachemUserKind(uid: string): Promise<CoachemUserKind> {
   const snap = await db.collection("users").doc(uid).get();
-  if (!snap.exists) return false;
+  if (!snap.exists) return null;
   const ut = snap.data()?.userType;
-  return ut === "COACH";
+  if (ut === "COACH" || ut === "ATHLETE") return ut;
+  return null;
 }
 
 async function setPro(uid: string, expirationMs: number, meta: Record<string, unknown>): Promise<void> {
@@ -85,14 +88,14 @@ async function applyEvent(uid: string, e: RcEvent): Promise<void> {
     const from = Array.isArray(e.transferred_from) ? e.transferred_from : [];
     const to = Array.isArray(e.transferred_to) ? e.transferred_to : [];
     for (const fid of from) {
-      if (typeof fid === "string" && fid.trim() && (await coachUserExists(fid.trim()))) {
+      if (typeof fid === "string" && fid.trim() && (await getCoachemUserKind(fid.trim()))) {
         await setFree(fid.trim(), { ...meta, type: "TRANSFER(from)" });
       }
     }
     const expMs = typeof e.expiration_at_ms === "number" ? e.expiration_at_ms : null;
     if (hasProEntitlement(e) && expMs !== null && expMs > Date.now()) {
       for (const tid of to) {
-        if (typeof tid === "string" && tid.trim() && (await coachUserExists(tid.trim()))) {
+        if (typeof tid === "string" && tid.trim() && (await getCoachemUserKind(tid.trim()))) {
           await setPro(tid.trim(), expMs, meta);
         }
       }
@@ -100,8 +103,8 @@ async function applyEvent(uid: string, e: RcEvent): Promise<void> {
     return;
   }
 
-  if (!(await coachUserExists(uid))) {
-    console.warn(`revenueCatWebhook: utilizador ignorado (${uid.substring(0, 8)}…) — não é treinador Coach'em`);
+  if (!(await getCoachemUserKind(uid))) {
+    console.warn(`revenueCatWebhook: utilizador ignorado (${uid.substring(0, 8)}…) — não é COACH/ATHLETE`);
     return;
   }
 

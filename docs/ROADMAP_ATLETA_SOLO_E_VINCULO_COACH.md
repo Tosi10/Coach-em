@@ -415,7 +415,7 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 - [x] `AthleteWorkoutActions` (biblioteca / meus treinos / adicionar) para `canManageOwnTraining`
 - [x] `assign-workout` self-assign (`coachId` = próprio uid) para solo
 - [x] Hint coached free na aba Treinos (sem Athlete Pro)
-- [ ] CTA Athlete Pro na loja (RevenueCat P5)
+- [x] CTA Athlete Pro na loja (RevenueCat P5) — Perfil + aba Treinos → `/subscription`
 - [ ] Calendário Treinos alinhado à agenda do coach (polish)
 - [x] Teste manual: solo cria exercício/treino (rules publicadas)
 
@@ -433,9 +433,11 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 ### P5 — Athlete Pro (solo)
 
-- [ ] Produto RevenueCat + webhook `subscriptionTier` em atletas
-- [ ] Gates free vs Pro em biblioteca/templates
-- [ ] Rules Firestore matriz solo (secção 9)
+- [x] App: ecrã `/subscription` atleta + RevenueCat packages + webhook código (deploy pendente)
+- [ ] Produto RevenueCat no dashboard (`coachem_athlete_pro_*`, offering `athlete_default`)
+- [ ] Deploy `revenueCatWebhook` com suporte ATHLETE
+- [x] Gates free vs Pro em biblioteca/templates (`planLimits` + `assertCanCreateResource`)
+- [ ] Rules Firestore matriz solo (secção 9) — validar em produção
 
 ### P5b — Coached + Athlete Pro
 
@@ -476,10 +478,11 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 ### Sprint B — Athlete Pro / RevenueCat (P5)
 
 - [ ] Produto **Athlete Pro** no RevenueCat + `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
-- [ ] Webhook: `subscriptionTier` em `users` do atleta
-- [ ] Gates free vs Pro (biblioteca, templates, treinos próprios solo)
-- [ ] CTA upgrade na aba Treinos / Perfil
-- [ ] Rules: matriz solo secção 9
+- [x] Webhook código: `subscriptionTier` em `users` do atleta (`getCoachemUserKind`)
+- [ ] Deploy webhook + teste compra real
+- [x] Gates free vs Pro (biblioteca, templates, treinos próprios solo)
+- [x] CTA upgrade na aba Treinos / Perfil
+- [ ] Rules: matriz solo secção 9 (revisão final)
 
 ### Sprint C — Coached + Athlete Pro (P5b)
 
@@ -504,3 +507,4 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 | 2026-05-29 | Secção 15: checklist de implementação por fase; status P1/P2/P3 atualizado |
 | 2026-03-09 | P1–P4 e P6 UI marcados ✅ após testes manuais; secção 16 próximos sprints (P5 legado) |
 | 2026-03-09 | Sprint A: removido `add-athlete`; `createAthleteByCoach` descontinuado |
+| 2026-05-29 | Sprint B (app): Athlete Pro subscription UI, RevenueCat service, webhook ATHLETE |
