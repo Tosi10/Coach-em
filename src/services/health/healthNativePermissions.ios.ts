@@ -43,6 +43,12 @@ export async function isNativeHealthAvailable(): Promise<boolean> {
   }
 }
 
+/** Re-inicializa o HealthKit antes de leituras (necessário após reinício do app). */
+export async function ensureNativeHealthReadyForRead(): Promise<boolean> {
+  const result = await requestNativeHealthPermissions();
+  return result.granted;
+}
+
 export async function requestNativeHealthPermissions(): Promise<HealthPermissionResult> {
   if (!canUseNativeHealth()) {
     return {

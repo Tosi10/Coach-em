@@ -41,6 +41,7 @@ import {
   Image,
   InteractionManager,
   InputAccessoryView,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -288,6 +289,12 @@ export default function WorkoutDetailsScreen() {
   
   // Estados para modal de exercício e navegação
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const showExerciseModalRef = useRef(false);
+  const exerciseModalNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    showExerciseModalRef.current = showExerciseModal;
+  }, [showExerciseModal]);
   const insets = useSafeAreaInsets();
   const exerciseModalScrollRef = useRef<ScrollView>(null);
   const [currentBlockIndex, setCurrentBlockIndex] = useState<number | null>(null);
@@ -569,7 +576,13 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert(t('workoutDetails.restCompletedTitle'), t('workoutDetails.restCompletedMessage'), 'success');
+            if (!showExerciseModalRef.current) {
+              showAlertRef.current(
+                t('workoutDetails.restCompletedTitle'),
+                t('workoutDetails.restCompletedMessage'),
+                'success',
+              );
+            }
             return 0;
           }
           return prev - 1;
@@ -595,7 +608,13 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert(t('workoutDetails.timeCompletedTitle'), t('workoutDetails.timeCompletedMessage'), 'success');
+            if (!showExerciseModalRef.current) {
+              showAlertRef.current(
+                t('workoutDetails.timeCompletedTitle'),
+                t('workoutDetails.timeCompletedMessage'),
+                'success',
+              );
+            }
             return durationTotal;
           }
           return prev + 1;
@@ -621,7 +640,13 @@ export default function WorkoutDetailsScreen() {
             Vibration.vibrate(400);
             playBeep();
             // Mostrar alerta
-            showAlert(t('workoutDetails.warmupCompletedTitle'), t('workoutDetails.warmupCompletedMessage'), 'success');
+            if (!showExerciseModalRef.current) {
+              showAlertRef.current(
+                t('workoutDetails.warmupCompletedTitle'),
+                t('workoutDetails.warmupCompletedMessage'),
+                'success',
+              );
+            }
             return 0;
           }
           return prev - 1;
@@ -878,7 +903,14 @@ export default function WorkoutDetailsScreen() {
     return workoutTemplate.blocks[currentBlockIndex]?.exercises?.[currentExerciseIndex] || null;
   }, [currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
-  const closeExerciseModal = useCallback(() => {
+  const clearExerciseModalNavTimeout = useCallback(() => {
+    if (exerciseModalNavTimeoutRef.current) {
+      clearTimeout(exerciseModalNavTimeoutRef.current);
+      exerciseModalNavTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearExerciseModalTimers = useCallback(() => {
     setIsResting(false);
     setRestTime(0);
     setIsRunningDuration(false);
@@ -888,32 +920,55 @@ export default function WorkoutDetailsScreen() {
     setWarmUpTime(0);
     setWarmUpTotal(0);
     resetProtocolTimer();
+  }, [resetProtocolTimer]);
+
+  const scheduleExerciseModalAction = useCallback((action: () => void) => {
+    clearExerciseModalNavTimeout();
+    exerciseModalNavTimeoutRef.current = setTimeout(() => {
+      exerciseModalNavTimeoutRef.current = null;
+      InteractionManager.runAfterInteractions(action);
+    }, 500);
+  }, [clearExerciseModalNavTimeout]);
+
+  const closeExerciseModal = useCallback(() => {
+    clearExerciseModalNavTimeout();
+    clearExerciseModalTimers();
+    Keyboard.dismiss();
+    setWeightSaveMessage('');
+    setAlertVisible(false);
+    setAlertOnConfirm(null);
     setShowExerciseModal(false);
     setCurrentBlockIndex(null);
     setCurrentExerciseIndex(null);
-  }, [resetProtocolTimer]);
+  }, [clearExerciseModalNavTimeout, clearExerciseModalTimers]);
+
+  useEffect(() => () => clearExerciseModalNavTimeout(), [clearExerciseModalNavTimeout]);
 
   // Função para abrir exercício no modal
   const openExercise = useCallback((blockIndex: number, exerciseIndex: number) => {
-    // Resetar timers ao abrir novo exercício
-    setIsResting(false);
-    setRestTime(0);
-    setIsRunningDuration(false);
-    setDurationTime(0);
-    setDurationTotal(0);
-    setIsRunningWarmUp(false);
-    setWarmUpTime(0);
-    setWarmUpTotal(0);
-    resetProtocolTimer();
-
+    clearExerciseModalNavTimeout();
+    clearExerciseModalTimers();
     setCurrentBlockIndex(blockIndex);
     setCurrentExerciseIndex(exerciseIndex);
     setShowExerciseModal(true);
-  }, [resetProtocolTimer]);
+  }, [clearExerciseModalNavTimeout, clearExerciseModalTimers]);
+
+  const openFirstExercise = useCallback(() => {
+    if (!workoutTemplate?.blocks?.length) return;
+    for (let blockIndex = 0; blockIndex < workoutTemplate.blocks.length; blockIndex++) {
+      const exercises = workoutTemplate.blocks[blockIndex]?.exercises;
+      if (exercises?.length) {
+        openExercise(blockIndex, 0);
+        return;
+      }
+    }
+  }, [openExercise, workoutTemplate]);
 
   // Função para navegar para o próximo exercício
   const goToNextExercise = useCallback(() => {
     if (currentBlockIndex === null || currentExerciseIndex === null || !workoutTemplate?.blocks) return;
+
+    clearExerciseModalTimers();
     
     const currentBlock = workoutTemplate.blocks[currentBlockIndex];
     const nextExerciseIndex = currentExerciseIndex + 1;
@@ -935,14 +990,22 @@ export default function WorkoutDetailsScreen() {
       }
     }
     
-    // Se não há próximo exercício, fechar modal
+    // Se não há próximo exercício, fechar modal e só depois mostrar alerta (evita empilhar Modals no iOS)
     closeExerciseModal();
-    showAlert(t('workoutDetails.workoutCompleteTitle'), t('workoutDetails.workoutCompleteMessage'), 'success');
-  }, [closeExerciseModal, currentBlockIndex, currentExerciseIndex, workoutTemplate]);
+    InteractionManager.runAfterInteractions(() => {
+      showAlertRef.current(
+        t('workoutDetails.workoutCompleteTitle'),
+        t('workoutDetails.workoutCompleteMessage'),
+        'success',
+      );
+    });
+  }, [clearExerciseModalTimers, closeExerciseModal, currentBlockIndex, currentExerciseIndex, t, workoutTemplate]);
 
   // Função para navegar para o exercício anterior
   const goToPreviousExercise = useCallback(() => {
     if (currentBlockIndex === null || currentExerciseIndex === null || !workoutTemplate?.blocks) return;
+
+    clearExerciseModalTimers();
     
     const prevExerciseIndex = currentExerciseIndex - 1;
     
@@ -964,7 +1027,7 @@ export default function WorkoutDetailsScreen() {
     }
     
     // Se não há exercício anterior, não fazer nada (já está no primeiro)
-  }, [currentBlockIndex, currentExerciseIndex, workoutTemplate]);
+  }, [clearExerciseModalTimers, currentBlockIndex, currentExerciseIndex, workoutTemplate]);
 
   // Função para iniciar timer de descanso
   const startRestTimer = useCallback((seconds: number) => {
@@ -1186,6 +1249,7 @@ export default function WorkoutDetailsScreen() {
       setAssignedWorkout((prev: typeof assignedWorkout) =>
         prev ? { ...prev, startedAt } : prev,
       );
+      openFirstExercise();
     } catch (error) {
       console.error('Error starting workout:', error);
       showAlert(t('common.error'), t('workoutDetails.startWorkoutError'), 'error');
@@ -1804,7 +1868,7 @@ export default function WorkoutDetailsScreen() {
               statusBarTranslucent
               navigationBarTranslucent
               presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
-              onRequestClose={() => setShowExerciseModal(false)}
+              onRequestClose={closeExerciseModal}
             >
               <KeyboardAvoidingView
                 style={{ flex: 1 }}
@@ -2301,15 +2365,9 @@ export default function WorkoutDetailsScreen() {
                         onPress={() => {
                           toggleExercise(exerciseUniqueId);
                           if (hasNext) {
-                            // Aguardar um pouco antes de navegar
-                            setTimeout(() => {
-                              goToNextExercise();
-                            }, 500);
+                            scheduleExerciseModalAction(goToNextExercise);
                           } else {
-                            // Último exercício - fechar modal
-                            setTimeout(() => {
-                              closeExerciseModal();
-                            }, 500);
+                            scheduleExerciseModalAction(closeExerciseModal);
                           }
                         }}
                         className={`rounded-lg py-4 px-6 items-center mb-4 ${

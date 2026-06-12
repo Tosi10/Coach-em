@@ -114,7 +114,7 @@ export function CustomAlert({
       statusBarTranslucent
       navigationBarTranslucent
       presentationStyle="overFullScreen"
-      onRequestClose={handleCancel}
+      onRequestClose={showCancel ? handleCancel : handleConfirm}
     >
       <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
         <Animated.View

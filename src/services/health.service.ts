@@ -95,6 +95,10 @@ class HealthKitService implements HealthService {
   }
 
   async readWindow(start: Date, end: Date): Promise<HealthSnapshot> {
+    const ready = await NativeHealth.ensureNativeHealthReadyForRead();
+    if (!ready) {
+      return emptySnapshot(start, end, 'healthkit', 'healthkit_not_ready');
+    }
     return readNativeHealthWindow(start, end);
   }
 }
@@ -115,6 +119,10 @@ class HealthConnectService implements HealthService {
   }
 
   async readWindow(start: Date, end: Date): Promise<HealthSnapshot> {
+    const ready = await NativeHealth.ensureNativeHealthReadyForRead();
+    if (!ready) {
+      return emptySnapshot(start, end, 'healthconnect', 'health_connect_not_ready');
+    }
     return readNativeHealthWindow(start, end);
   }
 }

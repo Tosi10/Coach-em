@@ -10,6 +10,10 @@ export async function isNativeHealthAvailable(): Promise<boolean> {
   return false;
 }
 
+export async function ensureNativeHealthReadyForRead(): Promise<boolean> {
+  return false;
+}
+
 export async function requestNativeHealthPermissions(): Promise<HealthPermissionResult> {
   return {
     granted: false,

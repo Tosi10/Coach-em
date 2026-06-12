@@ -63,6 +63,12 @@ export async function isNativeHealthAvailable(): Promise<boolean> {
   return availability === 'available';
 }
 
+/** Garante Health Connect inicializado antes de leituras. */
+export async function ensureNativeHealthReadyForRead(): Promise<boolean> {
+  const result = await requestNativeHealthPermissions();
+  return result.granted;
+}
+
 export async function requestNativeHealthPermissions(): Promise<HealthPermissionResult> {
   if (!canUseNativeHealth()) {
     return {
