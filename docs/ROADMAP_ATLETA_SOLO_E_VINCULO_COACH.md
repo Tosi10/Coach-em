@@ -192,7 +192,8 @@ Solo (free)         │ —                │ Limitado         │ Não        
 Solo + Athlete Pro  │ —                │ Sim              │ Sim            │ Sim
 ```
 
-**Wearables (regra alvo):** `canUseHealth = (coached && coachProAtivo) || athleteProAtivo`.
+**Wearables (regra alvo):** `canUseHealth = athleteProAtivo && (solo || (coached && coachProAtivo))`.  
+**App (2026-06):** `canUseHealthForAthlete` em Perfil, consentimento, sync e card no treino.
 
 ---
 
@@ -229,6 +230,8 @@ Coach mantém: Início | **Atletas** | Perfil (sem mudança de modelo de abas do
 | KPIs | Semana, concluídos, sequência | Igual |
 | Treino do dia | Próprio | Do coach |
 | Gráficos | Carga, intervalado, frequência (+ saúde se Pro) | Igual (dados dos treinos) |
+
+**App (2026-06):** gráfico de carga sempre visível no Início (com empty state); FC média (`AthleteHealthTrendCard`) só com `canUseHealth`.
 
 **Nada** de biblioteca, adicionar treino ou calendário grande no Início.
 
@@ -464,6 +467,10 @@ Marcar `[x]` quando estiver **no código** e, quando aplicável, **deploy/teste*
 
 - [x] `refreshUser` no AuthContext (após ligar/aceitar/desvincular)
 - [x] Botões bloquear login do atleta removidos (decisão produto)
+- [x] Gate wearables: `canUseHealthForAthlete` (Perfil, consent, sync, card treino)
+- [x] Home atleta: gráfico peso sempre visível + reload ao focar aba
+- [x] Home atleta: gráfico FC (`AthleteHealthTrendCard`) só com Athlete Pro (+ coach Pro se coached)
+- [ ] Build TestFlight / loja com fixes modal + HealthKit + gates (em curso 2026-06)
 
 ### Infra / paralelo
 

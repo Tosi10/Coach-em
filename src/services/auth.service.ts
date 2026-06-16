@@ -23,6 +23,7 @@ import { auth, db, functions } from './firebase.config';
 import { User, UserType, Coach, Athlete, type AthleteMode } from '@/src/types';
 import { resolveAthleteMode } from '@/src/types/athleteMode';
 import { generateCoachInviteCode } from '@/src/utils/coachInviteCode';
+import { getPasswordStrengthErrorMessagePt } from '@/src/utils/passwordValidation';
 import { FirebaseError } from 'firebase/app';
 
 export interface SignUpData {
@@ -159,6 +160,10 @@ async function ensureProfileForExistingAuthUser(firebaseUser: FirebaseUser): Pro
 }
 
 export async function signUp(data: SignUpData): Promise<User> {
+  const passwordError = getPasswordStrengthErrorMessagePt(data.password);
+  if (passwordError) {
+    throw new Error(passwordError);
+  }
   try {
     const userCredential: UserCredential = await createUserWithEmailAndPassword(
       auth,
@@ -365,8 +370,9 @@ export async function changePasswordAfterReauth(
   currentPassword: string,
   newPassword: string
 ): Promise<void> {
-  if (newPassword.length < 6) {
-    throw new Error('A nova senha deve ter no mínimo 6 caracteres.');
+  const passwordError = getPasswordStrengthErrorMessagePt(newPassword);
+  if (passwordError) {
+    throw new Error(passwordError);
   }
   const user = auth.currentUser;
   if (!user?.email) {

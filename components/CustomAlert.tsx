@@ -1,9 +1,11 @@
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { useAndroidNavigationBarSync } from '@/src/hooks/useAndroidNavigationBarSync';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { applyAndroidNavigationBar } from '@/src/utils/androidNavigationBar';
 import { useTranslation } from 'react-i18next';
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CustomAlertProps {
   visible: boolean;
@@ -35,6 +37,8 @@ export function CustomAlert({
   const themeStyles = getThemeStyles(theme.colors);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useAndroidNavigationBarSync(visible);
 
   useEffect(() => {
     if (visible) {
@@ -112,8 +116,13 @@ export function CustomAlert({
       visible={visible}
       animationType="none"
       statusBarTranslucent
-      navigationBarTranslucent
-      presentationStyle="overFullScreen"
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
+      onShow={() => {
+        void applyAndroidNavigationBar({
+          backgroundColor: theme.colors.background,
+          buttonStyle: theme.mode === 'dark' ? 'light' : 'dark',
+        });
+      }}
       onRequestClose={showCancel ? handleCancel : handleConfirm}
     >
       <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>

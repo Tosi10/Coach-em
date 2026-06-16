@@ -6,6 +6,7 @@
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import { getPasswordStrengthErrorMessage } from "./passwordValidation";
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -136,8 +137,12 @@ export const registerAthleteSelf = onCall(
     if (!email || !email.includes("@")) {
       throw new HttpsError("invalid-argument", "Email inválido.");
     }
-    if (!password || password.length < 6) {
-      throw new HttpsError("invalid-argument", "A senha deve ter no mínimo 6 caracteres.");
+    if (!password) {
+      throw new HttpsError("invalid-argument", "Senha é obrigatória.");
+    }
+    const passwordError = getPasswordStrengthErrorMessage(password);
+    if (passwordError) {
+      throw new HttpsError("invalid-argument", passwordError);
     }
     if (!displayName) {
       throw new HttpsError("invalid-argument", "Nome é obrigatório.");

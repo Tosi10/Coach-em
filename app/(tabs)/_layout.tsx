@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
+import { getAndroidBottomInset } from '@/src/utils/androidSafeArea';
 import { UserType } from '@/src/types';
 
 /** Base ~44; Home/Treinos/Atletas +15%; Perfil +5%; imagens +21% extra sobre esses valores (10% adicional no ajuste atual). */
@@ -97,6 +98,8 @@ export default function TabLayout() {
 
   const secondTabTitle = userType === UserType.ATHLETE ? t('tabs.workouts') : t('tabs.athletes');
 
+  const tabBarBottomInset = getAndroidBottomInset(insets);
+
   const homeActive = require('../../assets/images/HouseLaranja2.png');
   const homeInactive = require('../../assets/images/HouseCinza2.png');
   const treinoActive = require('../../assets/images/TreinoLaranja2.png');
@@ -112,7 +115,7 @@ export default function TabLayout() {
         top: insets.top,
         left: insets.left,
         right: insets.right,
-        bottom: insets.bottom + 10,
+        bottom: tabBarBottomInset + 10,
       }}
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,

@@ -9,6 +9,7 @@
  * - Botão para atribuir treino
  */
 
+import { HEALTH_FEATURES_ENABLED } from '@/src/constants/featureFlags';
 import { AthleteHealthTrendCard } from '@/components/AthleteHealthTrendCard';
 import { CoachAthleteActionButton } from '@/components/CoachAthleteActionButton';
 import { CustomAlert } from '@/components/CustomAlert';
@@ -609,7 +610,7 @@ export default function AthleteProfileScreen() {
         {/* Conteúdo das Tabs */}
         {activeTab === 'charts' && (
           <View className="mb-6">
-            {user?.id && athleteIdString ? (
+            {HEALTH_FEATURES_ENABLED && user?.id && athleteIdString ? (
               <AthleteHealthTrendCard coachId={user.id} athleteId={athleteIdString} />
             ) : null}
 

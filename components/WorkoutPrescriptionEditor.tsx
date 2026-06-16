@@ -2,12 +2,13 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import type { WorkoutExercise } from '@/src/types';
 import { formatDuration, minutesSecondsToSeconds, splitSeconds } from '@/src/utils/timeFormat';
 import {
+  getPrescriptionTypeLabel,
   getProtocolTotalDuration,
   inferPrescriptionType,
-  PRESCRIPTION_LABELS,
   type IntervalPhase,
 } from '@/src/utils/workoutPrescription';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { useTranslation } from 'react-i18next';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 type WorkoutPrescriptionEditorProps = {
@@ -30,6 +31,7 @@ function inputStyle(theme: ReturnType<typeof useTheme>['theme']) {
 }
 
 export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescriptionEditorProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const type = inferPrescriptionType(value);
@@ -94,7 +96,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
   return (
     <View className="mt-2">
       <Text className="text-xs mb-2 font-semibold" style={themeStyles.textSecondary}>
-        Tipo de prescrição
+        {t('prescription.exerciseType')}
       </Text>
       <View className="flex-row flex-wrap gap-2 mb-3">
         {TYPES.map((item) => (
@@ -108,7 +110,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
             onPress={() => setType(item)}
           >
             <Text className="text-xs font-semibold" style={{ color: type === item ? '#ffffff' : theme.colors.text }}>
-              {PRESCRIPTION_LABELS[item]}
+              {getPrescriptionTypeLabel(t, item)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -117,11 +119,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
       {type === 'strength' && (
         <View className="flex-row gap-3 mb-3">
           <View className="flex-1">
-            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Séries</Text>
+            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.sets')}</Text>
             <TextInput
               className="border rounded px-3 py-2"
               style={{ ...inputStyle(theme), fontSize: 18, fontWeight: '700', textAlign: 'center' }}
-              placeholder="Ex: 3"
+              placeholder={t('prescription.exampleSets')}
               placeholderTextColor={theme.colors.textTertiary}
               keyboardType="numeric"
               value={value.sets?.toString() || ''}
@@ -129,11 +131,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
             />
           </View>
           <View className="flex-1">
-            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Repetições</Text>
+            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.reps')}</Text>
             <TextInput
               className="border rounded px-3 py-2"
               style={{ ...inputStyle(theme), fontSize: 18, fontWeight: '700', textAlign: 'center' }}
-              placeholder="Ex: 12"
+              placeholder={t('prescription.exampleReps')}
               placeholderTextColor={theme.colors.textTertiary}
               keyboardType="numeric"
               value={value.reps?.toString() || ''}
@@ -146,11 +148,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
       {type === 'free' && (
         <View className="flex-row gap-3 mb-3">
           <View className="flex-1">
-            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Minutos</Text>
+            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.minutes')}</Text>
             <TextInput
               className="border rounded px-3 py-2"
               style={inputStyle(theme)}
-              placeholder="Ex: 15"
+              placeholder={t('prescription.exampleMinutes')}
               placeholderTextColor={theme.colors.textTertiary}
               keyboardType="numeric"
               value={duration.minutes}
@@ -158,11 +160,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
             />
           </View>
           <View className="flex-1">
-            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Segundos</Text>
+            <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.seconds')}</Text>
             <TextInput
               className="border rounded px-3 py-2"
               style={inputStyle(theme)}
-              placeholder="Ex: 30"
+              placeholder={t('prescription.exampleSeconds')}
               placeholderTextColor={theme.colors.textTertiary}
               keyboardType="numeric"
               value={duration.seconds}
@@ -176,18 +178,18 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
         <View className="rounded-xl p-3 mb-3 border" style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundTertiary }}>
           <View className="flex-row gap-3 mb-3">
             <View className="flex-1">
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Nome do protocolo</Text>
+              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.protocolName')}</Text>
               <TextInput
                 className="border rounded px-3 py-2"
                 style={inputStyle(theme)}
-                placeholder="Ex: Pirâmide"
+                placeholder={t('prescription.protocolNamePlaceholder')}
                 placeholderTextColor={theme.colors.textTertiary}
                 value={value.protocolName || ''}
                 onChangeText={(text) => onChange({ protocolName: text })}
               />
             </View>
             <View style={{ width: 82 }}>
-              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Rounds</Text>
+              <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.rounds')}</Text>
               <TextInput
                 className="border rounded px-3 py-2"
                 style={inputStyle(theme)}
@@ -206,7 +208,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
                 <TextInput
                   className="border rounded px-3 py-2 flex-1"
                   style={inputStyle(theme)}
-                  placeholder="Ex: Sprint, Jogging"
+                  placeholder={t('prescription.phaseNamePlaceholder')}
                   placeholderTextColor={theme.colors.textTertiary}
                   value={phase.name}
                   onChangeText={(text) => updatePhase(index, { name: text })}
@@ -214,7 +216,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
                 <TextInput
                   className="border rounded px-3 py-2"
                   style={{ ...inputStyle(theme), width: 66, textAlign: 'center' }}
-                  placeholder="min"
+                  placeholder={t('prescription.minShort')}
                   placeholderTextColor={theme.colors.textTertiary}
                   keyboardType="numeric"
                   value={splitSeconds(phase.duration).minutes}
@@ -227,7 +229,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
                 <TextInput
                   className="border rounded px-3 py-2"
                   style={{ ...inputStyle(theme), width: 66, textAlign: 'center' }}
-                  placeholder="seg"
+                  placeholder={t('prescription.secShort')}
                   placeholderTextColor={theme.colors.textTertiary}
                   keyboardType="numeric"
                   value={splitSeconds(phase.duration).seconds}
@@ -256,7 +258,9 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
             }}
             onPress={addPhase}
           >
-            <Text className="text-center font-semibold" style={{ color: theme.colors.primary }}>Adicionar fase</Text>
+            <Text className="text-center font-semibold" style={{ color: theme.colors.primary }}>
+              {t('prescription.addPhase')}
+            </Text>
           </TouchableOpacity>
 
           <View className="mt-3">
@@ -279,7 +283,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
               }}
             >
               <Text className="text-center font-semibold" style={{ color: theme.colors.primary }}>
-                {value.roundRest ? 'Remover intervalo entre rounds' : 'Adicionar intervalo entre rounds'}
+                {value.roundRest ? t('prescription.removeRoundRest') : t('prescription.addRoundRest')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -289,7 +293,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
               <TextInput
                 className="border rounded px-3 py-2 flex-1"
                 style={inputStyle(theme)}
-                placeholder="Min entre rounds"
+                placeholder={t('prescription.restBetweenRoundsMin')}
                 placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="numeric"
                 value={roundRestSplit.minutes}
@@ -304,7 +308,7 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
               <TextInput
                 className="border rounded px-3 py-2 flex-1"
                 style={inputStyle(theme)}
-                placeholder="Seg entre rounds"
+                placeholder={t('prescription.restBetweenRoundsSec')}
                 placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="numeric"
                 value={roundRestSplit.seconds}
@@ -320,18 +324,20 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
           ) : null}
 
           <Text className="text-xs mt-3 text-center" style={themeStyles.textSecondary}>
-            Tempo total: {formatDuration(getProtocolTotalDuration(value.intervalProtocol, value.rounds || 1, { roundRest: value.roundRest }))}
+            {t('prescription.totalTime', {
+              time: formatDuration(getProtocolTotalDuration(value.intervalProtocol, value.rounds || 1, { roundRest: value.roundRest })),
+            })}
           </Text>
         </View>
       )}
 
       <View className="flex-row gap-3 mb-3">
         <View className="flex-1">
-          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (min)</Text>
+          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.restMin')}</Text>
           <TextInput
             className="border rounded px-3 py-2"
             style={inputStyle(theme)}
-            placeholder="Ex: 1"
+            placeholder={t('prescription.exampleRestMin')}
             placeholderTextColor={theme.colors.textTertiary}
             keyboardType="numeric"
             value={splitSeconds(value.restTime).minutes}
@@ -341,11 +347,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
           />
         </View>
         <View className="flex-1">
-          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Descanso (seg)</Text>
+          <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.restSec')}</Text>
           <TextInput
             className="border rounded px-3 py-2"
             style={inputStyle(theme)}
-            placeholder="Ex: 30"
+            placeholder={t('prescription.exampleRestSec')}
             placeholderTextColor={theme.colors.textTertiary}
             keyboardType="numeric"
             value={splitSeconds(value.restTime).seconds}
@@ -357,11 +363,11 @@ export function WorkoutPrescriptionEditor({ value, onChange }: WorkoutPrescripti
       </View>
 
       <View className="mb-2">
-        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>Notas</Text>
+        <Text className="text-xs mb-1" style={themeStyles.textSecondary}>{t('prescription.notes')}</Text>
         <TextInput
           className="border rounded px-3 py-2"
           style={inputStyle(theme)}
-          placeholder="Ex: Foco em técnica, ritmo ou sensação"
+          placeholder={t('prescription.notesPlaceholder')}
           placeholderTextColor={theme.colors.textTertiary}
           value={value.notes || ''}
           onChangeText={(text) => onChange({ notes: text })}

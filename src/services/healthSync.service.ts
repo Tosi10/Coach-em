@@ -9,7 +9,10 @@ import {
   getHealthIntegration,
   saveHealthSnapshot,
 } from '@/src/services/healthFirestore.service';
+import { HEALTH_FEATURES_ENABLED } from '@/src/constants/featureFlags';
+import { canUseHealthForAthlete } from '@/src/utils/athleteCapabilities';
 import { db } from '@/src/services/firebase.config';
+import { UserType, type User } from '@/src/types';
 
 const ATHLETES_COLLECTION = 'coachemAthletes';
 
@@ -56,6 +59,8 @@ export async function syncHealthAfterWorkoutComplete(
   athleteUserUidHint?: string | null,
 ): Promise<void> {
   try {
+    if (!HEALTH_FEATURES_ENABLED) return;
+
     const healthDocId = athleteId.trim();
     if (!healthDocId) return;
 
@@ -65,6 +70,20 @@ export async function syncHealthAfterWorkoutComplete(
 
     const integration = await getHealthIntegration(authUid);
     if (!integration?.enabled) return;
+
+    const userSnap = await getDoc(doc(db, 'users', authUid));
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
+    const canUse = await canUseHealthForAthlete({
+      id: authUid,
+      userType: UserType.ATHLETE,
+      email: typeof userData.email === 'string' ? userData.email : '',
+      displayName: typeof userData.displayName === 'string' ? userData.displayName : '',
+      athleteMode: userData.athleteMode,
+      coachId: userData.coachId,
+      subscriptionTier: userData.subscriptionTier,
+    } as User);
+    if (!canUse) return;
 
     const health = getHealthService();
     const snapshot = await health.readWindow(startedAt, completedAt);

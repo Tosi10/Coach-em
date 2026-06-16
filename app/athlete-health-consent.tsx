@@ -5,6 +5,7 @@
 
 import { CustomAlert } from '@/components/CustomAlert';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useCanUseHealthForAthlete } from '@/src/hooks/useCanUseHealthForAthlete';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import {
   canUseNativeHealth,
@@ -44,6 +45,7 @@ export default function AthleteHealthConsentScreen() {
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const { user, loading } = useAuthContext();
+  const { allowed: canUseHealth, loading: healthGateLoading } = useCanUseHealthForAthlete();
 
   const [integrationLoading, setIntegrationLoading] = useState(true);
   const [healthEnabled, setHealthEnabled] = useState(false);
@@ -93,7 +95,7 @@ export default function AthleteHealthConsentScreen() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || healthGateLoading) return;
     if (!user) {
       router.replace('/(auth)/login');
       return;
@@ -102,8 +104,12 @@ export default function AthleteHealthConsentScreen() {
       router.replace('/(tabs)/profile');
       return;
     }
+    if (!canUseHealth) {
+      router.replace('/(tabs)/profile');
+      return;
+    }
     void loadIntegrationStatus();
-  }, [user, loading, router, loadIntegrationStatus]);
+  }, [user, loading, healthGateLoading, canUseHealth, router, loadIntegrationStatus]);
 
   const platformHint =
     Platform.OS === 'ios'

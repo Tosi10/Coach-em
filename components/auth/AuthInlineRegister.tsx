@@ -11,6 +11,10 @@ import {
   validateCoachInviteCode,
 } from '@/src/services/athleteRegistration.service';
 import { UserType } from '@/src/types';
+import {
+  getPasswordStrengthIssue,
+  getPasswordStrengthTranslationKey,
+} from '@/src/utils/passwordValidation';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -176,9 +180,20 @@ export function AuthInlineRegister({ mode, onClose, embedded = false }: Props) {
     }
   }, [coachCode, t]);
 
+  const validatePasswordField = (pwd: string): string | null => {
+    const issue = getPasswordStrengthIssue(pwd);
+    if (!issue) return null;
+    return t(getPasswordStrengthTranslationKey(issue));
+  };
+
   const submitCoach = async () => {
     if (!email.trim() || !password || !displayName.trim()) {
       showAlert(t('common.error'), t('register.fillRequired'), 'warning');
+      return;
+    }
+    const passwordError = validatePasswordField(password);
+    if (passwordError) {
+      showAlert(t('common.error'), passwordError, 'warning');
       return;
     }
     if (!acceptedLegal) {
@@ -214,6 +229,11 @@ export function AuthInlineRegister({ mode, onClose, embedded = false }: Props) {
     }
     if (!displayName.trim() || !email.trim() || !password) {
       showAlert(t('common.error'), t('register.fillRequired'), 'warning');
+      return;
+    }
+    const passwordError = validatePasswordField(password);
+    if (passwordError) {
+      showAlert(t('common.error'), passwordError, 'warning');
       return;
     }
     if (!acceptedLegal) {
@@ -462,7 +482,7 @@ export function AuthInlineRegister({ mode, onClose, embedded = false }: Props) {
               {t('common.password')}
             </Text>
             <TextInput
-              className="w-full rounded-xl px-4 mb-3 text-base"
+              className="w-full rounded-xl px-4 mb-1 text-base"
               style={inputStyle}
               placeholder="••••••••"
               placeholderTextColor={theme.colors.textTertiary}
@@ -471,6 +491,9 @@ export function AuthInlineRegister({ mode, onClose, embedded = false }: Props) {
               secureTextEntry
               autoCapitalize="none"
             />
+            <Text className="text-xs mb-3 leading-4" style={themeStyles.textTertiary}>
+              {t('register.passwordStrengthHint')}
+            </Text>
 
             {mode === 'coach' ? (
               <>

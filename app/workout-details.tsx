@@ -12,6 +12,9 @@ import { AppVideoPlayer } from '@/components/AppVideoPlayer';
 import { SkeletonCard, SkeletonLoader } from '@/components/SkeletonLoader';
 import { FirstTimeTip } from '@/components/FirstTimeTip';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useCanUseHealthForAthlete } from '@/src/hooks/useCanUseHealthForAthlete';
+import { useAndroidNavigationBarSync } from '@/src/hooks/useAndroidNavigationBarSync';
+import { WORKOUT_START_FLOW_ENABLED } from '@/src/constants/featureFlags';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { DEFAULT_EXERCISES } from '@/src/data/defaultExercises';
 import { db } from '@/src/services/firebase.config';
@@ -26,6 +29,7 @@ import { formatAssignedCalendarDateByLocale } from '@/src/utils/dateOnly';
 import { getFeedbackLevel } from '@/src/utils/feedbackIcons';
 import type { WorkoutTemplateForApp } from '@/src/services/workoutTemplates.service';
 import { getThemeStyles } from '@/src/utils/themeStyles';
+import { applyAndroidNavigationBar } from '@/src/utils/androidNavigationBar';
 import { formatClock, formatDuration } from '@/src/utils/timeFormat';
 import { getProtocolTotalDuration, inferPrescriptionType, PRESCRIPTION_LABELS } from '@/src/utils/workoutPrescription';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -225,6 +229,7 @@ export default function WorkoutDetailsScreen() {
         : undefined;
   const { theme } = useTheme();
   const { user } = useAuthContext();
+  const { allowed: canUseHealth } = useCanUseHealthForAthlete();
   const themeStyles = getThemeStyles(theme.colors);
   const [startLoading, setStartLoading] = useState(false);
   
@@ -296,6 +301,14 @@ export default function WorkoutDetailsScreen() {
     showExerciseModalRef.current = showExerciseModal;
   }, [showExerciseModal]);
   const insets = useSafeAreaInsets();
+  useAndroidNavigationBarSync(showExerciseModal || showFeedbackModal);
+
+  const fixAndroidNavigationBarOnModal = useCallback(() => {
+    void applyAndroidNavigationBar({
+      backgroundColor: theme.colors.background,
+      buttonStyle: theme.mode === 'dark' ? 'light' : 'dark',
+    });
+  }, [theme.colors.background, theme.mode]);
   const exerciseModalScrollRef = useRef<ScrollView>(null);
   const [currentBlockIndex, setCurrentBlockIndex] = useState<number | null>(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number | null>(null);
@@ -339,29 +352,38 @@ export default function WorkoutDetailsScreen() {
   // Animação de pulse contínua no botão
   const isAthlete = user?.userType === UserType.ATHLETE;
   const workoutInProgress =
-    isAthlete && assignedWorkout?.status === 'Pendente' && Boolean(assignedWorkout?.startedAt);
+    WORKOUT_START_FLOW_ENABLED &&
+    isAthlete &&
+    assignedWorkout?.status === 'Pendente' &&
+    Boolean(assignedWorkout?.startedAt);
+  const canCompleteWorkout =
+    isAthlete && assignedWorkout?.status === 'Pendente' && (!WORKOUT_START_FLOW_ENABLED || workoutInProgress);
 
   useEffect(() => {
-    if (assignedWorkout?.status === 'Pendente' && (workoutInProgress || !assignedWorkout?.startedAt)) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    }
+    if (assignedWorkout?.status !== 'Pendente') return;
+    const shouldPulse = WORKOUT_START_FLOW_ENABLED
+      ? workoutInProgress || !assignedWorkout?.startedAt
+      : true;
+    if (!shouldPulse) return;
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
   }, [assignedWorkout?.status, assignedWorkout?.startedAt, workoutInProgress, pulseAnim]);
-  
+
   // Feedback com ícones próprios (substituindo emojis do sistema)
   const feedbackLevels = [
     { level: 1, emoji: '😊', label: t('home.veryEasy'), color: '#10b981', icon: require('../assets/images/FeedbackMuitoFacil.png') },
@@ -1322,8 +1344,8 @@ export default function WorkoutDetailsScreen() {
         feedbackText: feedbackText.trim() || undefined,
       });
 
-      // 2b. Saúde (opt-in) — não bloqueia conclusão do treino
-      if (assignedWorkout?.athleteId) {
+      // 2b. Saúde (opt-in + Pro) — não bloqueia conclusão do treino
+      if (canUseHealth && assignedWorkout?.athleteId) {
         const { syncHealthAfterWorkoutComplete } = await import('@/src/services/healthSync.service');
         void syncHealthAfterWorkoutComplete(
           workoutId,
@@ -1540,13 +1562,13 @@ export default function WorkoutDetailsScreen() {
             </View>
           )}
 
-          {assignedWorkout.status === 'Concluído' && workoutId && assignedWorkout.athleteId && (
+          {assignedWorkout.status === 'Concluído' && canUseHealth && workoutId && assignedWorkout.athleteId && (
             <WorkoutHealthSummaryCard workoutId={workoutId} athleteId={assignedWorkout.athleteId} />
           )}
         </View>
 
-        {/* Iniciar treino — topo (antes dos exercícios), só atleta */}
-        {isAthlete && assignedWorkout.status === 'Pendente' && (
+        {/* Iniciar treino — só quando fluxo de saúde estiver ativo */}
+        {WORKOUT_START_FLOW_ENABLED && isAthlete && assignedWorkout.status === 'Pendente' && (
           <View className="mb-6">
             {workoutInProgress && (
               <View
@@ -1786,7 +1808,7 @@ export default function WorkoutDetailsScreen() {
         {/* Concluir treino — final da lista (janela métricas do relógio), só atleta */}
         {isAthlete && assignedWorkout.status === 'Pendente' && (
           <View style={{ marginBottom: Math.max(insets.bottom, 24) + 30 }}>
-            <Animated.View style={{ transform: [{ scale: workoutInProgress ? pulseAnim : 1 }] }}>
+            <Animated.View style={{ transform: [{ scale: canCompleteWorkout ? pulseAnim : 1 }] }}>
               <TouchableOpacity
                 className="rounded-lg py-4 px-6"
                 style={{
@@ -1796,10 +1818,10 @@ export default function WorkoutDetailsScreen() {
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
                   elevation: 6,
-                  opacity: workoutInProgress ? 1 : 0.55,
+                  opacity: canCompleteWorkout ? 1 : 0.55,
                 }}
                 onPress={handleMarkAsCompleted}
-                disabled={!workoutInProgress}
+                disabled={!canCompleteWorkout}
               >
                 <Text className="font-semibold text-center text-lg" style={{ color: '#ffffff' }}>
                   {t('workoutDetails.markAsCompleted')}
@@ -1866,8 +1888,8 @@ export default function WorkoutDetailsScreen() {
               transparent={true}
               animationType="slide"
               statusBarTranslucent
-              navigationBarTranslucent
               presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
+              onShow={fixAndroidNavigationBarOnModal}
               onRequestClose={closeExerciseModal}
             >
               <KeyboardAvoidingView
@@ -2434,8 +2456,8 @@ export default function WorkoutDetailsScreen() {
           transparent={true}
           animationType="fade"
           statusBarTranslucent
-          navigationBarTranslucent
           presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
+          onShow={fixAndroidNavigationBarOnModal}
           onRequestClose={() => setShowFeedbackModal(false)}
         >
           <View className="flex-1 bg-black/50 justify-center items-center p-6">

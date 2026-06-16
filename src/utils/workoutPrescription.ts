@@ -10,6 +10,21 @@ export const PRESCRIPTION_LABELS: Record<NonNullable<WorkoutExercise['prescripti
   free: 'Livre',
 };
 
+const PRESCRIPTION_I18N_KEYS: Record<NonNullable<WorkoutExercise['prescriptionType']>, string> = {
+  strength: 'prescription.typeStrength',
+  timed: 'prescription.typeTimed',
+  interval: 'prescription.typeInterval',
+  circuit: 'prescription.typeCircuit',
+  free: 'prescription.typeFree',
+};
+
+export function getPrescriptionTypeLabel(
+  t: (key: string) => string,
+  type: NonNullable<WorkoutExercise['prescriptionType']>,
+): string {
+  return t(PRESCRIPTION_I18N_KEYS[type]);
+}
+
 export function inferPrescriptionType(exercise: WorkoutExercise): NonNullable<WorkoutExercise['prescriptionType']> {
   if (exercise.prescriptionType) return exercise.prescriptionType;
   if (exercise.intervalProtocol?.length) return 'interval';

@@ -9,12 +9,17 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { getPrivacyUrlByLanguage, getTermsUrlByLanguage } from '@/src/constants/legalUrls';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useCanUseHealthForAthlete } from '@/src/hooks/useCanUseHealthForAthlete';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { syncCoachPublicProfileToAthletes } from '@/src/services/athletes.service';
 import { db } from '@/src/services/firebase.config';
 import { UserType, type Coach } from '@/src/types';
 import { generateCoachInviteCode } from '@/src/utils/coachInviteCode';
+import {
+  getPasswordStrengthIssue,
+  getPasswordStrengthTranslationKey,
+} from '@/src/utils/passwordValidation';
 import { getThemeStyles } from '@/src/utils/themeStyles';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -50,6 +55,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signOut, loading, changePassword, deleteAccount, updateProfilePhoto, updateDisplayName } = useAuthContext();
+  const { allowed: canUseHealth } = useCanUseHealthForAthlete();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
   const isDark = theme.mode === 'dark';
@@ -178,8 +184,9 @@ export default function ProfileScreen() {
       Alert.alert(t('profile.passwordsMismatch'), t('profile.passwordsMismatchMsg'));
       return;
     }
-    if (newPwd.length < 6) {
-      Alert.alert(t('profile.passwordShort'), t('profile.passwordShortMsg'));
+    const passwordIssue = getPasswordStrengthIssue(newPwd);
+    if (passwordIssue) {
+      Alert.alert(t('profile.passwordShort'), t(getPasswordStrengthTranslationKey(passwordIssue)));
       return;
     }
     setPwdBusy(true);
@@ -456,7 +463,7 @@ export default function ProfileScreen() {
 
         {!isCoach && <AthleteCoachLinkPanel />}
 
-        {!isCoach && (
+        {!isCoach && canUseHealth && (
           <View className="mb-6">
             <Text className="text-sm font-medium mb-3" style={themeStyles.textSecondary}>
               {t('profile.healthSection')}
@@ -906,7 +913,7 @@ export default function ProfileScreen() {
               {t('profile.newPassword')}
             </Text>
             <TextInput
-              className="w-full rounded-xl px-4 py-3 mb-3 text-base"
+              className="w-full rounded-xl px-4 py-3 mb-1 text-base"
               style={inputStyle}
               secureTextEntry
               value={newPwd}
@@ -914,6 +921,9 @@ export default function ProfileScreen() {
               placeholder={t('profile.newPasswordPlaceholder')}
               placeholderTextColor={theme.colors.textTertiary}
             />
+            <Text className="text-xs mb-3 leading-4" style={themeStyles.textTertiary}>
+              {t('profile.passwordStrengthHint')}
+            </Text>
             <Text className="text-sm mb-2" style={themeStyles.textSecondary}>
               {t('profile.confirmNewPassword')}
             </Text>

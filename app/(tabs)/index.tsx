@@ -5,11 +5,13 @@
  * Vamos explicar TUDO linha por linha!
  */
 
+import { AthleteHealthTrendCard } from '@/components/AthleteHealthTrendCard';
 import { AthleteHomeIdentity } from '@/components/AthleteHomeIdentity';
 import { EmptyState } from '@/components/EmptyState';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useToastContext } from '@/components/ToastProvider';
 import { useAuthContext } from '@/src/contexts/AuthContext';
+import { useCanUseHealthForAthlete } from '@/src/hooks/useCanUseHealthForAthlete';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { listAssignedWorkoutsByAthleteId, listAssignedWorkoutsByCoachId } from '@/src/services/assignedWorkouts.service';
 import { auth, db } from '@/src/services/firebase.config';
@@ -126,6 +128,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useAuthContext();
+  const { allowed: canUseHealth } = useCanUseHealthForAthlete();
   const { showToast } = useToastContext();
   const { theme } = useTheme();
   const themeStyles = getThemeStyles(theme.colors);
@@ -394,21 +397,45 @@ export default function HomeScreen() {
     loadAthleteCoachCard();
   }, [loadAthleteCoachCard]);
 
+  useEffect(() => {
+    if (user?.userType !== UserType.ATHLETE || !user.id) return;
+    if (currentAthleteId === user.id) return;
+    setCurrentAthleteId(user.id);
+    void AsyncStorage.setItem('currentAthleteId', user.id);
+  }, [user?.id, user?.userType, currentAthleteId]);
+
   // Carregar histórico de peso do atleta
   const loadWeightHistory = useCallback(async () => {
-    if (userType !== UserType.ATHLETE || !currentAthleteId) return;
+    if (userType !== UserType.ATHLETE) return;
+
+    const athleteIds = Array.from(
+      new Set([currentAthleteId, user?.id].filter(Boolean) as string[]),
+    );
+    if (athleteIds.length === 0) return;
     
     try {
       const { listExerciseWeightHistoryByAthlete } = await import('@/src/services/exerciseWeightHistory.service');
-      let athleteHistory = await listExerciseWeightHistoryByAthlete(currentAthleteId);
+      let athleteHistory: any[] = [];
+      for (const athleteId of athleteIds) {
+        const records = await listExerciseWeightHistoryByAthlete(athleteId);
+        athleteHistory = athleteHistory.concat(records);
+      }
+
       if (athleteHistory.length === 0) {
-        // Compatibilidade com histórico legado salvo localmente.
         const weightHistoryJson = await AsyncStorage.getItem('exercise_weight_history');
         const allHistory = weightHistoryJson ? JSON.parse(weightHistoryJson) : [];
-        athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter(
-          (r: any) => r.athleteId === currentAthleteId
+        athleteHistory = (Array.isArray(allHistory) ? allHistory : []).filter((r: any) =>
+          athleteIds.includes(r.athleteId),
         );
       }
+
+      const deduped = new Map<string, any>();
+      athleteHistory.forEach((record: any) => {
+        const key = record.id ?? `${record.exerciseId}_${record.date}_${record.weight}`;
+        deduped.set(key, record);
+      });
+      athleteHistory = Array.from(deduped.values());
+
       if (athleteHistory.length === 0) {
         setWeightHistory([]);
         setAvailableExercises([]);
@@ -416,7 +443,6 @@ export default function HomeScreen() {
         return;
       }
       
-      // Agrupar por exercício para criar lista de exercícios disponíveis
       const exercisesMap = new Map<string, string>();
       athleteHistory.forEach((record: any) => {
         if (record.exerciseId && record.exerciseName) {
@@ -431,15 +457,18 @@ export default function HomeScreen() {
       
       setAvailableExercises(exercises);
       
-      // Se há exercícios e nenhum selecionado, selecionar o primeiro
-      if (exercises.length > 0 && !selectedExercise) {
-        setSelectedExercise(exercises[0].id);
+      const activeExerciseId =
+        selectedExercise && exercises.some((e) => e.id === selectedExercise)
+          ? selectedExercise
+          : exercises[0]?.id ?? null;
+
+      if (activeExerciseId && activeExerciseId !== selectedExercise) {
+        setSelectedExercise(activeExerciseId);
       }
-      
-      // Filtrar histórico pelo exercício selecionado
-      if (selectedExercise) {
+
+      if (activeExerciseId) {
         const filtered = athleteHistory
-          .filter((r: any) => r.exerciseId === selectedExercise)
+          .filter((r: any) => r.exerciseId === activeExerciseId)
           .sort((a: any, b: any) => parseFlexibleDateMs(a.date) - parseFlexibleDateMs(b.date));
         setWeightHistory(filtered);
       } else {
@@ -448,14 +477,15 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Erro ao carregar histórico de peso:', error);
     }
-  }, [userType, currentAthleteId, selectedExercise]);
+  }, [userType, currentAthleteId, user?.id, selectedExercise]);
 
-  // Carregar histórico quando necessário
-  useEffect(() => {
-    if (userType === UserType.ATHLETE && currentAthleteId) {
-      loadWeightHistory();
-    }
-  }, [userType, currentAthleteId, selectedExercise, loadWeightHistory]); // Mantém vazio, mas vamos usar useFocusEffect também
+  useFocusEffect(
+    useCallback(() => {
+      if (userType === UserType.ATHLETE && (currentAthleteId || user?.id)) {
+        void loadWeightHistory();
+      }
+    }, [userType, currentAthleteId, user?.id, loadWeightHistory]),
+  );
 
   const todayWorkouts = useMemo(
     () => workouts.filter((w) => w.isToday && w.status === 'Pendente'),
@@ -1210,7 +1240,7 @@ export default function HomeScreen() {
 
     let athleteId: string | null = null;
     if (savedType === UserType.ATHLETE) {
-      athleteId = await AsyncStorage.getItem('currentAthleteId');
+      athleteId = (await AsyncStorage.getItem('currentAthleteId')) ?? user?.id ?? null;
       if (athleteId) setCurrentAthleteId(athleteId);
     }
 
@@ -2268,40 +2298,9 @@ export default function HomeScreen() {
       ) : userType === UserType.ATHLETE ? (
         //Dashboard do Atleta - Tema Escuro Estilo Zeus (Profissional)
         <View className="w-full mt-3" style={{ paddingTop: 20 }}>
-          <AthleteHomeIdentity />
-          {/* Saudação Personalizada */}
           {currentAthleteId && (
-            <View className="mb-6" style={{ marginTop: 8 }}>
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1 pr-2">
-                  <Text
-                    className="text-2xl font-bold mb-2"
-                    style={themeStyles.text}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
-                  >
-                    {t('home.greeting', {
-                      name:
-                        userType === UserType.ATHLETE
-                          ? user?.displayName || user?.email || t('common.athlete')
-                          : getAthletesFromWorkouts().find((a) => a.id === currentAthleteId)?.name || t('common.athlete'),
-                    })}
-                  </Text>
-                  <Text className="text-base" style={themeStyles.textSecondary}>
-                    {t('home.athleteProgressSubtitle')}
-                  </Text>
-                </View>
-                <Image
-                  source={require('../../assets/images/Coach-emNovo03.png')}
-                  style={{
-                    width: Platform.OS === 'ios' ? 170 : 180,
-                    height: Platform.OS === 'ios' ? 68 : 72,
-                    marginTop: Platform.OS === 'ios' ? -8 : -15,
-                  }}
-                  resizeMode="contain"
-                />
-              </View>
+            <View className="mb-6">
+              <AthleteHomeIdentity />
             </View>
           )}
 
@@ -2512,20 +2511,21 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Gráfico de Evolução de Peso/Carga */}
-          {availableExercises.length > 0 && (
-            <View className="w-full mb-6">
-              <View className="flex-row items-center mb-4">
-                <Image
-                  source={require('../../assets/images/AtletaProfileEProgress2.png')}
-                  style={{ width: 42, height: 42, marginRight: 10 }}
-                  resizeMode="contain"
-                />
-                <Text className="text-xl font-bold" style={themeStyles.text}>
-                  {t('home.weightProgress')}
-                </Text>
-              </View>
+          {/* Gráfico de Evolução de Peso/Carga — todos os atletas */}
+          <View className="w-full mb-6">
+            <View className="flex-row items-center mb-4">
+              <Image
+                source={require('../../assets/images/AtletaProfileEProgress2.png')}
+                style={{ width: 42, height: 42, marginRight: 10 }}
+                resizeMode="contain"
+              />
+              <Text className="text-xl font-bold" style={themeStyles.text}>
+                {t('home.weightProgress')}
+              </Text>
+            </View>
               
+            {availableExercises.length > 0 ? (
+              <>
               {/* Seletor de Exercício */}
               <View className="mb-4">
                 <Text className="text-sm mb-2" style={themeStyles.textSecondary}>{t('home.selectExercise')}</Text>
@@ -2643,19 +2643,19 @@ export default function HomeScreen() {
                     <View className="mt-4 pt-4" style={{ borderTopColor: theme.colors.border, borderTopWidth: 1 }}>
                       <View className="flex-row justify-between">
                         <View>
-                          <Text className="text-xs" style={themeStyles.textSecondary}>Primeiro registro</Text>
+                          <Text className="text-xs" style={themeStyles.textSecondary}>{t('home.firstRecord')}</Text>
                           <Text className="font-semibold" style={themeStyles.text}>
                             {weightHistory[0]?.weight} kg
                           </Text>
                         </View>
                         <View>
-                          <Text className="text-xs" style={themeStyles.textSecondary}>Último registro</Text>
+                          <Text className="text-xs" style={themeStyles.textSecondary}>{t('home.lastRecord')}</Text>
                           <Text className="font-semibold" style={themeStyles.text}>
                             {weightHistory[weightHistory.length - 1]?.weight} kg
                           </Text>
                         </View>
                         <View>
-                          <Text className="text-xs" style={themeStyles.textSecondary}>Evolução</Text>
+                          <Text className="text-xs" style={themeStyles.textSecondary}>{t('home.evolution')}</Text>
                           <Text className="font-semibold" style={{
                             color: weightHistory[weightHistory.length - 1]?.weight > weightHistory[0]?.weight
                               ? '#10b981'
@@ -2677,8 +2677,27 @@ export default function HomeScreen() {
                   message={t('home.noWeightLogs')}
                 />
               )}
+              </>
+            ) : (
+              <EmptyState
+                icon="line-chart"
+                message={t('athleteProfile.completeWorkoutsWeightHint')}
+              />
+            )}
+          </View>
+
+          {canUseHealth && (currentAthleteId || user?.id) ? (
+            <View className="w-full mb-6">
+              <AthleteHealthTrendCard
+                coachId={
+                  isSoloAthlete(user)
+                    ? (user?.id ?? currentAthleteId ?? '')
+                    : (typeof user?.coachId === 'string' ? user.coachId : currentAthleteId ?? user?.id ?? '')
+                }
+                athleteId={currentAthleteId ?? user?.id ?? ''}
+              />
             </View>
-          )}
+          ) : null}
 
           <View className="mb-6">
             <View className="flex-row items-center mb-3">
@@ -2688,26 +2707,26 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <Text className="text-xl font-bold" style={themeStyles.text}>
-                Seu Intervalado
+                {t('home.yourIntervalTraining')}
               </Text>
             </View>
             <View className="flex-row gap-3 mb-3">
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.completedCount}</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Sessões</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.sessions')}</Text>
               </View>
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.totalMinutes}</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Minutos</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.minutesShort')}</Text>
               </View>
               <View className="flex-1 rounded-xl p-3 border items-center" style={themeStyles.card}>
                 <Text className="text-2xl font-bold" style={themeStyles.text}>{athleteIntervalStats.completionRate}%</Text>
-                <Text className="text-xs text-center" style={themeStyles.textSecondary}>Aderência</Text>
+                <Text className="text-xs text-center" style={themeStyles.textSecondary}>{t('home.adherence')}</Text>
               </View>
             </View>
             {athleteIntervalStats.averageFeedback ? (
               <Text className="text-xs mb-3" style={themeStyles.textSecondary}>
-                Dificuldade média (feedback): {athleteIntervalStats.averageFeedback}/5
+                {t('home.averageDifficultyFeedback', { value: athleteIntervalStats.averageFeedback })}
               </Text>
             ) : null}
             {athleteIntervalStats.weeklyMinutes.length > 0 ? (
@@ -2724,7 +2743,7 @@ export default function HomeScreen() {
                 }}
               >
                 <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-sm font-semibold" style={themeStyles.text}>Volume semanal (minutos)</Text>
+                  <Text className="text-sm font-semibold" style={themeStyles.text}>{t('home.weeklyVolumeMinutes')}</Text>
                   <View
                     className="px-2 py-1 rounded-full border"
                     style={{
@@ -2732,7 +2751,7 @@ export default function HomeScreen() {
                       backgroundColor: theme.mode === 'dark' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(244, 63, 94, 0.08)',
                     }}
                   >
-                    <Text className="text-[10px] font-semibold" style={{ color: '#f43f5e' }}>INTERVALADO</Text>
+                    <Text className="text-[10px] font-semibold" style={{ color: '#f43f5e' }}>{t('home.intervalBadge')}</Text>
                   </View>
                 </View>
                 <BarChart

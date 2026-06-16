@@ -4,7 +4,7 @@ import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700
 import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
 import { useFonts } from 'expo-font';
-import * as NavigationBar from 'expo-navigation-bar';
+import { applyAndroidNavigationBar } from '@/src/utils/androidNavigationBar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -221,26 +221,13 @@ const styles = StyleSheet.create({
 function RootLayoutNavContent() {
   const { theme } = useTheme();
   
-  // Configurar barra de navegação do sistema Android para escuro
-  // NOTA: setBackgroundColorAsync não funciona com edgeToEdgeEnabled=true no app.json
-  // A configuração da barra é feita via app.json (navigationBar)
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      const configureNavigationBar = async () => {
-        try {
-          // Configurar cor dos ícones da barra (claro no modo escuro, escuro no modo claro)
-          await NavigationBar.setButtonStyleAsync(theme.mode === 'dark' ? 'light' : 'dark');
-          // Garantir que a barra seja sempre visível
-          await NavigationBar.setVisibilityAsync('visible');
-          // NOTA: setBackgroundColorAsync não é suportado com edgeToEdgeEnabled
-          // A cor de fundo é configurada via app.json > android > navigationBar > backgroundColor
-        } catch (error) {
-          console.error('Erro ao configurar barra de navegação:', error);
-        }
-      };
-      configureNavigationBar();
-    }
-  }, [theme.mode]);
+    if (Platform.OS !== 'android') return;
+    void applyAndroidNavigationBar({
+      backgroundColor: theme.colors.background,
+      buttonStyle: theme.mode === 'dark' ? 'light' : 'dark',
+    });
+  }, [theme.mode, theme.colors.background]);
   
   // Custom theme para React Navigation baseado no tema atual
   const navigationTheme = {

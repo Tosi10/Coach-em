@@ -8,6 +8,7 @@ exports.registerAthleteSelf = exports.validateCoachInviteCode = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+const passwordValidation_1 = require("./passwordValidation");
 const db = admin.firestore();
 const auth = admin.auth();
 const RATE_LIMIT_COLLECTION = "_treinaRateLimits";
@@ -100,8 +101,12 @@ exports.registerAthleteSelf = (0, https_1.onCall)({ region: "us-central1" }, asy
     if (!email || !email.includes("@")) {
         throw new https_1.HttpsError("invalid-argument", "Email inválido.");
     }
-    if (!password || password.length < 6) {
-        throw new https_1.HttpsError("invalid-argument", "A senha deve ter no mínimo 6 caracteres.");
+    if (!password) {
+        throw new https_1.HttpsError("invalid-argument", "Senha é obrigatória.");
+    }
+    const passwordError = (0, passwordValidation_1.getPasswordStrengthErrorMessage)(password);
+    if (passwordError) {
+        throw new https_1.HttpsError("invalid-argument", passwordError);
     }
     if (!displayName) {
         throw new https_1.HttpsError("invalid-argument", "Nome é obrigatório.");

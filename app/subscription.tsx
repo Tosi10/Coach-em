@@ -52,6 +52,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type CoachAlertType = 'success' | 'error' | 'info' | 'warning';
 type ProPlanOption = 'monthly' | 'annual';
 
+const SHOW_SUBSCRIPTION_DEBUG = __DEV__;
+
 function formatRevenueCatDiagLine(
   diag: Awaited<ReturnType<typeof collectRevenueCatDiagnostics>>
 ): string {
@@ -230,14 +232,15 @@ export default function SubscriptionScreen() {
     const rcOk = await ensureRevenueCatConfigured();
     const hint = getRevenueCatConfigurationError();
     if (!rcOk) {
-      const body =
-        hint === 'missing_api_key'
+      const body = SHOW_SUBSCRIPTION_DEBUG
+        ? hint === 'missing_api_key'
           ? Platform.OS === 'android'
             ? t('subscription.configAndroid')
             : t('subscription.configIos')
           : hint
             ? `${t('subscription.configRcDetail')}\n\n${hint}`
-            : t('subscription.configRcUnknown');
+            : t('subscription.configRcUnknown')
+        : t('subscription.configUserFriendly');
       showCoachAlert(t('subscription.configTitle'), body, 'warning');
       setConfigured(false);
       setRcConfigError(hint);
@@ -301,14 +304,15 @@ export default function SubscriptionScreen() {
     const rcOk = await ensureRevenueCatConfigured();
     if (!rcOk) {
       const hint = getRevenueCatConfigurationError();
-      const body =
-        hint === 'missing_api_key'
+      const body = SHOW_SUBSCRIPTION_DEBUG
+        ? hint === 'missing_api_key'
           ? Platform.OS === 'android'
             ? t('subscription.configAndroid')
             : t('subscription.configIos')
           : hint
             ? `${t('subscription.configRcDetail')}\n\n${hint}`
-            : t('subscription.configRcUnknown');
+            : t('subscription.configRcUnknown')
+        : t('subscription.configUserFriendly');
       showCoachAlert(t('subscription.configTitle'), body, 'warning');
       setConfigured(false);
       setRcConfigError(hint);
@@ -413,7 +417,7 @@ export default function SubscriptionScreen() {
             <>
               <View className="rounded-2xl p-5 mb-4 border" style={[themeStyles.card, { borderWidth: 1 }]}>
                 <Text className="text-sm font-semibold mb-2" style={themeStyles.textSecondary}>
-                  {t('subscription.firebaseState')}
+                  {t('subscription.currentPlan')}
                 </Text>
                 <Text className="text-lg font-bold" style={themeStyles.text}>
                   {tier === 'pro' ? t('subscription.pro') : t('subscription.free')}
@@ -439,26 +443,34 @@ export default function SubscriptionScreen() {
                 )}
               </View>
 
-              <View className="rounded-2xl p-5 mb-4 border" style={[themeStyles.card, { borderWidth: 1 }]}>
-                <Text className="text-sm font-semibold mb-2" style={themeStyles.textSecondary}>
-                  {t('subscription.storeSection')}
-                </Text>
-                <Text className="text-base font-semibold" style={themeStyles.text}>
-                  {storePro ? t('subscription.storeProYes') : t('subscription.storeProNo')}
-                </Text>
-                {!configured && (
-                  <>
-                    <Text className="text-xs mt-2" style={themeStyles.textTertiary}>
-                      {t('subscription.rcNotConfigured')}
-                    </Text>
-                    {rcConfigError ? (
-                      <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
-                        RC: {rcConfigError}
+              {SHOW_SUBSCRIPTION_DEBUG && (
+                <View className="rounded-2xl p-5 mb-4 border" style={[themeStyles.card, { borderWidth: 1 }]}>
+                  <Text className="text-sm font-semibold mb-2" style={themeStyles.textSecondary}>
+                    {t('subscription.firebaseState')}
+                  </Text>
+                  <Text className="text-base font-semibold mb-4" style={themeStyles.text}>
+                    {tier === 'pro' ? t('subscription.pro') : t('subscription.free')}
+                  </Text>
+                  <Text className="text-sm font-semibold mb-2" style={themeStyles.textSecondary}>
+                    {t('subscription.storeSection')}
+                  </Text>
+                  <Text className="text-base font-semibold" style={themeStyles.text}>
+                    {storePro ? t('subscription.storeProYes') : t('subscription.storeProNo')}
+                  </Text>
+                  {!configured && (
+                    <>
+                      <Text className="text-xs mt-2" style={themeStyles.textTertiary}>
+                        {t('subscription.rcNotConfigured')}
                       </Text>
-                    ) : null}
-                  </>
-                )}
-              </View>
+                      {rcConfigError ? (
+                        <Text className="text-xs mt-1" style={themeStyles.textTertiary}>
+                          RC: {rcConfigError}
+                        </Text>
+                      ) : null}
+                    </>
+                  )}
+                </View>
+              )}
 
               {tier === 'pro' && (
                 <TouchableOpacity
@@ -604,12 +616,15 @@ export default function SubscriptionScreen() {
                   {!monthlyPackage && !annualPackage && configured && (
                     <>
                       <Text className="text-xs mb-2 text-center" style={themeStyles.textTertiary}>
-                        {t('subscription.offeringMissing')}
+                        {SHOW_SUBSCRIPTION_DEBUG
+                          ? t('subscription.offeringMissing')
+                          : t('subscription.offeringMissingUser')}
                       </Text>
-                      <Text className="text-[11px] mb-3 text-center leading-4" style={themeStyles.textTertiary}>
-                        RC DIAG:{' '}
-                        {rcDiagLine ?? t('subscription.rcDiagPending')}
-                      </Text>
+                      {SHOW_SUBSCRIPTION_DEBUG && (
+                        <Text className="text-[11px] mb-3 text-center leading-4" style={themeStyles.textTertiary}>
+                          RC DIAG: {rcDiagLine ?? t('subscription.rcDiagPending')}
+                        </Text>
+                      )}
                     </>
                   )}
                 </>
