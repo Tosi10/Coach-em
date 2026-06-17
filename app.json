@@ -15,8 +15,8 @@
     },
     "ios": {
       "bundleIdentifier": "com.vision10.coachem",
-      "buildNumber": "1.0.25",
-      "icon": "./assets/images/Icone-Coachem-1024.png",
+      "buildNumber": "1.0.26",
+      "icon": "./assets/images/icone-1024-preto.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "splash": {

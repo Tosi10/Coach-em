@@ -294,12 +294,26 @@ export default function WorkoutDetailsScreen() {
   
   // Estados para modal de exercício e navegação
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [isExerciseKeyboardVisible, setIsExerciseKeyboardVisible] = useState(false);
   const showExerciseModalRef = useRef(false);
   const exerciseModalNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     showExerciseModalRef.current = showExerciseModal;
   }, [showExerciseModal]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsExerciseKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsExerciseKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const insets = useSafeAreaInsets();
   useAndroidNavigationBarSync(showExerciseModal || showFeedbackModal);
 
@@ -1895,17 +1909,17 @@ export default function WorkoutDetailsScreen() {
               <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? Math.max(insets.top, 8) : 0}
+                keyboardVerticalOffset={0}
               >
               <View
                 style={{
                   flex: 1,
                   backgroundColor: 'rgba(0,0,0,0.82)',
-                  justifyContent: 'center',
+                  justifyContent: isExerciseKeyboardVisible ? 'flex-end' : 'center',
                   alignItems: 'center',
                   paddingHorizontal: 12,
                   paddingTop: Math.max(insets.top, 8),
-                  paddingBottom: Math.max(insets.bottom, 12),
+                  paddingBottom: isExerciseKeyboardVisible ? 8 : Math.max(insets.bottom, 12),
                 }}
               >
                 <View
