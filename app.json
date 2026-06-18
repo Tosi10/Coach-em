@@ -43,14 +43,7 @@
         "barStyle": "light-content"
       },
       "edgeToEdgeEnabled": false,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
-        "android.permission.health.READ_DISTANCE",
-        "android.permission.health.READ_STEPS",
-        "android.permission.health.READ_EXERCISE"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
@@ -104,7 +97,6 @@
           "healthUpdatePermission": "O Coach'em pode registar treinos concluídos no app Saúde para manter o seu histórico unificado. A gravação é opcional."
         }
       ],
-      "expo-health-connect",
       "./node_modules/@react-native-firebase/app/app.plugin.js",
       "./node_modules/@react-native-firebase/app-check/app.plugin.js",
       [
