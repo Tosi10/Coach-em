@@ -4,7 +4,7 @@
     "slug": "coachemapp",
     "version": "1.3",
     "orientation": "portrait",
-    "icon": "./assets/images/Icone-Coachem-512.png",
+    "icon": "./assets/images/icone-play-store-512.png",
     "scheme": "coachemapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -35,7 +35,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icone-redondo2.png",
+        "foregroundImage": "./assets/images/icone-android-adaptive.png",
         "backgroundColor": "#0a0a0a"
       },
       "navigationBar": {
